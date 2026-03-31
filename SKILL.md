@@ -1,52 +1,41 @@
 ---
-name: last30days
-version: "2.9.6"
-description: "Deep research engine covering the last 30 days across 10+ sources - Reddit, X/Twitter, YouTube, TikTok, Instagram, Hacker News, Polymarket, and the web. AI synthesizes findings into grounded, cited reports."
-argument-hint: 'last30 AI video tools, last30 best project management tools'
+name: last30days-cn
+version: "1.0.0"
+description: "中国平台深度研究引擎 - 覆盖微博、小红书、B站、知乎、抖音、微信公众号、百度搜索、今日头条等8大平台，AI综合分析生成有据可查的研究报告。"
+argument-hint: 'last30 AI视频工具, last30 最佳项目管理工具'
 allowed-tools: Bash, Read, Write, AskUserQuestion, WebSearch
-homepage: https://github.com/mvanhorn/last30days-skill
-repository: https://github.com/mvanhorn/last30days-skill
-author: mvanhorn
+agent-compatibility: "本技能可在 Cursor、Claude Code、OpenClaw、Gemini CLI 及任何提供 Bash、Read、Write、AskUserQuestion、WebSearch 工具的 Agent 环境中使用；业务路径统一使用 {{SKILL_DIR}} 占位符，由各平台解析为实际技能目录。"
+author: Jesse
 license: MIT
 user-invocable: true
 metadata:
   openclaw:
     emoji: "📰"
     requires:
-      env:
-        - SCRAPECREATORS_API_KEY
       optionalEnv:
-        - OPENAI_API_KEY
-        - XAI_API_KEY
-        - OPENROUTER_API_KEY
-        - PARALLEL_API_KEY
-        - BRAVE_API_KEY
-        - APIFY_API_TOKEN
-        - AUTH_TOKEN
-        - CT0
-        - BSKY_HANDLE
-        - BSKY_APP_PASSWORD
-        - TRUTHSOCIAL_TOKEN
+        - WEIBO_ACCESS_TOKEN
+        - SCRAPECREATORS_API_KEY
+        - ZHIHU_COOKIE
+        - TIKHUB_API_KEY
+        - WECHAT_API_KEY
+        - BAIDU_API_KEY
+        - BAIDU_SECRET_KEY
+        - TOUTIAO_API_KEY
       bins:
-        - node
         - python3
-    primaryEnv: SCRAPECREATORS_API_KEY
     files:
       - "scripts/*"
-    homepage: https://github.com/mvanhorn/last30days-skill
     tags:
       - research
       - deep-research
-      - reddit
-      - x
-      - twitter
-      - youtube
-      - tiktok
-      - instagram
-      - hackernews
-      - polymarket
-      - bluesky
-      - truthsocial
+      - weibo
+      - xiaohongshu
+      - bilibili
+      - zhihu
+      - douyin
+      - wechat
+      - baidu
+      - toutiao
       - trends
       - recency
       - news
@@ -54,828 +43,140 @@ metadata:
       - multi-source
       - social-media
       - analysis
-      - web-search
+      - chinese-platforms
       - ai-skill
-      - clawhub
 ---
 
-# last30days v2.9.5: Research Any Topic from the Last 30 Days
+# last30days-cn - 中国平台深度研究引擎
 
-> **Permissions overview:** Reads public web/platform data and optionally saves research briefings to `~/Documents/Last30Days/`. X/Twitter search uses optional user-provided tokens (AUTH_TOKEN/CT0 env vars). Bluesky search uses optional app password (BSKY_HANDLE/BSKY_APP_PASSWORD env vars - create at bsky.app/settings/app-passwords). All credential usage and data writes are documented in the [Security & Permissions](#security--permissions) section.
+## 系统指令
 
-Research ANY topic across Reddit, X, YouTube, and other sources. Surface what people are actually discussing, recommending, betting on, and debating right now.
+你是一个深度研究助手，可运行于任何支持 Bash/Read/Write 工具的 AI Agent 平台（如 Cursor、Claude Code、OpenClaw、Gemini CLI 等）。你专注于搜索中国互联网平台上最近30天的内容，并生成综合性研究报告。
 
-## Step 0: First-Run Setup Wizard
+## Agent 平台兼容性
 
-**CRITICAL: ALWAYS execute Step 0 BEFORE Step 1, even if the user provided a topic.** If the user typed `/last30days Mercer Island`, you MUST check for FIRST_RUN and present the wizard BEFORE running research. The topic "Mercer Island" is preserved — research runs immediately after the wizard completes. Do NOT skip the wizard because a topic was provided. The wizard takes 10 seconds and only runs once ever.
+- Cursor：作为 Cursor Skill 安装
+- Claude Code：安装到 ~/.claude/skills/last30days-cn
+- OpenClaw / ClawHub：安装到 ~/.agents/skills/last30days-cn
+- Gemini CLI：作为 Gemini 扩展安装
+- 通用：任何支持 Bash 工具的 Agent 平台
 
-To detect first run: check if `~/.config/last30days/.env` exists. If it does NOT exist, this is a first run. **Do NOT run any Bash commands or show any command output to detect this — just check the file existence silently.** If the file exists and contains `SETUP_COMPLETE=true`, skip this section and proceed to Step 1.
+## 用户意图识别
 
-**When first run is detected, you MUST follow these steps IN ORDER. Do NOT skip ahead to the topic picker or research. The sequence is: (1) welcome text → (2) setup modal → (3) run setup if chosen → (4) ScrapeCreators modal → (5) topic picker. You MUST start at step 1.**
+当用户的请求包含以下关键词时，触发此技能：
+- "last30"、"最近30天"、"近期"
+- "搜索"、"研究"、"调研"
+- "热门话题"、"趋势"、"动态"
 
-**Step 1: Display the following welcome text ONCE as a normal message (not blockquoted). Then IMMEDIATELY call AskUserQuestion — do NOT repeat any of the welcome text inside the AskUserQuestion call.**
+## 首次运行向导
 
-👋 Welcome to /last30days!
-
-I research any topic across Reddit, X, YouTube, and other sources — synthesizing what people are actually saying right now.
-
-To get the best results, I can:
-🔍 **Scan your browser** for X/Twitter cookies (free X search — reads x.com only, never saved)
-📺 **Install yt-dlp** for YouTube search + transcripts (free, open source, 190K+ GitHub stars)
-⭐ **ScrapeCreators API key** unlocks Reddit comments + TikTok + Instagram (100 free to start — scrapecreators.com)
-
-We recommend all 3 before your first run — it's what makes the magic. More community sources available later. We get no kickbacks from any of these.
-
-**Then call AskUserQuestion with ONLY this question and these options — no additional text:**
-
-Question: "How would you like to set up?"
-Options:
-- "Auto setup (~30 seconds) — scans browser for X cookies (free X search) and installs yt-dlp (free YouTube transcripts)"
-- "Manual setup — show me what to configure"
-- "Skip for now — Reddit (threads only), HN, Polymarket, Web"
-
-**If the user picks 1 (Auto setup):**
-Run the setup subcommand:
-```bash
-cd {SKILL_DIR} && python3 scripts/last30days.py setup
-```
-Show the user the results (what cookies were found, whether yt-dlp was installed).
-
-**Then show the ScrapeCreators push (plain text, then modal):**
-
-⭐ One more thing — Reddit comments are some of the best content on the internet. The top-voted replies often have sharper insights than the posts themselves. ScrapeCreators unlocks these (plus TikTok + Instagram) — 100 free to start, no credit card.
-
-**Call AskUserQuestion:**
-Question: "Want to add Reddit comments to your research?"
-Options:
-- "Open scrapecreators.com to get my free key" — run `open https://scrapecreators.com` via Bash to open in the user's browser. Then ask them to paste the API key they get. When they paste it, write SCRAPECREATORS_API_KEY={key} to ~/.config/last30days/.env
-- "I have a key — let me paste it" — accept the key, write to .env
-- "Skip for now — start researching" — proceed without ScrapeCreators
-
-**After SC key is saved (not if skipped), show the TikTok/Instagram opt-in:**
-
-Your ScrapeCreators key also powers TikTok and Instagram search. Want those on for every research run? (Each additional source uses a ScrapeCreators call per search.)
-
-**Call AskUserQuestion:**
-Question: "Also search TikTok and Instagram?"
-Options:
-- "Yes, search everything — TikTok + Instagram on every run" — append `INCLUDE_SOURCES=tiktok,instagram` to ~/.config/last30days/.env. Confirm: "All set — Reddit comments, TikTok, and Instagram will run on every search."
-- "Just Reddit comments for now" — don't write the flag. Confirm: "Got it — Reddit comments are on. TikTok and Instagram will kick in automatically for relevant topics like product reviews and trends. Add INCLUDE_SOURCES=tiktok,instagram to your .env anytime to force them on."
-
-**After TikTok/Instagram opt-in (or SC skip), show the first research topic modal:**
-
-**Call AskUserQuestion:**
-Question: "What do you want to research first?"
-Options:
-- "Claude Code vs Codex" — tech comparison
-- "Sam Altman" — person in the news
-- "Warriors Basketball" — sports
-- "AI Legal Prompting Techniques" — niche/professional
-- "Type my own topic"
-
-If user picks an example, run research with that topic. If they pick "Type my own", ask them what they want to research. If the user originally provided a topic with the command (e.g., `/last30days Mercer Island`), skip this modal and use their topic directly.
-
-**END OF FIRST-RUN WIZARD. Everything above in Step 0 ONLY runs on first run. If SETUP_COMPLETE=true exists in .env, skip ALL of Step 0 — no welcome, no setup, no ScrapeCreators modal, no topic picker. Go directly to Step 1 (Parse User Intent). The topic picker is ONLY for first-time users who haven't run /last30days before.**
-
-**If the user picks 2 (Manual setup):**
-Show them this guide (present as plain text, not blockquoted):
-
-**The magic of /last30days is Reddit comments + X posts together.** Here's how to unlock each source.
-
-Add these to `~/.config/last30days/.env`:
-
-**🔍 X/Twitter** (pick one — this is the most important):
-- `FROM_BROWSER=auto` — easiest, free. Scans your browser cookies for x.com login.
-- `AUTH_TOKEN=xxx` + `CT0=xxx` — paste your X cookies manually (x.com → F12 → Application → Cookies)
-- `XAI_API_KEY=xxx` — use an xAI/Grok API key instead (api.x.ai)
-
-**⭐ Reddit Comments + TikTok + Instagram + YouTube backup** (one key, 5 platforms):
-- `SCRAPECREATORS_API_KEY=xxx` — 100 free to start at scrapecreators.com. This is the single most impactful key — Reddit comments are where the sharpest insights live.
-
-**💡 Reddit discovery fallback** (optional):
-- `OPENAI_API_KEY=xxx` — ChatGPT web search for Reddit threads. Only used if ScrapeCreators isn't configured — SC is better.
-
-**📺 YouTube** (primary engine):
-- Run `brew install yt-dlp` — free, open source. ScrapeCreators covers YouTube as backup if you skip this.
-
-**Bonus sources** (add anytime):
-- `EXA_API_KEY=xxx` — semantic web search, 1K free/month (exa.ai)
-- `BSKY_HANDLE=you.bsky.social` + `BSKY_APP_PASSWORD=xxx` — Bluesky (free app password)
-- `BRAVE_API_KEY=xxx` — Brave web search
-- `OPENROUTER_API_KEY=xxx` — Perplexity Sonar Pro search
-
-Always add this last line: `SETUP_COMPLETE=true`
-
-You can paste your API keys right here and I'll write the file for you. Some people say giving LLMs your keys is risky, others live in YOLO mode. Your call.
-
-**If the user pastes keys**, write them to `~/.config/last30days/.env` (create the file and parent dirs if needed, append without overwriting existing keys, always include `SETUP_COMPLETE=true`). Then proceed with research.
-
-**If the user says they'll do it themselves**, tell them: "Save the file, then run `/last30days <topic>` to research anything." Then proceed with research using whatever sources are currently available.
-
-**If the user picks Skip:**
-Proceed with research immediately using the user's original topic. Note: without setup, sources are limited to Reddit (threads only, no comments), HN, and Polymarket. X/Twitter and YouTube require setup.
-
----
-
-## Do I Need API Keys?
-
-When users ask about API keys, setup, or how to unlock more sources, reference this:
-
-**You do NOT need API keys to use last30days.** It works out of the box with Reddit (threads only, no comments), Hacker News, and Polymarket. Browser cookies for X/Twitter are equivalent to an API key — just log into x.com in any browser and last30days will find your session automatically.
-
-**Source unlock progression (all free except ScrapeCreators):**
-- **Zero config (40% quality):** Reddit (threads only, no comments), HN, Polymarket — works immediately
-- **+ X cookies (60%):** Log into x.com in any browser. last30days scans your cookies automatically. This is the same as having an API key — no signup required.
-- **+ yt-dlp (80%):** `brew install yt-dlp` — open source, 190K+ GitHub stars. Enables YouTube search and transcripts.
-- **+ ScrapeCreators (100%):** The only paid option worth mentioning. Unlocks Reddit with full comments (the most valuable research content), TikTok, and Instagram. 100 free API calls, no credit card — scrapecreators.com
-
-**Key comparison:** X browser cookies = same access as an API key (free, no signup). ScrapeCreators is the only service worth paying for (and the free tier is generous).
-
-last30days has no affiliation with any API provider — no referrals, no kickbacks.
-
----
-
-## CRITICAL: Parse User Intent
-
-Before doing anything, parse the user's input for:
-
-1. **TOPIC**: What they want to learn about (e.g., "web app mockups", "Claude Code skills", "image generation")
-2. **TARGET TOOL** (if specified): Where they'll use the prompts (e.g., "Nano Banana Pro", "ChatGPT", "Midjourney")
-3. **QUERY TYPE**: What kind of research they want:
-   - **PROMPTING** - "X prompts", "prompting for X", "X best practices" → User wants to learn techniques and get copy-paste prompts
-   - **RECOMMENDATIONS** - "best X", "top X", "what X should I use", "recommended X" → User wants a LIST of specific things
-   - **NEWS** - "what's happening with X", "X news", "latest on X" → User wants current events/updates
-   - **COMPARISON** - "X vs Y", "X versus Y", "compare X and Y", "X or Y which is better" → User wants a side-by-side comparison
-   - **GENERAL** - anything else → User wants broad understanding of the topic
-
-Common patterns:
-- `[topic] for [tool]` → "web mockups for Nano Banana Pro" → TOOL IS SPECIFIED
-- `[topic] prompts for [tool]` → "UI design prompts for Midjourney" → TOOL IS SPECIFIED
-- Just `[topic]` → "iOS design mockups" → TOOL NOT SPECIFIED, that's OK
-- "best [topic]" or "top [topic]" → QUERY_TYPE = RECOMMENDATIONS
-- "what are the best [topic]" → QUERY_TYPE = RECOMMENDATIONS
-- "X vs Y" or "X versus Y" → QUERY_TYPE = COMPARISON, TOPIC_A = X, TOPIC_B = Y (split on ` vs ` or ` versus ` with spaces)
-
-**IMPORTANT: Do NOT ask about target tool before research.**
-- If tool is specified in the query, use it
-- If tool is NOT specified, run research first, then ask AFTER showing results
-
-**Store these variables:**
-- `TOPIC = [extracted topic]`
-- `TARGET_TOOL = [extracted tool, or "unknown" if not specified]`
-- `QUERY_TYPE = [RECOMMENDATIONS | NEWS | HOW-TO | COMPARISON | GENERAL]`
-- `TOPIC_A = [first item]` (only if COMPARISON)
-- `TOPIC_B = [second item]` (only if COMPARISON)
-
-**DISPLAY your parsing to the user.** Before running any tools, output:
+如果脚本输出包含 `FIRST_RUN: true`，向用户展示配置向导：
 
 ```
-I'll research {TOPIC} across Reddit, X, YouTube, and other sources to find what's been discussed in the last 30 days.
+🎉 欢迎使用 last30days-cn！
 
-Parsed intent:
-- TOPIC = {TOPIC}
-- TARGET_TOOL = {TARGET_TOOL or "unknown"}
-- QUERY_TYPE = {QUERY_TYPE}
+📋 零配置即可使用 3 个免费数据源：
+   ✅ B站（公开 API）
+   ✅ 知乎（公开搜索）
+   ✅ 百度搜索（基础公开搜索）
 
-Research typically takes 2-8 minutes (niche topics take longer). Starting now.
+🔧 推荐配置以解锁更多数据源：
+   1. WEIBO_ACCESS_TOKEN - 微博搜索（强烈推荐）
+   2. TIKHUB_API_KEY - 抖音搜索
+   3. WECHAT_API_KEY - 微信公众号搜索
+   4. BAIDU_API_KEY + BAIDU_SECRET_KEY - 百度高级搜索
+
+配置文件位置: ~/.config/last30days-cn/.env
 ```
 
-If TARGET_TOOL is known, mention it in the intro: "...to find {QUERY_TYPE}-style content for use in {TARGET_TOOL}."
+## 执行研究
 
-This text MUST appear before you call any tools. It confirms to the user that you understood their request.
-
----
-
-## Step 0.5: Resolve X Handle (if topic could have an X account)
-
-If TOPIC looks like it could have its own X/Twitter account - **people, creators, brands, products, tools, companies, communities** (e.g., "Dor Brothers", "Jason Calacanis", "Nano Banana Pro", "Seedance", "Midjourney"), do ONE quick WebSearch:
-
-```
-WebSearch("{TOPIC} X twitter handle site:x.com")
-```
-
-From the results, extract their X/Twitter handle. Look for:
-- **Verified profile URLs** like `x.com/{handle}` or `twitter.com/{handle}`
-- Mentions like "@handle" in bios, articles, or social profiles
-- "Follow @handle on X" patterns
-
-**Verify the account is real, not a parody/fan account.** Check for:
-- Verified/blue checkmark in the search results
-- Official website linking to the X account
-- Consistent naming (e.g., @thedorbrothers for "The Dor Brothers", not @DorBrosFan)
-- If results only show fan/parody/news accounts (not the entity's own account), skip - the entity may not have an X presence
-
-If you find a clear, verified handle, pass it as `--x-handle={handle}` (without @). This searches that account's posts directly - finding content they posted that doesn't mention their own name.
-
-**Skip this step if:**
-- TOPIC is clearly a generic concept, not an entity (e.g., "best rap songs 2026", "how to use Docker", "AI ethics debate")
-- TOPIC already contains @ (user provided the handle directly)
-- Using `--quick` depth
-- WebSearch shows no official X account exists for this entity
-
-Store: `RESOLVED_HANDLE = {handle or empty}`
-
----
-
-## Agent Mode (--agent flag)
-
-If `--agent` appears in ARGUMENTS (e.g., `/last30days plaud granola --agent`):
-
-1. **Skip** the intro display block ("I'll research X across Reddit...")
-2. **Skip** any `AskUserQuestion` calls - use `TARGET_TOOL = "unknown"` if not specified
-3. **Run** the research script and WebSearch exactly as normal
-4. **Skip** the "WAIT FOR USER RESPONSE" pause
-5. **Skip** the follow-up invitation ("I'm now an expert on X...")
-6. **Output** the complete research report and stop - do not wait for further input
-
-Agent mode saves raw research data to `~/Documents/Last30Days/` automatically via `--save-dir` (handled by the script, no extra tool calls).
-
-Agent mode report format:
-
-```
-## Research Report: {TOPIC}
-Generated: {date} | Sources: Reddit, X, Bluesky, YouTube, TikTok, HN, Polymarket, Web
-
-### Key Findings
-[3-5 bullet points, highest-signal insights with citations]
-
-### What I learned
-{The full "What I learned" synthesis from normal output}
-
-### Stats
-{The standard stats block}
-```
-
----
-
-## If QUERY_TYPE = COMPARISON
-
-When the user asks "X vs Y", run THREE research passes in parallel:
-
-**Pass 1 + 2 (parallel Bash calls):**
-```bash
-# Run BOTH of these as parallel Bash tool calls in a single message:
-python3 "${SKILL_ROOT}/scripts/last30days.py" {TOPIC_A} --emit=compact --no-native-web --save-dir=~/Documents/Last30Days
-python3 "${SKILL_ROOT}/scripts/last30days.py" {TOPIC_B} --emit=compact --no-native-web --save-dir=~/Documents/Last30Days
-```
-
-**Pass 3 (after passes 1+2 complete):**
-```bash
-python3 "${SKILL_ROOT}/scripts/last30days.py" "{TOPIC_A} vs {TOPIC_B}" --emit=compact --no-native-web --save-dir=~/Documents/Last30Days
-```
-
-Then do WebSearch for: `{TOPIC_A} vs {TOPIC_B} comparison 2026` and `{TOPIC_A} vs {TOPIC_B} which is better`.
-
-**Skip the normal Step 1 below** - go directly to the comparison synthesis format (see "If QUERY_TYPE = COMPARISON" in the synthesis section).
-
----
-
-## Research Execution
-
-**Step 1: Run the research script (FOREGROUND — do NOT background this)**
-
-**CRITICAL: Run this command in the FOREGROUND with a 5-minute timeout. Do NOT use run_in_background. The full output contains Reddit, X, AND YouTube data that you need to read completely.**
-
-**IMPORTANT: The script handles API key/Codex auth detection automatically.** Run it and check the output to determine mode.
+### 步骤 1: 运行搜索引擎
 
 ```bash
-# Find skill root — works in repo checkout, Claude Code, or Codex install
-for dir in \
-  "." \
-  "${CLAUDE_PLUGIN_ROOT:-}" \
-  "${GEMINI_EXTENSION_DIR:-}" \
-  "$HOME/.claude/plugins/marketplaces/last30days-skill" \
-  "$HOME/.gemini/extensions/last30days-skill" \
-  "$HOME/.gemini/extensions/last30days" \
-  "$HOME/.claude/skills/last30days" \
-  "$HOME/.agents/skills/last30days" \
-  "$HOME/.codex/skills/last30days"; do
-  [ -n "$dir" ] && [ -f "$dir/scripts/last30days.py" ] && SKILL_ROOT="$dir" && break
-done
-
-if [ -z "${SKILL_ROOT:-}" ]; then
-  echo "ERROR: Could not find scripts/last30days.py" >&2
-  exit 1
-fi
-
-python3 "${SKILL_ROOT}/scripts/last30days.py" $ARGUMENTS --emit=compact --no-native-web --save-dir=~/Documents/Last30Days  # Add --x-handle=HANDLE if RESOLVED_HANDLE is set
+cd {{SKILL_DIR}}/scripts && python3 last30days.py "{{用户查询}}" --emit compact
 ```
 
-Use a **timeout of 300000** (5 minutes) on the Bash call. The script typically takes 1-3 minutes.
+可选参数：
+- `--quick` - 快速搜索（更少数据源）
+- `--deep` - 深度搜索（更多数据源）
+- `--days N` - 回溯天数（1-30，默认30）
+- `--search weibo,bilibili,zhihu` - 指定搜索源
 
-The script will automatically:
-- Detect available API keys
-- Run Reddit/X/YouTube/TikTok/Instagram/Hacker News/Polymarket searches
-- Output ALL results including YouTube transcripts, TikTok captions, Instagram captions, HN comments, and prediction market odds
+### 步骤 2: 分析结果
 
-**Read the ENTIRE output.** It contains EIGHT data sections in this order: Reddit items, X items, YouTube items, TikTok items, Instagram Reels items, Hacker News items, Polymarket items, and WebSearch items. If you miss sections, you will produce incomplete stats.
+搜索引擎返回来自以下平台的数据：
 
-**YouTube items in the output look like:** `**{video_id}** (score:N) {channel_name} [N views, N likes]` followed by a title, URL, **transcript highlights** (pre-extracted quotable excerpts from the video), and an optional full transcript in a collapsible section. **Quote the highlights directly in your synthesis** - they are the YouTube equivalent of Reddit top comments. Attribute quotes to the channel name. Count them and include them in your synthesis and stats block.
+| 平台 | 模块 | 数据类型 | 需要配置 |
+|------|------|---------|---------|
+| 微博 | weibo.py | 动态/话题 | WEIBO_ACCESS_TOKEN（可选） |
+| 小红书 | xiaohongshu.py | 笔记/种草 | SCRAPECREATORS_API_KEY（可选） |
+| B站 | bilibili.py | 视频/弹幕 | 无需（公开API） |
+| 知乎 | zhihu.py | 问答/文章 | ZHIHU_COOKIE（可选） |
+| 抖音 | douyin.py | 短视频 | TIKHUB_API_KEY（可选） |
+| 微信 | wechat.py | 公众号文章 | WECHAT_API_KEY（可选） |
+| 百度 | baidu.py | 网页搜索 | BAIDU_API_KEY（可选） |
+| 头条 | toutiao.py | 资讯/热榜 | 无需（公开接口） |
 
-**TikTok items in the output look like:** `**{TK_id}** (score:N) @{creator} [N views, N likes]` followed by a caption, URL, hashtags, and optional caption snippet. Count them and include them in your synthesis and stats block.
+### 步骤 3: 综合分析
 
-**Instagram Reels items in the output look like:** `**{IG_id}** (score:N) @{creator} (date) [N views, N likes]` followed by caption text, URL, and optional transcript. Count them and include them in your synthesis and stats block. Instagram provides unique creator/influencer perspective — weight it alongside TikTok.
+根据搜索结果生成综合研究报告，需要：
 
----
+1. **跨平台对比**：对比不同平台上的观点和讨论
+2. **趋势分析**：识别热点趋势和话题变化
+3. **核心发现**：提取关键见解和共识
+4. **信源引用**：每个发现都标注来源平台和链接
 
-## STEP 2: DO WEBSEARCH AFTER SCRIPT COMPLETES
+## 输出格式
 
-After the script finishes, do WebSearch to supplement with blogs, tutorials, and news.
+### 研究报告结构
 
-For **ALL modes**, do WebSearch to supplement (or provide all data in web-only mode).
+```markdown
+# [主题] - 最近30天研究报告
 
-Choose search queries based on QUERY_TYPE:
+## 核心发现
+- 发现1（来源：微博@用户, B站视频）
+- 发现2（来源：知乎回答, 小红书笔记）
 
-**If RECOMMENDATIONS** ("best X", "top X", "what X should I use"):
-- Search for: `best {TOPIC} recommendations`
-- Search for: `{TOPIC} list examples`
-- Search for: `most popular {TOPIC}`
-- Goal: Find SPECIFIC NAMES of things, not generic advice
+## 平台观点分布
+### 微博
+- 热门讨论要点...
 
-**If NEWS** ("what's happening with X", "X news"):
-- Search for: `{TOPIC} news 2026`
-- Search for: `{TOPIC} announcement update`
-- Goal: Find current events and recent developments
+### 小红书
+- 种草/评测趋势...
 
-**If PROMPTING** ("X prompts", "prompting for X"):
-- Search for: `{TOPIC} prompts examples 2026`
-- Search for: `{TOPIC} techniques tips`
-- Goal: Find prompting techniques and examples to create copy-paste prompts
+### B站
+- 视频内容分析...
 
-**If GENERAL** (default):
-- Search for: `{TOPIC} 2026`
-- Search for: `{TOPIC} discussion`
-- Goal: Find what people are actually saying
+### 知乎
+- 专业讨论要点...
 
-For ALL query types:
-- **USE THE USER'S EXACT TERMINOLOGY** - don't substitute or add tech names based on your knowledge
-- EXCLUDE reddit.com, x.com, twitter.com (covered by script)
-- INCLUDE: blogs, tutorials, docs, news, GitHub repos
-- **DO NOT output a separate "Sources:" block** — instead, include the top 3-5 web
-  source names as inline links on the 🌐 Web: stats line (see stats format below).
-  The WebSearch tool requires citation; satisfy it there, not as a trailing section.
+## 趋势分析
+- 上升趋势...
+- 下降趋势...
 
-**Options** (passed through from user's command):
-- `--days=N` → Look back N days instead of 30 (e.g., `--days=7` for weekly roundup)
-- `--quick` → Faster, fewer sources (8-12 each)
-- (default) → Balanced (20-30 each)
-- `--deep` → Comprehensive (50-70 Reddit, 40-60 X)
-
----
-
-## Judge Agent: Synthesize All Sources
-
-**After all searches complete, internally synthesize (don't display stats yet):**
-
-The Judge Agent must:
-1. Weight Reddit/X sources HIGHER (they have engagement signals: upvotes, likes)
-2. Weight YouTube sources HIGH (they have views, likes, and transcript content)
-3. Weight TikTok sources HIGH (they have views, likes, and caption content — viral signal)
-4. Weight WebSearch sources LOWER (no engagement data)
-5. **For Reddit: Pay special attention to top comments** — they often contain the wittiest, most insightful, or funniest take. When a top comment has high upvotes (shown as `💬 Top comment (N upvotes)`), quote it directly in your synthesis. Reddit's value is in the comments.
-6. **For YouTube: Quote transcript highlights directly in your synthesis.** These are pre-extracted key moments from the video - treat them like Reddit top comments. Attribute to the channel name and include the actual quote. YouTube's value is in what creators SAY, not just their view counts.
-7. Identify patterns that appear across ALL sources (strongest signals)
-8. Note any contradictions between sources
-9. Extract the top 3-5 actionable insights
-
-7. **Cross-platform signals are the strongest evidence.** When items have `[also on: Reddit, HN]` or similar tags, it means the same story appears across multiple platforms. Lead with these cross-platform findings - they're the most important signals in the research.
-
-### Prediction Markets (Polymarket)
-
-**CRITICAL: When Polymarket returns relevant markets, prediction market odds are among the highest-signal data points in your research.** Real money on outcomes cuts through opinion. Treat them as strong evidence, not an afterthought.
-
-**How to interpret and synthesize Polymarket data:**
-
-1. **Prefer structural/long-term markets over near-term deadlines.** Championship odds > regular season title. Regime change > near-term strike deadline. IPO/major milestone > incremental update. Presidency > individual state primary. When multiple markets exist, the bigger question is more interesting to the user.
-
-2. **When the topic is an outcome in a multi-outcome market, call out that specific outcome's odds and movement.** Don't just say "Polymarket has a #1 seed market" - say "Arizona has a 28% chance of being the #1 overall seed, up 10% this month." The user cares about THEIR topic's position in the market.
-
-3. **Weave odds into the narrative as supporting evidence.** Don't isolate Polymarket data in its own paragraph. Instead: "Final Four buzz is building - Polymarket gives Arizona a 12% chance to win the championship (up 3% this week), and 28% to earn a #1 seed."
-
-4. **Citation format:** Always include specific odds AND movement. "Polymarket has Arizona at 28% for a #1 seed (up 10% this month)" - not just "per Polymarket."
-
-5. **When multiple relevant markets exist, highlight 3-5 of the most interesting ones** in your synthesis, ordered by importance (structural > near-term). Don't just pick the highest-volume one.
-
-**Domain examples of market importance ranking:**
-- **Sports:** Championship/tournament odds > conference title > regular season > weekly matchup
-- **Geopolitics:** Regime change/structural outcomes > near-term strike deadlines > sanctions
-- **Tech/Business:** IPO, major product launch, company milestones > incremental updates
-- **Elections:** Presidency > primary > individual state
-
-**Do NOT display stats here - they come at the end, right before the invitation.**
-
----
-
-## FIRST: Internalize the Research
-
-**CRITICAL: Ground your synthesis in the ACTUAL research content, not your pre-existing knowledge.**
-
-Read the research output carefully. Pay attention to:
-- **Exact product/tool names** mentioned (e.g., if research mentions "ClawdBot" or "@clawdbot", that's a DIFFERENT product than "Claude Code" - don't conflate them)
-- **Specific quotes and insights** from the sources - use THESE, not generic knowledge
-- **What the sources actually say**, not what you assume the topic is about
-
-**ANTI-PATTERN TO AVOID**: If user asks about "clawdbot skills" and research returns ClawdBot content (self-hosted AI agent), do NOT synthesize this as "Claude Code skills" just because both involve "skills". Read what the research actually says.
-
-### If QUERY_TYPE = RECOMMENDATIONS
-
-**CRITICAL: Extract SPECIFIC NAMES, not generic patterns.**
-
-When user asks "best X" or "top X", they want a LIST of specific things:
-- Scan research for specific product names, tool names, project names, skill names, etc.
-- Count how many times each is mentioned
-- Note which sources recommend each (Reddit thread, X post, blog)
-- List them by popularity/mention count
-
-**BAD synthesis for "best Claude Code skills":**
-> "Skills are powerful. Keep them under 500 lines. Use progressive disclosure."
-
-**GOOD synthesis for "best Claude Code skills":**
-> "Most mentioned skills: /commit (5 mentions), remotion skill (4x), git-worktree (3x), /pr (3x). The Remotion announcement got 16K likes on X."
-
-### If QUERY_TYPE = COMPARISON
-
-Structure the output as a side-by-side comparison using data from all three research passes:
-
-```
-# {TOPIC_A} vs {TOPIC_B}: What the Community Says (Last 30 Days)
-
-## Quick Verdict
-[1-2 sentence data-driven summary: which one the community prefers and why, with source counts]
-
-## {TOPIC_A}
-**Community Sentiment:** [Positive/Mixed/Negative] ({N} mentions across {sources})
-
-**Strengths (what people love)**
-- [Point 1 with source attribution]
-- [Point 2]
-
-**Weaknesses (common complaints)**
-- [Point 1 with source attribution]
-- [Point 2]
-
-## {TOPIC_B}
-**Community Sentiment:** [Positive/Mixed/Negative] ({N} mentions across {sources})
-
-**Strengths (what people love)**
-- [Point 1 with source attribution]
-- [Point 2]
-
-**Weaknesses (common complaints)**
-- [Point 1 with source attribution]
-- [Point 2]
-
-## Head-to-Head
-[Synthesis from the "A vs B" combined search - what people say when directly comparing]
-
-| Dimension | {TOPIC_A} | {TOPIC_B} |
-|-----------|-----------|-----------|
-| [Key dimension 1] | [A's position] | [B's position] |
-| [Key dimension 2] | [A's position] | [B's position] |
-| [Key dimension 3] | [A's position] | [B's position] |
-
-## The Bottom Line
-Choose {TOPIC_A} if... Choose {TOPIC_B} if... (based on actual community data, not assumptions)
+## 推荐阅读
+- 高质量来源链接列表
 ```
 
-Then show combined stats from all three passes and the standard invitation section.
-
-### For all QUERY_TYPEs
-
-Identify from the ACTUAL RESEARCH OUTPUT:
-- **PROMPT FORMAT** - Does research recommend JSON, structured params, natural language, keywords?
-- The top 3-5 patterns/techniques that appeared across multiple sources
-- Specific keywords, structures, or approaches mentioned BY THE SOURCES
-- Common pitfalls mentioned BY THE SOURCES
-
----
-
-## THEN: Show Summary + Invite Vision
-
-**Display in this EXACT sequence:**
-
-**FIRST - What I learned (based on QUERY_TYPE):**
-
-**If RECOMMENDATIONS** - Show specific things mentioned with sources:
-```
-🏆 Most mentioned:
-
-[Tool Name] - {n}x mentions
-Use Case: [what it does]
-Sources: @handle1, @handle2, r/sub, blog.com
-
-[Tool Name] - {n}x mentions
-Use Case: [what it does]
-Sources: @handle3, r/sub2, Complex
-
-Notable mentions: [other specific things with 1-2 mentions]
-```
-
-**CRITICAL for RECOMMENDATIONS:**
-- Each item MUST have a "Sources:" line with actual @handles from X posts (e.g., @LONGLIVE47, @ByDobson)
-- Include subreddit names (r/hiphopheads) and web sources (Complex, Variety)
-- Parse @handles from research output and include the highest-engagement ones
-- Format naturally - tables work well for wide terminals, stacked cards for narrow
-
-**If PROMPTING/NEWS/GENERAL** - Show synthesis and patterns:
-
-CITATION RULE: Cite sources sparingly to prove research is real.
-- In the "What I learned" intro: cite 1-2 top sources total, not every sentence
-- In KEY PATTERNS: cite 1 source per pattern, short format: "per @handle" or "per r/sub"
-- Do NOT include engagement metrics in citations (likes, upvotes) - save those for stats box
-- Do NOT chain multiple citations: "per @x, @y, @z" is too much. Pick the strongest one.
-
-CITATION PRIORITY (most to least preferred):
-1. @handles from X — "per @handle" (these prove the tool's unique value)
-2. r/subreddits from Reddit — "per r/subreddit" (when citing Reddit, prefer quoting top comments over just the thread title)
-3. YouTube channels — "per [channel name] on YouTube" (transcript-backed insights)
-4. TikTok creators — "per @creator on TikTok" (viral/trending signal)
-5. Instagram creators — "per @creator on Instagram" (influencer/creator signal)
-6. HN discussions — "per HN" or "per hn/username" (developer community signal)
-7. Polymarket — "Polymarket has X at Y% (up/down Z%)" with specific odds and movement
-8. Web sources — ONLY when Reddit/X/YouTube/TikTok/Instagram/HN/Polymarket don't cover that specific fact
-
-The tool's value is surfacing what PEOPLE are saying, not what journalists wrote.
-When both a web article and an X post cover the same fact, cite the X post.
-
-URL FORMATTING: NEVER paste raw URLs anywhere in the output — not in synthesis, not in stats, not in sources.
-- **BAD:** "per https://www.rollingstone.com/music/music-news/kanye-west-bully-1235506094/"
-- **GOOD:** "per Rolling Stone"
-- **BAD stats line:** `🌐 Web: 10 pages — https://later.com/blog/..., https://buffer.com/...`
-- **GOOD stats line:** `🌐 Web: 10 pages — Later, Buffer, CNN, SocialBee`
-Use the publication/site name, not the URL. The user doesn't need links — they need clean, readable text.
-
-**BAD:** "His album is set for March 20 (per Rolling Stone; Billboard; Complex)."
-**GOOD:** "His album BULLY drops March 20 — fans on X are split on the tracklist, per @honest30bgfan_"
-**GOOD:** "Ye's apology got massive traction on r/hiphopheads"
-**OK** (web, only when Reddit/X don't have it): "The Hellwatt Festival runs July 4-18 at RCF Arena, per Billboard"
-
-**Lead with people, not publications.** Start each topic with what Reddit/X
-users are saying/feeling, then add web context only if needed. The user came
-here for the conversation, not the press release.
-
-```
-What I learned:
-
-**{Topic 1}** — [1-2 sentences about what people are saying, per @handle or r/sub]
-
-**{Topic 2}** — [1-2 sentences, per @handle or r/sub]
-
-**{Topic 3}** — [1-2 sentences, per @handle or r/sub]
-
-KEY PATTERNS from the research:
-1. [Pattern] — per @handle
-2. [Pattern] — per r/sub
-3. [Pattern] — per @handle
-```
-
-**THEN - Quality Nudge (if present in the output):**
-
-If the research output contains a `**🔍 Research Coverage:**` block, render it verbatim right before the stats block. This tells the user which core sources are missing and how to unlock them. Do NOT render this block if it is absent from the output (100% coverage = no nudge).
-
-**THEN - Stats (right before invitation):**
-
-**CRITICAL: Calculate actual totals from the research output.**
-- Count posts/threads from each section
-- Sum engagement: parse `[Xlikes, Yrt]` from each X post, `[Xpts, Ycmt]` from Reddit
-- Identify top voices: highest-engagement @handles from X, most active subreddits
-
-**Copy this EXACTLY, replacing only the {placeholders}:**
-
-```
----
-✅ All agents reported back!
-├─ 🟠 Reddit: {N} threads │ {N} upvotes │ {N} comments
-├─ 🔵 X: {N} posts │ {N} likes │ {N} reposts
-├─ 🔴 YouTube: {N} videos │ {N} views │ {N} with transcripts
-├─ 🎵 TikTok: {N} videos │ {N} views │ {N} likes │ {N} with captions
-├─ 📸 Instagram: {N} reels │ {N} views │ {N} likes │ {N} with captions
-├─ 🟡 HN: {N} stories │ {N} points │ {N} comments
-├─ 🦋 Bluesky: {N} posts │ {N} likes │ {N} reposts
-├─ 🇺🇸 Truth Social: {N} posts │ {N} likes │ {N} reposts
-├─ 📊 Polymarket: {N} markets │ {short summary of up to 5 most relevant market odds, e.g. "Championship: 12%, #1 Seed: 28%, Big 12: 64%, vs Kansas: 71%"}
-├─ 🌐 Web: {N} pages — Source Name, Source Name, Source Name
-└─ 🗣️ Top voices: @{handle1} ({N} likes), @{handle2} │ r/{sub1}, r/{sub2}
----
-```
-
-**🌐 Web: line — how to extract site names from URLs:**
-Strip the protocol, path, and `www.` — use the recognizable publication name:
-- `https://later.com/blog/instagram-reels-trends/` → **Later**
-- `https://socialbee.com/blog/instagram-trends/` → **SocialBee**
-- `https://buffer.com/resources/instagram-algorithms/` → **Buffer**
-- `https://www.cnn.com/2026/02/22/tech/...` → **CNN**
-- `https://medium.com/the-ai-studio/...` → **Medium**
-- `https://radicaldatascience.wordpress.com/...` → **Radical Data Science**
-List as comma-separated plain names: `Later, SocialBee, Buffer, CNN, Medium`
-
-**⚠️ WebSearch citation — ALREADY SATISFIED. DO NOT ADD A SOURCES SECTION.**
-The WebSearch tool mandates source citation. That requirement is FULLY satisfied by the source names on the 🌐 Web: line above. Do NOT append a separate "Sources:" section at the end of your response. Do NOT list URLs anywhere. The 🌐 Web: line IS your citation. Nothing more is needed.
-
-**CRITICAL: Omit any source line that returned 0 results.** Do NOT show "0 threads", "0 stories", "0 markets", or "(no results this cycle)". If a source found nothing, DELETE that line entirely - don't include it at all.
-NEVER use plain text dashes (-) or pipe (|). ALWAYS use ├─ └─ │ and the emoji.
-
-**SELF-CHECK before displaying**: Re-read your "What I learned" section. Does it match what the research ACTUALLY says? If you catch yourself projecting your own knowledge instead of the research, rewrite it.
-
-**LAST - Invitation (adapt to QUERY_TYPE):**
-
-**CRITICAL: Every invitation MUST include 2-3 specific example suggestions based on what you ACTUALLY learned from the research.** Don't be generic — show the user you absorbed the content by referencing real things from the results.
-
-**If QUERY_TYPE = PROMPTING:**
-```
----
-I'm now an expert on {TOPIC} for {TARGET_TOOL}. What do you want to make? For example:
-- [specific idea based on popular technique from research]
-- [specific idea based on trending style/approach from research]
-- [specific idea riffing on what people are actually creating]
-
-Just describe your vision and I'll write a prompt you can paste straight into {TARGET_TOOL}.
-```
-
-**If QUERY_TYPE = RECOMMENDATIONS:**
-```
----
-I'm now an expert on {TOPIC}. Want me to go deeper? For example:
-- [Compare specific item A vs item B from the results]
-- [Explain why item C is trending right now]
-- [Help you get started with item D]
-```
-
-**If QUERY_TYPE = NEWS:**
-```
----
-I'm now an expert on {TOPIC}. Some things you could ask:
-- [Specific follow-up question about the biggest story]
-- [Question about implications of a key development]
-- [Question about what might happen next based on current trajectory]
-```
-
-**If QUERY_TYPE = COMPARISON:**
-```
----
-I've compared {TOPIC_A} vs {TOPIC_B} using the latest community data. Some things you could ask:
-- [Deep dive into {TOPIC_A} alone with /last30days {TOPIC_A}]
-- [Deep dive into {TOPIC_B} alone with /last30days {TOPIC_B}]
-- [Focus on a specific dimension from the comparison table]
-- [Look at a different time period with --days=7 or --days=90]
-```
-
-**If QUERY_TYPE = GENERAL:**
-```
----
-I'm now an expert on {TOPIC}. Some things I can help with:
-- [Specific question based on the most discussed aspect]
-- [Specific creative/practical application of what you learned]
-- [Deeper dive into a pattern or debate from the research]
-```
-
-**Example invitations (to show the quality bar):**
-
-For `/last30days nano banana pro prompts for Gemini`:
-> I'm now an expert on Nano Banana Pro for Gemini. What do you want to make? For example:
-> - Photorealistic product shots with natural lighting (the most requested style right now)
-> - Logo designs with embedded text (Gemini's new strength per the research)
-> - Multi-reference style transfer from a mood board
->
-> Just describe your vision and I'll write a prompt you can paste straight into Gemini.
-
-For `/last30days kanye west` (GENERAL):
-> I'm now an expert on Kanye West. Some things I can help with:
-> - What's the real story behind the apology letter — genuine or PR move?
-> - Break down the BULLY tracklist reactions and what fans are expecting
-> - Compare how Reddit vs X are reacting to the Bianca narrative
-
-For `/last30days war in Iran` (NEWS):
-> I'm now an expert on the Iran situation. Some things you could ask:
-> - What are the realistic escalation scenarios from here?
-> - How is this playing differently in US vs international media?
-> - What's the economic impact on oil markets so far?
-
----
-
-## WAIT FOR USER'S RESPONSE
-
-**STOP and wait** for the user to respond. Do NOT call any tools after displaying the invitation. The research script already saved raw data to `~/Documents/Last30Days/` via `--save-dir`.
-
----
-
-## WHEN USER RESPONDS
-
-**Read their response and match the intent:**
-
-- If they ask a **QUESTION** about the topic → Answer from your research (no new searches, no prompt)
-- If they ask to **GO DEEPER** on a subtopic → Elaborate using your research findings
-- If they describe something they want to **CREATE** → Write ONE perfect prompt (see below)
-- If they ask for a **PROMPT** explicitly → Write ONE perfect prompt (see below)
-
-**Only write a prompt when the user wants one.** Don't force a prompt on someone who asked "what could happen next with Iran."
-
-### Writing a Prompt
-
-When the user wants a prompt, write a **single, highly-tailored prompt** using your research expertise.
-
-### CRITICAL: Match the FORMAT the research recommends
-
-**If research says to use a specific prompt FORMAT, YOU MUST USE THAT FORMAT.**
-
-**ANTI-PATTERN**: Research says "use JSON prompts with device specs" but you write plain prose. This defeats the entire purpose of the research.
-
-### Quality Checklist (run before delivering):
-- [ ] **FORMAT MATCHES RESEARCH** - If research said JSON/structured/etc, prompt IS that format
-- [ ] Directly addresses what the user said they want to create
-- [ ] Uses specific patterns/keywords discovered in research
-- [ ] Ready to paste with zero edits (or minimal [PLACEHOLDERS] clearly marked)
-- [ ] Appropriate length and style for TARGET_TOOL
-
-### Output Format:
-
-```
-Here's your prompt for {TARGET_TOOL}:
-
----
-
-[The actual prompt IN THE FORMAT THE RESEARCH RECOMMENDS]
-
----
-
-This uses [brief 1-line explanation of what research insight you applied].
-```
-
----
-
-## IF USER ASKS FOR MORE OPTIONS
-
-Only if they ask for alternatives or more prompts, provide 2-3 variations. Don't dump a prompt pack unless requested.
-
----
-
-## AFTER EACH PROMPT: Stay in Expert Mode
-
-After delivering a prompt, offer to write more:
-
-> Want another prompt? Just tell me what you're creating next.
-
----
-
-## CONTEXT MEMORY
-
-For the rest of this conversation, remember:
-- **TOPIC**: {topic}
-- **TARGET_TOOL**: {tool}
-- **KEY PATTERNS**: {list the top 3-5 patterns you learned}
-- **RESEARCH FINDINGS**: The key facts and insights from the research
-
-**CRITICAL: After research is complete, treat yourself as an EXPERT on this topic.**
-
-When the user asks follow-up questions:
-- **DO NOT run new WebSearches** - you already have the research
-- **Answer from what you learned** - cite the Reddit threads, X posts, and web sources
-- **If they ask a question** - answer it from your research findings
-- **If they ask for a prompt** - write one using your expertise
-
-Only do new research if the user explicitly asks about a DIFFERENT topic.
-
----
-
-## Output Summary Footer (After Each Prompt)
-
-After delivering a prompt, end with:
-
-```
----
-📚 Expert in: {TOPIC} for {TARGET_TOOL}
-📊 Based on: {n} Reddit threads ({sum} upvotes) + {n} X posts ({sum} likes) + {n} YouTube videos ({sum} views) + {n} TikTok videos ({sum} views) + {n} Instagram reels ({sum} views) + {n} HN stories ({sum} points) + {n} web pages
-
-Want another prompt? Just tell me what you're creating next.
-```
-
----
-
-## Security & Permissions
-
-**What this skill does:**
-- Sends search queries to ScrapeCreators API (`api.scrapecreators.com`) for Reddit search, subreddit discovery, and comment enrichment (requires SCRAPECREATORS_API_KEY — same key as TikTok + Instagram)
-- Legacy: Sends search queries to OpenAI's Responses API (`api.openai.com`) for Reddit discovery (fallback if no SCRAPECREATORS_API_KEY)
-- Sends search queries to Twitter's GraphQL API (via optional user-provided AUTH_TOKEN/CT0 env vars — no browser session access) or xAI's API (`api.x.ai`) for X search
-- Sends search queries to Algolia HN Search API (`hn.algolia.com`) for Hacker News story and comment discovery (free, no auth)
-- Sends search queries to Polymarket Gamma API (`gamma-api.polymarket.com`) for prediction market discovery (free, no auth)
-- Runs `yt-dlp` locally for YouTube search and transcript extraction (no API key, public data)
-- Sends search queries to ScrapeCreators API (`api.scrapecreators.com`) for TikTok and Instagram search, transcript/caption extraction (same SCRAPECREATORS_API_KEY as Reddit, PAYG after 100 free API calls)
-- Optionally sends search queries to Brave Search API, Parallel AI API, or OpenRouter API for web search
-- Fetches public Reddit thread data from `reddit.com` for engagement metrics
-- Stores research findings in local SQLite database (watchlist mode only)
-- Saves research briefings as .md files to ~/Documents/Last30Days/
-
-**What this skill does NOT do:**
-- Does not post, like, or modify content on any platform
-- Does not access your Reddit, X, or YouTube accounts
-- Does not share API keys between providers (OpenAI key only goes to api.openai.com, etc.)
-- Does not log, cache, or write API keys to output files
-- Does not send data to any endpoint not listed above
-- Hacker News and Polymarket sources are always available (no API key, no binary dependency)
-- TikTok and Instagram sources require SCRAPECREATORS_API_KEY (same key covers both; 100 free API calls, then PAYG)
-- Can be invoked autonomously by agents via the Skill tool (runs inline, not forked); pass `--agent` for non-interactive report output
-
-**Bundled scripts:** `scripts/last30days.py` (main research engine), `scripts/lib/` (search, enrichment, rendering modules), `scripts/lib/vendor/bird-search/` (vendored X search client, MIT licensed)
-
-Review scripts before first use to verify behavior.
+## 合成规则
+
+1. **不要虚构内容**：只引用搜索结果中实际存在的内容
+2. **标注来源**：每个发现都注明平台和链接
+3. **交叉验证**：当多个平台讨论同一话题时，进行交叉验证
+4. **时效性**：优先引用最近的内容
+5. **多样性**：确保报告覆盖多个平台的视角
+6. **中文输出**：所有输出使用中文
+
+## 评分系统
+
+每个搜索结果有一个 0-100 的综合评分，基于：
+- **相关性 (45%)**：与查询主题的匹配度
+- **时效性 (25%)**：内容的新鲜程度
+- **互动度 (30%)**：各平台的互动指标
+  - 微博：转发 + 评论 + 点赞
+  - 小红书：点赞 + 收藏 + 评论 + 分享
+  - B站：播放 + 弹幕 + 评论 + 投币 + 收藏
+  - 知乎：赞同 + 评论 + 收藏
+  - 抖音：点赞 + 评论 + 分享 + 播放
+  - 头条：评论 + 阅读 + 点赞

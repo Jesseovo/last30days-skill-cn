@@ -1,0 +1,35 @@
+{
+  "statuses": [
+    {
+      "id": 5120001234567890,
+      "mid": "5120001234567890",
+      "text": "最新AI工具测试，效果惊人！#人工智能# #AI工具# 大家觉得怎么样？",
+      "user": {
+        "id": 1234567890,
+        "screen_name": "科技圈小编",
+        "followers_count": 50000
+      },
+      "created_at": "2026-03-15 14:30:00",
+      "reposts_count": 128,
+      "comments_count": 256,
+      "attitudes_count": 1024,
+      "source": "微博 weibo.com"
+    },
+    {
+      "id": 5120001234567891,
+      "mid": "5120001234567891",
+      "text": "深度体验了一周的AI编程助手，写一下使用心得和踩坑记录",
+      "user": {
+        "id": 1234567891,
+        "screen_name": "程序猿日记",
+        "followers_count": 30000
+      },
+      "created_at": "2026-03-20 10:15:00",
+      "reposts_count": 64,
+      "comments_count": 128,
+      "attitudes_count": 512,
+      "source": "微博 weibo.com"
+    }
+  ],
+  "total_number": 2
+}

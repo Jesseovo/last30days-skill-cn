@@ -1,117 +1,58 @@
-"""First-run setup wizard for last30days.
+"""首次运行配置向导 (last30days-cn)。
 
-Detects first run, performs auto-setup (cookie extraction + yt-dlp check),
-and writes configuration. The actual wizard UI is SKILL.md-driven (the LLM
-presents it), but this module provides the detection and setup actions.
+Author: Jesse (https://github.com/ChiTing111)
+
+检测首次运行状态，检查中国平台 API 可用性，写入配置文件。
+实际向导界面由 SKILL.md 驱动（LLM 展示），本模块提供检测和配置动作。
 """
 
 import logging
-import shutil
-import subprocess
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
 
 def is_first_run(config: Dict[str, Any]) -> bool:
-    """Return True if the setup wizard has not been completed.
-
-    Checks for SETUP_COMPLETE in the config dict. If it's not set
-    (None or empty string), the user hasn't gone through setup yet.
-    """
+    """如果 SETUP_COMPLETE 未设置则为首次运行。"""
     return not config.get("SETUP_COMPLETE")
 
 
 def run_auto_setup(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Perform the auto-setup actions.
+    """执行自动配置检测。
 
-    - Runs cookie extraction in auto mode for all registered domains
-    - Checks if yt-dlp is installed
-
-    Returns:
-        Dict with keys:
-          cookies_found: {source_name: browser_name} for each source where cookies were found
-          ytdlp_installed: bool
-          env_written: bool (always False here — caller writes config separately)
+    检查各平台 API Key 是否可用，返回诊断结果。
     """
-    from . import cookie_extract
-    from .env import COOKIE_DOMAINS
-
-    cookies_found: Dict[str, str] = {}
-
-    for source_name, spec in COOKIE_DOMAINS.items():
-        domain = spec["domain"]
-        cookie_names = spec["cookies"]
-
-        try:
-            result = cookie_extract.extract_cookies_with_source("auto", domain, cookie_names)
-        except Exception as exc:
-            logger.debug("Cookie extraction failed for %s: %s", source_name, exc)
-            continue
-
-        if result is not None:
-            _cookies, browser_name = result
-            cookies_found[source_name] = browser_name
-
-    # Check yt-dlp availability and install via Homebrew if missing
-    ytdlp_action: str
-    if shutil.which("yt-dlp") is not None:
-        ytdlp_installed = True
-        ytdlp_action = "already_installed"
-    elif shutil.which("brew") is not None:
-        brew_stderr = ""
-        try:
-            proc = subprocess.run(
-                ["brew", "install", "yt-dlp"],
-                capture_output=True, text=True, timeout=120,
-            )
-            if proc.returncode == 0:
-                ytdlp_installed = True
-                ytdlp_action = "installed"
-            else:
-                ytdlp_installed = False
-                ytdlp_action = "install_failed"
-                brew_stderr = proc.stderr
-                logger.warning("brew install yt-dlp failed: %s", proc.stderr)
-        except Exception as exc:
-            ytdlp_installed = False
-            ytdlp_action = "install_failed"
-            brew_stderr = str(exc)
-            logger.warning("brew install yt-dlp exception: %s", exc)
-    else:
-        ytdlp_installed = False
-        ytdlp_action = "no_homebrew"
+    from . import env
 
     results: Dict[str, Any] = {
-        "cookies_found": cookies_found,
-        "ytdlp_installed": ytdlp_installed,
-        "ytdlp_action": ytdlp_action,
+        "weibo": env.is_weibo_available(config),
+        "xiaohongshu": env.is_xiaohongshu_available(config),
+        "bilibili": True,
+        "zhihu": True,
+        "douyin": env.is_douyin_available(config),
+        "wechat": env.is_wechat_available(config),
+        "baidu_api": env.is_baidu_api_available(config),
+        "toutiao": True,
         "env_written": False,
     }
-    if ytdlp_action == "install_failed":
-        results["ytdlp_stderr"] = brew_stderr
+
+    available_count = sum(1 for k in ["weibo", "xiaohongshu", "bilibili", "zhihu",
+                                       "douyin", "wechat", "baidu_api", "toutiao"]
+                         if results.get(k))
+    results["available_count"] = available_count
     return results
 
 
-def write_setup_config(env_path: Path, from_browser: str = "auto") -> bool:
-    """Write SETUP_COMPLETE and FROM_BROWSER to the .env file.
+def write_setup_config(env_path, from_browser: str = "auto") -> bool:
+    """写入 SETUP_COMPLETE 到 .env 文件。
 
-    Creates the file and parent directories if needed.
-    Appends to existing file without overwriting existing keys.
-
-    Args:
-        env_path: Path to the .env file (e.g. ~/.config/last30days/.env)
-        from_browser: Browser extraction mode to write (default: "auto")
-
-    Returns:
-        True if config was written successfully, False on error.
+    如果文件和父目录不存在则创建。不会覆盖已有的配置。
     """
     try:
         env_path = Path(env_path)
         env_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Read existing content to avoid overwriting keys
         existing_keys: set = set()
         existing_content = ""
         if env_path.exists():
@@ -125,13 +66,10 @@ def write_setup_config(env_path: Path, from_browser: str = "auto") -> bool:
         lines_to_add = []
         if "SETUP_COMPLETE" not in existing_keys:
             lines_to_add.append("SETUP_COMPLETE=true")
-        if "FROM_BROWSER" not in existing_keys:
-            lines_to_add.append(f"FROM_BROWSER={from_browser}")
 
         if not lines_to_add:
-            return True  # Nothing to write, already configured
+            return True
 
-        # Ensure trailing newline before appending
         with open(env_path, "a", encoding="utf-8") as f:
             if existing_content and not existing_content.endswith("\n"):
                 f.write("\n")
@@ -140,47 +78,50 @@ def write_setup_config(env_path: Path, from_browser: str = "auto") -> bool:
         return True
 
     except OSError as exc:
-        logger.error("Failed to write setup config to %s: %s", env_path, exc)
+        logger.error("写入配置失败 %s: %s", env_path, exc)
         return False
 
 
 def get_setup_status_text(results: Dict[str, Any]) -> str:
-    """Return a human-readable summary of auto-setup results.
+    """返回自动配置检测的中文摘要。"""
+    lines = ["配置检测完成！以下是各平台状态：", ""]
 
-    Args:
-        results: Dict from run_auto_setup()
+    platform_map = {
+        "bilibili": "B站",
+        "zhihu": "知乎",
+        "toutiao": "今日头条",
+        "weibo": "微博",
+        "xiaohongshu": "小红书",
+        "douyin": "抖音",
+        "wechat": "微信公众号",
+        "baidu_api": "百度搜索（高级）",
+    }
 
-    Returns:
-        Multi-line status text.
-    """
-    lines = []
-    lines.append("Setup complete! Here's what I found:")
-    lines.append("")
+    free_platforms = {"bilibili", "zhihu", "toutiao"}
 
-    cookies_found = results.get("cookies_found", {})
-    if cookies_found:
-        for source, browser in cookies_found.items():
-            lines.append(f"  - {source.upper()} cookies found in {browser}")
-    else:
-        lines.append("  - No browser cookies found for X/Twitter")
+    for key, name in platform_map.items():
+        available = results.get(key, False)
+        if available:
+            extra = "（免费公开接口）" if key in free_platforms else ""
+            lines.append(f"  ✅ {name} — 可用{extra}")
+        else:
+            if key in free_platforms:
+                lines.append(f"  ✅ {name} — 可用（免费公开接口）")
+            else:
+                lines.append(f"  ❌ {name} — 未配置 API Key")
 
-    ytdlp_action = results.get("ytdlp_action", "")
-    if ytdlp_action == "installed":
-        lines.append("  - Installed yt-dlp via Homebrew")
-    elif ytdlp_action == "install_failed":
-        lines.append("  - yt-dlp install failed \u2014 run `brew install yt-dlp` manually")
-    elif ytdlp_action == "no_homebrew":
-        lines.append("  - yt-dlp not found. Install Homebrew first, then: brew install yt-dlp")
-    elif ytdlp_action == "already_installed":
-        lines.append("  - yt-dlp already installed")
-    elif results.get("ytdlp_installed", False):
-        lines.append("  - yt-dlp is installed (YouTube search ready)")
-    else:
-        lines.append("  - yt-dlp not found (install with: brew install yt-dlp)")
+    count = results.get("available_count", 0)
+    lines.extend(["", f"共 {count} 个数据源可用。"])
+
+    if count < 8:
+        lines.extend([
+            "",
+            "💡 提示：配置更多 API Key 可解锁更多数据源。",
+            f"   配置文件位置：~/.config/last30days-cn/.env",
+        ])
 
     env_written = results.get("env_written", False)
     if env_written:
-        lines.append("")
-        lines.append("Configuration saved. Future runs will auto-detect your browsers.")
+        lines.extend(["", "配置已保存。后续运行将自动检测。"])
 
     return "\n".join(lines)

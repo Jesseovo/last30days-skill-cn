@@ -1,4 +1,7 @@
-"""Date utilities for last30days skill."""
+"""Date utilities for last30days skill.
+
+Author: Jesse (https://github.com/ChiTing111)
+"""
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
@@ -23,7 +26,7 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
     if not date_str:
         return None
 
-    # Try Unix timestamp (from Reddit)
+    # 尝试 Unix 时间戳
     try:
         ts = float(date_str)
         return datetime.fromtimestamp(ts, tz=timezone.utc)

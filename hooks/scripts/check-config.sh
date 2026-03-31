@@ -1,30 +1,30 @@
 #!/bin/bash
+# Author: Jesse (https://github.com/ChiTing111)
 set -euo pipefail
 
-# Check last30days configuration status and show appropriate welcome message.
-# Priority: .claude/last30days.env > ~/.config/last30days/.env > env vars
+# 检查 last30days-cn 配置状态并显示欢迎/就绪信息（中国平台）。
+# 优先级：.claude/last30days-cn.env > ~/.config/last30days-cn/.env > 环境变量
 
-PROJECT_ENV=".claude/last30days.env"
-GLOBAL_ENV="$HOME/.config/last30days/.env"
+PROJECT_ENV=".claude/last30days-cn.env"
+GLOBAL_ENV="$HOME/.config/last30days-cn/.env"
 
-# Helper: warn if file permissions are too open
+# 可选：配置文件权限过宽时警告
 check_perms() {
   local file="$1"
   if [[ ! -f "$file" ]]; then return; fi
   local perms
   perms=$(stat -f '%Lp' "$file" 2>/dev/null || stat -c '%a' "$file" 2>/dev/null || echo "")
   if [[ -n "$perms" && "$perms" != "600" && "$perms" != "400" ]]; then
-    echo "/last30days: WARNING — $file has permissions $perms (should be 600)."
-    echo "  Fix: chmod 600 $file"
+    echo "last30days-cn：警告 — $file 权限为 $perms（建议 600）。"
+    echo "  修复：chmod 600 $file"
   fi
 }
 
-# Load env file into variables for inspection (without exporting)
+# 将 env 文件读入变量供检查（不 export）
 load_env_vars() {
   local file="$1"
   if [[ -f "$file" ]]; then
     while IFS='=' read -r key value; do
-      # Skip comments, empty lines
       [[ "$key" =~ ^[[:space:]]*# ]] && continue
       [[ -z "$key" ]] && continue
       key=$(echo "$key" | xargs)
@@ -36,7 +36,6 @@ load_env_vars() {
   fi
 }
 
-# Determine which config file is active
 CONFIG_FILE=""
 if [[ -f "$PROJECT_ENV" ]]; then
   CONFIG_FILE="$PROJECT_ENV"
@@ -46,63 +45,46 @@ elif [[ -f "$GLOBAL_ENV" ]]; then
   check_perms "$GLOBAL_ENV"
 fi
 
-# Load config if found
 if [[ -n "$CONFIG_FILE" ]]; then
   load_env_vars "$CONFIG_FILE"
 fi
 
-# Check SETUP_COMPLETE (from file or env)
 SETUP_COMPLETE="${ENV_SETUP_COMPLETE:-${SETUP_COMPLETE:-}}"
 
-# If setup has never been run, show welcome message for new users
-if [[ -z "$SETUP_COMPLETE" && -z "$CONFIG_FILE" && -z "${OPENAI_API_KEY:-}" && -z "${SCRAPECREATORS_API_KEY:-}" && -z "${AUTH_TOKEN:-}" && -z "${XAI_API_KEY:-}" ]]; then
-  cat <<'EOF'
-/last30days: Ready to use. Run /last30days to get started — setup takes 30 seconds.
+# 中国平台可选密钥（文件或环境）
+HAS_WEIBO="${ENV_WEIBO_ACCESS_TOKEN:-${WEIBO_ACCESS_TOKEN:-}}"
+HAS_SCRAPE="${ENV_SCRAPECREATORS_API_KEY:-${SCRAPECREATORS_API_KEY:-}}"
+HAS_ZHIHU_COOKIE="${ENV_ZHIHU_COOKIE:-${ZHIHU_COOKIE:-}}"
+HAS_TIKHUB="${ENV_TIKHUB_API_KEY:-${TIKHUB_API_KEY:-}}"
+HAS_WECHAT="${ENV_WECHAT_API_KEY:-${WECHAT_API_KEY:-}}"
+HAS_BAIDU="${ENV_BAIDU_API_KEY:-${BAIDU_API_KEY:-}}"
 
-Reddit, Hacker News, and Polymarket work out of the box.
-The setup wizard can unlock X/Twitter, YouTube, and more.
+any_cn_key_set() {
+  [[ -n "$HAS_WEIBO" || -n "$HAS_SCRAPE" || -n "$HAS_ZHIHU_COOKIE" || -n "$HAS_TIKHUB" || -n "$HAS_WECHAT" || -n "$HAS_BAIDU" ]]
+}
+
+# 从未配置且无密钥：中文欢迎
+if [[ -z "$SETUP_COMPLETE" && -z "$CONFIG_FILE" ]] && ! any_cn_key_set; then
+  cat <<'EOF'
+last30days-cn：已就绪。运行研究流程即可开始 — 配置可选密钥可解锁更多平台。
+
+B站、知乎、百度（基础）、今日头条 可免费直接使用，无需 API Key。
+配置 WEIBO_ACCESS_TOKEN、SCRAPECREATORS_API_KEY、ZHIHU_COOKIE、TIKHUB_API_KEY、WECHAT_API_KEY、BAIDU_API_KEY 可分别启用或增强 微博、小红书、知乎、抖音、微信公众号、百度搜索 等能力。
 EOF
   exit 0
 fi
 
-# Setup done but check for ScrapeCreators
-HAS_SCRAPECREATORS="${ENV_SCRAPECREATORS_API_KEY:-${SCRAPECREATORS_API_KEY:-}}"
-HAS_X="${ENV_AUTH_TOKEN:-${AUTH_TOKEN:-}}"
-HAS_XAI="${ENV_XAI_API_KEY:-${XAI_API_KEY:-}}"
-HAS_YTDLP=""
-if command -v yt-dlp &>/dev/null; then
-  HAS_YTDLP="yes"
-fi
-HAS_BSKY="${ENV_BSKY_HANDLE:-${BSKY_HANDLE:-}}"
-HAS_EXA="${ENV_EXA_API_KEY:-${EXA_API_KEY:-}}"
+# 基础可用源：四大免费平台
+SOURCE_COUNT=4
 
-# Count active sources
-SOURCE_COUNT=2  # HN + Polymarket are always free
-if [[ -n "$HAS_X" || -n "$HAS_XAI" ]]; then
-  SOURCE_COUNT=$((SOURCE_COUNT + 1))
-fi
-# Reddit public JSON always works
-SOURCE_COUNT=$((SOURCE_COUNT + 1))
-if [[ -n "$HAS_YTDLP" ]]; then
-  SOURCE_COUNT=$((SOURCE_COUNT + 1))
-fi
-if [[ -n "$HAS_EXA" ]]; then
-  SOURCE_COUNT=$((SOURCE_COUNT + 1))
-fi
-if [[ -n "$HAS_BSKY" ]]; then
-  SOURCE_COUNT=$((SOURCE_COUNT + 1))
-fi
-if [[ -n "$HAS_SCRAPECREATORS" ]]; then
-  SOURCE_COUNT=$((SOURCE_COUNT + 3))  # Reddit comments + TikTok + Instagram
-fi
+[[ -n "$HAS_WEIBO" ]] && SOURCE_COUNT=$((SOURCE_COUNT + 1))
+[[ -n "$HAS_SCRAPE" ]] && SOURCE_COUNT=$((SOURCE_COUNT + 1))
+[[ -n "$HAS_ZHIHU_COOKIE" ]] && SOURCE_COUNT=$((SOURCE_COUNT + 1))
+[[ -n "$HAS_TIKHUB" ]] && SOURCE_COUNT=$((SOURCE_COUNT + 1))
+[[ -n "$HAS_WECHAT" ]] && SOURCE_COUNT=$((SOURCE_COUNT + 1))
+[[ -n "$HAS_BAIDU" ]] && SOURCE_COUNT=$((SOURCE_COUNT + 1))
 
-if [[ -n "$HAS_SCRAPECREATORS" ]]; then
-  # Fully configured — compact ready message
-  echo "/last30days: Ready — ${SOURCE_COUNT} sources active."
-else
-  # Setup done but missing ScrapeCreators — recommend it
-  echo "/last30days: Ready — ${SOURCE_COUNT} sources active."
-  echo "  Tip: Add ScrapeCreators for Reddit comments + TikTok + Instagram."
-  echo "  100 free API calls, no credit card — scrapecreators.com"
-  echo "  last30days has no affiliation with any API provider."
+echo "last30days-cn：就绪 — 当前约 ${SOURCE_COUNT} 路数据源可用（含 B站/知乎/百度基础/头条 等免费源）。"
+if ! any_cn_key_set; then
+  echo "  提示：在 ~/.config/last30days-cn/.env 或 .claude/last30days-cn.env 中配置可选密钥，可启用微博、小红书、抖音等更多平台。"
 fi

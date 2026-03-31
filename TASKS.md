@@ -1,47 +1,72 @@
-# last30days Implementation Tasks
+# last30days-cn 本地化任务清单
 
-## Setup & Configuration
-- [x] Create directory structure
-- [x] Write SPEC.md
-- [x] Write TASKS.md
-- [x] Write SKILL.md with proper frontmatter
+> Author: Jesse
 
-## Core Library Modules
-- [x] scripts/lib/env.py - Environment and API key loading
-- [x] scripts/lib/dates.py - Date range and confidence utilities
-- [x] scripts/lib/cache.py - TTL-based caching
-- [x] scripts/lib/http.py - HTTP client with retry
-- [x] scripts/lib/models.py - Auto model selection
-- [x] scripts/lib/schema.py - Data structures
-- [x] scripts/lib/openai_reddit.py - OpenAI Responses API
-- [x] scripts/lib/xai_x.py - xAI Responses API
-- [x] scripts/lib/reddit_enrich.py - Reddit thread JSON fetcher
-- [x] scripts/lib/normalize.py - Schema normalization
-- [x] scripts/lib/score.py - Popularity scoring
-- [x] scripts/lib/dedupe.py - Near-duplicate detection
-- [x] scripts/lib/render.py - Output rendering
+以下为 **中国平台 fork** 相关任务，均已完成。
 
-## Main Script
-- [x] scripts/last30days.py - CLI orchestrator
+## 产品与文档
 
-## Fixtures
-- [x] fixtures/openai_sample.json
-- [x] fixtures/xai_sample.json
-- [x] fixtures/reddit_thread_sample.json
-- [x] fixtures/models_openai_sample.json
-- [x] fixtures/models_xai_sample.json
+- [x] 编写中文 `README.md`（平台表、多 Agent 安装、配置、示例）
+- [x] 编写中文 `CLAUDE.md`（Agent 指引）
+- [x] 编写中文 `SPEC.md`（架构、模块、CLI、输出路径）
+- [x] 编写中文 `TASKS.md`（本清单）
+- [x] 更新 `SKILL.md` 与技能 frontmatter（若适用）
+- [x] 中文 `release-notes.md`（v1.0.0）
 
-## Tests
-- [x] tests/test_dates.py
-- [x] tests/test_cache.py
-- [x] tests/test_models.py
-- [x] tests/test_score.py
-- [x] tests/test_dedupe.py
-- [x] tests/test_normalize.py
-- [x] tests/test_render.py
+## 核心编排与 CLI
 
-## Validation
-- [x] Run tests in mock mode
-- [x] Demo --emit=compact
-- [x] Demo --emit=context
-- [x] Verify file tree
+- [x] `scripts/last30days.py` 改造为多源中文编排（并行、超时档位、`--search` / `--days` / `--emit` 等）
+- [x] 移除或替换英文源依赖，统一为 8 大中文平台流水线
+- [x] `setup` 主题入口与 `setup_wizard` 集成
+- [x] `--diagnose` 数据源可用性诊断
+- [x] `--save-dir` 额外落盘 Markdown
+- [x] Windows UTF-8 输出适配
+
+## 平台适配层（8 个）
+
+- [x] `scripts/lib/weibo.py` — 微博
+- [x] `scripts/lib/xiaohongshu.py` — 小红书
+- [x] `scripts/lib/bilibili.py` — B 站
+- [x] `scripts/lib/zhihu.py` — 知乎
+- [x] `scripts/lib/douyin.py` — 抖音
+- [x] `scripts/lib/wechat.py` — 微信公众号
+- [x] `scripts/lib/baidu.py` — 百度搜索
+- [x] `scripts/lib/toutiao.py` — 今日头条
+
+## 通用库模块
+
+- [x] `env.py` — `last30days-cn` 配置路径与密钥集合
+- [x] `dates.py` — 日期窗口
+- [x] `cache.py` — TTL 缓存
+- [x] `http.py` — HTTP 与重试
+- [x] `normalize.py` — 八平台归一化与日期过滤
+- [x] `score.py` — 打分与排序、`relevance_filter`
+- [x] `dedupe.py` — 去重与跨源关联
+- [x] `render.py` — 输出与写盘路径
+- [x] `schema.py` — 报告模型
+- [x] `query.py` — 查询处理（jieba）
+- [x] `relevance.py` — 相关性（jieba 中文分支）
+- [x] `entity_extract.py` — 实体相关逻辑
+- [x] `query_type.py` — 查询类型检测
+- [x] `ui.py` — 状态与展示辅助
+
+## 包规范
+
+- [x] `scripts/lib/__init__.py` 保持裸包标记（仅注释，无 eager import）
+
+## 依赖与中文 NLP
+
+- [x] `requirements.txt` 加入 `jieba` 等必要依赖
+
+## 测试与样例
+
+- [x] 针对中文流水线调整或新增测试与 fixtures（随仓库现状）
+- [x] 验证 `--emit=compact` / `--emit=context` 等主路径
+
+## 发布与同步
+
+- [x] `scripts/sync.sh` 或与 Claude Code / OpenClaw 目录的部署说明对齐（按需手动改目标目录名）
+
+---
+
+*凡上列项均为回顾性勾选，表示本 fork 规划内工作已落实；若上游 last30days 继续演进，可另开 TASKS 跟踪合并。*

@@ -1,45 +1,52 @@
-"""Output rendering for last30days skill."""
+"""Output rendering for Chinese-platform research (last30days CN skill).
+
+Author: Jesse (https://github.com/ChiTing111)
+"""
 
 import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from . import schema
 
 OUTPUT_DIR = Path.home() / ".local" / "share" / "last30days" / "out"
 
 
+def _items(report: schema.Report, name: str):
+    return getattr(report, name, None) or []
+
+
+def _err(report: schema.Report, name: str):
+    return getattr(report, name, None)
+
+
 def _xref_tag(item) -> str:
-    """Return ' [also on: Reddit, HN]' string if item has cross_refs, else ''."""
-    refs = getattr(item, 'cross_refs', None)
+    """Return ' [同时见于: 微博, 知乎]' if item has cross_refs, else ''."""
+    refs = getattr(item, "cross_refs", None)
     if not refs:
         return ""
     source_names = set()
     for ref_id in refs:
-        if ref_id.startswith('R'):
-            source_names.add('Reddit')
-        elif ref_id.startswith('X'):
-            source_names.add('X')
-        elif ref_id.startswith('YT'):
-            source_names.add('YouTube')
-        elif ref_id.startswith('TK'):
-            source_names.add('TikTok')
-        elif ref_id.startswith('IG'):
-            source_names.add('Instagram')
-        elif ref_id.startswith('HN'):
-            source_names.add('HN')
-        elif ref_id.startswith('BS'):
-            source_names.add('Bluesky')
-        elif ref_id.startswith('TS'):
-            source_names.add('Truth Social')
-        elif ref_id.startswith('PM'):
-            source_names.add('Polymarket')
-        elif ref_id.startswith('W'):
-            source_names.add('Web')
+        rid = str(ref_id)
+        if rid.startswith("WB"):
+            source_names.add("微博")
+        elif rid.startswith("XHS"):
+            source_names.add("小红书")
+        elif rid.startswith("BL"):
+            source_names.add("B站")
+        elif rid.startswith("ZH"):
+            source_names.add("知乎")
+        elif rid.startswith("DY"):
+            source_names.add("抖音")
+        elif rid.startswith("WX"):
+            source_names.add("微信")
+        elif rid.startswith("BD"):
+            source_names.add("百度")
+        elif rid.startswith("TT"):
+            source_names.add("头条")
     if source_names:
-        return f" [also on: {', '.join(sorted(source_names))}]"
+        return f" [同时见于: {', '.join(sorted(source_names))}]"
     return ""
 
 
@@ -57,960 +64,650 @@ def ensure_output_dir():
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _list_recent_count(items, range_from: str) -> int:
+    return sum(1 for it in items if getattr(it, "date", None) and it.date >= range_from)
+
+
 def _assess_data_freshness(report: schema.Report) -> dict:
     """Assess how much data is actually from the last 30 days."""
-    reddit_recent = sum(1 for r in report.reddit if r.date and r.date >= report.range_from)
-    x_recent = sum(1 for x in report.x if x.date and x.date >= report.range_from)
-    web_recent = sum(1 for w in report.web if w.date and w.date >= report.range_from)
-    hn_recent = sum(1 for h in report.hackernews if h.date and h.date >= report.range_from)
-    bsky_recent = sum(1 for b in report.bluesky if b.date and b.date >= report.range_from)
-    ts_recent = sum(1 for ts in report.truthsocial if ts.date and ts.date >= report.range_from)
-    pm_recent = sum(1 for p in report.polymarket if p.date and p.date >= report.range_from)
-
-    tiktok_recent = sum(1 for t in report.tiktok if t.date and t.date >= report.range_from)
-    ig_recent = sum(1 for ig in report.instagram if ig.date and ig.date >= report.range_from)
-
-    total_recent = reddit_recent + x_recent + web_recent + hn_recent + bsky_recent + ts_recent + pm_recent + tiktok_recent + ig_recent
-    total_items = len(report.reddit) + len(report.x) + len(report.web) + len(report.hackernews) + len(report.bluesky) + len(report.truthsocial) + len(report.polymarket) + len(report.tiktok) + len(report.instagram)
-
+    lists = [
+        _items(report, "weibo"),
+        _items(report, "xiaohongshu"),
+        _items(report, "bilibili"),
+        _items(report, "zhihu"),
+        _items(report, "douyin"),
+        _items(report, "wechat"),
+        _items(report, "baidu"),
+        _items(report, "toutiao"),
+    ]
+    recent = sum(_list_recent_count(lst, report.range_from) for lst in lists)
+    total = sum(len(lst) for lst in lists)
     return {
-        "reddit_recent": reddit_recent,
-        "x_recent": x_recent,
-        "web_recent": web_recent,
-        "total_recent": total_recent,
-        "total_items": total_items,
-        "is_sparse": total_recent < 5,
-        "mostly_evergreen": total_items > 0 and total_recent < total_items * 0.3,
+        "total_recent": recent,
+        "total_items": total,
+        "is_sparse": recent < 5,
+        "mostly_evergreen": total > 0 and recent < total * 0.3,
     }
 
 
+def _fmt_eng_weibo(eng) -> str:
+    if not eng:
+        return ""
+    parts = []
+    if eng.likes is not None:
+        parts.append(f"{eng.likes}点赞")
+    if eng.reposts is not None:
+        parts.append(f"{eng.reposts}转发")
+    c = eng.num_comments if eng.num_comments is not None else getattr(eng, "replies", None)
+    if c is not None:
+        parts.append(f"{c}评论")
+    return f" [{', '.join(parts)}]" if parts else ""
+
+
+def _fmt_eng_bilibili(eng) -> str:
+    if not eng:
+        return ""
+    parts = []
+    if eng.views is not None:
+        parts.append(f"{eng.views:,}播放")
+    dm = getattr(eng, "danmaku", None) or getattr(eng, "danmu", None)
+    if dm is not None:
+        parts.append(f"{dm}弹幕")
+    coins = getattr(eng, "coins", None)
+    if coins is not None:
+        parts.append(f"{coins}投币")
+    fav = getattr(eng, "favorites", None) or getattr(eng, "fav", None)
+    if fav is not None:
+        parts.append(f"{fav}收藏")
+    if eng.likes is not None:
+        parts.append(f"{eng.likes}点赞")
+    return f" [{', '.join(parts)}]" if parts else ""
+
+
+def _fmt_eng_douyin(eng) -> str:
+    if not eng:
+        return ""
+    parts = []
+    if eng.views is not None:
+        parts.append(f"{eng.views:,}播放")
+    if eng.likes is not None:
+        parts.append(f"{eng.likes}点赞")
+    c = eng.num_comments if eng.num_comments is not None else getattr(eng, "replies", None)
+    if c is not None:
+        parts.append(f"{c}评论")
+    if eng.shares is not None:
+        parts.append(f"{eng.shares}转发")
+    return f" [{', '.join(parts)}]" if parts else ""
+
+
+def _fmt_eng_xhs(eng) -> str:
+    if not eng:
+        return ""
+    parts = []
+    if eng.likes is not None:
+        parts.append(f"{eng.likes}点赞")
+    c = eng.num_comments if eng.num_comments is not None else getattr(eng, "replies", None)
+    if c is not None:
+        parts.append(f"{c}评论")
+    if eng.shares is not None:
+        parts.append(f"{eng.shares}收藏")
+    return f" [{', '.join(parts)}]" if parts else ""
+
+
+def _fmt_eng_zhihu(eng) -> str:
+    if not eng:
+        return ""
+    parts = []
+    if eng.score is not None:
+        parts.append(f"{eng.score}赞同")
+    if eng.num_comments is not None:
+        parts.append(f"{eng.num_comments}评论")
+    return f" [{', '.join(parts)}]" if parts else ""
+
+
+def _fmt_eng_wechat(eng) -> str:
+    if not eng:
+        return ""
+    parts = []
+    reads = getattr(eng, "reads", None) or getattr(eng, "views", None)
+    if reads is not None:
+        parts.append(f"{reads}阅读")
+    if eng.likes is not None:
+        parts.append(f"{eng.likes}点赞")
+    return f" [{', '.join(parts)}]" if parts else ""
+
+
 def render_compact(report: schema.Report, limit: int = 15, missing_keys: str = "none") -> str:
-    """Render compact output for the assistant to synthesize.
-
-    Args:
-        report: Report data
-        limit: Max items per source
-        missing_keys: 'both', 'reddit', 'x', or 'none'
-
-    Returns:
-        Compact markdown string
-    """
+    """Render compact output for the assistant to synthesize."""
     lines = []
 
-    # Header
-    lines.append(f"## Research Results: {report.topic}")
+    lines.append(f"## 研究结果: {report.topic}")
     lines.append("")
 
-    # Assess data freshness and add honesty warning if needed
     freshness = _assess_data_freshness(report)
     if freshness["is_sparse"]:
-        lines.append("**⚠️ LIMITED RECENT DATA** - Few discussions from the last 30 days.")
-        lines.append(f"Only {freshness['total_recent']} item(s) confirmed from {report.range_from} to {report.range_to}.")
-        lines.append("Results below may include older/evergreen content. Be transparent with the user about this.")
+        lines.append("**⚠️ 近期数据较少** — 近 30 天内可确认的讨论不多。")
+        lines.append(f"仅 {freshness['total_recent']} 条可确认日期在 {report.range_from} 至 {report.range_to} 之间。")
+        lines.append("下列结果可能含较早或常青内容，请向用户如实说明时效性。")
         lines.append("")
 
-    # Web-only mode banner (when no API keys)
     if report.mode == "web-only":
-        lines.append("**🌐 WEB SEARCH MODE** - assistant will search blogs, docs & news")
+        lines.append("**🌐 仅网页/搜索模式** — 助手将检索网页、文档与新闻。")
         lines.append("")
         lines.append("---")
-        lines.append("**⚡ Want better results?** Add API keys to unlock Reddit, TikTok, Instagram & X data:")
-        lines.append("- `SCRAPECREATORS_API_KEY` → Reddit + TikTok + Instagram (one key, all three!) — 100 free calls, no CC — scrapecreators.com (no affiliation)")
-        lines.append("- `XAI_API_KEY` → X posts with real likes & reposts")
-        lines.append("- `OPENAI_API_KEY` (legacy) → Reddit threads (slower, higher cost)")
-        lines.append("- Edit `~/.config/last30days/.env` to add keys")
+        lines.append("**⚡ 想提升覆盖？** 在 `~/.config/last30days-cn/.env` 配置国内平台 API Key，解锁微博、小红书、B 站、知乎、抖音、微信公众号等结构化数据：")
+        lines.append("- WEIBO_ACCESS_TOKEN / SCRAPECREATORS_API_KEY / TIKHUB_API_KEY 等（详见 README）")
         lines.append("---")
         lines.append("")
 
-    # Cache indicator
     if report.from_cache:
-        age_str = f"{report.cache_age_hours:.1f}h old" if report.cache_age_hours else "cached"
-        lines.append(f"**⚡ CACHED RESULTS** ({age_str}) - use `--refresh` for fresh data")
+        age_str = f"{report.cache_age_hours:.1f} 小时前" if report.cache_age_hours else "已缓存"
+        lines.append(f"**⚡ 缓存结果**（{age_str}）— 使用 `--refresh` 获取最新数据")
         lines.append("")
 
-    lines.append(f"**Date Range:** {report.range_from} to {report.range_to}")
-    lines.append(f"**Mode:** {report.mode}")
-    if report.openai_model_used:
-        lines.append(f"**OpenAI Model:** {report.openai_model_used}")
-    if report.xai_model_used:
-        lines.append(f"**xAI Model:** {report.xai_model_used}")
-    if report.resolved_x_handle:
-        lines.append(f"**Resolved X Handle:** @{report.resolved_x_handle}")
+    lines.append(f"**日期范围:** {report.range_from} ~ {report.range_to}")
+    lines.append(f"**模式:** {report.mode}")
+    rw = getattr(report, "resolved_weibo_handle", None)
+    if rw:
+        lines.append(f"**解析的微博用户:** @{rw}")
     lines.append("")
 
-    # Coverage note for partial coverage
-    if report.mode == "reddit-only" and missing_keys in ("x", "none"):
-        lines.append("*💡 Tip: Add an xAI key (`XAI_API_KEY`) for X/Twitter data and better triangulation.*")
-        lines.append("")
-    elif report.mode == "x-only" and missing_keys in ("reddit", "none"):
-        lines.append("*💡 Tip: Add `SCRAPECREATORS_API_KEY` for Reddit + TikTok + Instagram data (one key, all three) — 100 free calls, no CC — scrapecreators.com (no affiliation)*")
+    if missing_keys != "none" and report.mode != "web-only":
+        lines.append("*💡 提示: 补齐各平台 API Key 可多源交叉验证。*")
         lines.append("")
 
-    # Reddit items
-    if report.reddit_error:
-        lines.append("### Reddit Threads")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.reddit_error}")
-        lines.append("")
-    elif report.mode in ("both", "reddit-only") and not report.reddit:
-        lines.append("### Reddit Threads")
-        lines.append("")
-        lines.append("*No relevant Reddit threads found for this topic.*")
-        lines.append("")
-    elif report.reddit:
-        lines.append("### Reddit Threads")
-        lines.append("")
-        for item in report.reddit[:limit]:
-            eng_str = ""
-            if item.engagement:
-                eng = item.engagement
-                parts = []
-                if eng.score is not None:
-                    parts.append(f"{eng.score}pts")
-                if eng.num_comments is not None:
-                    parts.append(f"{eng.num_comments}cmt")
-                if parts:
-                    eng_str = f" [{', '.join(parts)}]"
-
-            date_str = f" ({item.date})" if item.date else " (date unknown)"
-            conf_str = f" [date:{item.date_confidence}]" if item.date_confidence != "high" else ""
-
-            lines.append(f"**{item.id}** (score:{item.score}) r/{item.subreddit}{date_str}{conf_str}{eng_str}{_xref_tag(item)}")
-            lines.append(f"  {item.title}")
+    weibo_e = _err(report, "weibo_error")
+    weibo = _items(report, "weibo")
+    if weibo_e:
+        lines.extend(["### 微博动态", "", f"**错误:** {weibo_e}", ""])
+    elif weibo:
+        lines.extend(["### 微博动态", ""])
+        for item in weibo[:limit]:
+            date_str = f" ({item.date})" if item.date else " (日期未知)"
+            conf_str = f" [日期:{item.date_confidence}]" if getattr(item, "date_confidence", "high") != "high" else ""
+            eng_str = _fmt_eng_weibo(item.engagement)
+            lines.append(
+                f"**{item.id}** (得分:{item.score}) @{item.author_handle}{date_str}{conf_str}{eng_str}{_xref_tag(item)}"
+            )
+            text = getattr(item, "text", "") or ""
+            snippet = text[:200] + ("..." if len(text) > 200 else "")
+            lines.append(f"  {snippet}")
             lines.append(f"  {item.url}")
             lines.append(f"  *{item.why_relevant}*")
-
-            # Top comment (elevated — Reddit's value IS the comments)
-            if item.top_comments and item.top_comments[0].score >= 10:
+            if getattr(item, "top_comments", None) and item.top_comments and item.top_comments[0].score >= 10:
                 tc = item.top_comments[0]
                 excerpt = tc.excerpt[:200]
                 if len(tc.excerpt) > 200:
                     excerpt = excerpt.rstrip() + "..."
-                lines.append(f'  \U0001f4ac Top comment ({tc.score} upvotes): "{excerpt}"')
-
-            # Comment insights
-            if item.comment_insights:
-                lines.append("  Insights:")
+                lines.append(f'  💬 热评 ({tc.score}点赞): "{excerpt}"')
+            if getattr(item, "comment_insights", None):
+                lines.append("  观点摘要:")
                 for insight in item.comment_insights[:3]:
                     lines.append(f"    - {insight}")
-
             lines.append("")
 
-    # X items
-    if report.x_error:
-        lines.append("### X Posts")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.x_error}")
-        lines.append("")
-    elif report.mode in ("both", "x-only", "all", "x-web") and not report.x:
-        lines.append("### X Posts")
-        lines.append("")
-        lines.append("*No relevant X posts found for this topic.*")
-        lines.append("")
-    elif report.x:
-        lines.append("### X Posts")
-        lines.append("")
-        for item in report.x[:limit]:
-            eng_str = ""
-            if item.engagement:
-                eng = item.engagement
-                parts = []
-                if eng.likes is not None:
-                    parts.append(f"{eng.likes}likes")
-                if eng.reposts is not None:
-                    parts.append(f"{eng.reposts}rt")
-                if parts:
-                    eng_str = f" [{', '.join(parts)}]"
-
-            date_str = f" ({item.date})" if item.date else " (date unknown)"
-            conf_str = f" [date:{item.date_confidence}]" if item.date_confidence != "high" else ""
-
-            lines.append(f"**{item.id}** (score:{item.score}) @{item.author_handle}{date_str}{conf_str}{eng_str}{_xref_tag(item)}")
-            lines.append(f"  {item.text[:200]}...")
+    xhs_e = _err(report, "xiaohongshu_error")
+    xhs = _items(report, "xiaohongshu")
+    if xhs_e:
+        lines.extend(["### 小红书笔记", "", f"**错误:** {xhs_e}", ""])
+    elif xhs:
+        lines.extend(["### 小红书笔记", ""])
+        for item in xhs[:limit]:
+            date_str = f" ({item.date})" if item.date else ""
+            conf_str = f" [日期:{item.date_confidence}]" if getattr(item, "date_confidence", "high") != "high" else ""
+            eng_str = _fmt_eng_xhs(item.engagement)
+            author = getattr(item, "author_name", "") or getattr(item, "author_handle", "")
+            title = getattr(item, "title", None) or (getattr(item, "text", "") or "")[:80]
+            lines.append(f"**{item.id}** (得分:{item.score}) {author}{date_str}{conf_str}{eng_str}{_xref_tag(item)}")
+            lines.append(f"  {title}")
             lines.append(f"  {item.url}")
+            if getattr(item, "hashtags", None):
+                tags = " ".join(f"#{t}" for t in item.hashtags[:8])
+                lines.append(f"  话题: {tags}")
             lines.append(f"  *{item.why_relevant}*")
             lines.append("")
 
-    # YouTube items
-    if report.youtube_error:
-        lines.append("### YouTube Videos")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.youtube_error}")
-        lines.append("")
-    elif report.youtube:
-        lines.append("### YouTube Videos")
-        lines.append("")
-        for item in report.youtube[:limit]:
-            eng_str = ""
-            if item.engagement:
-                eng = item.engagement
-                parts = []
-                if eng.views is not None:
-                    parts.append(f"{eng.views:,} views")
-                if eng.likes is not None:
-                    parts.append(f"{eng.likes:,} likes")
-                if parts:
-                    eng_str = f" [{', '.join(parts)}]"
-
+    bl_e = _err(report, "bilibili_error")
+    bl = _items(report, "bilibili")
+    if bl_e:
+        lines.extend(["### B站视频", "", f"**错误:** {bl_e}", ""])
+    elif bl:
+        lines.extend(["### B站视频", ""])
+        for item in bl[:limit]:
             date_str = f" ({item.date})" if item.date else ""
-
-            lines.append(f"**{item.id}** (score:{item.score}) {item.channel_name}{date_str}{eng_str}{_xref_tag(item)}")
+            eng_str = _fmt_eng_bilibili(item.engagement)
+            lines.append(
+                f"**{item.id}** (得分:{item.score}) {item.channel_name}{date_str}{eng_str}{_xref_tag(item)}"
+            )
             lines.append(f"  {item.title}")
             lines.append(f"  {item.url}")
-            if item.transcript_highlights:
-                lines.append("  Highlights:")
+            if getattr(item, "transcript_highlights", None):
+                lines.append("  要点:")
                 for hl in item.transcript_highlights[:5]:
                     lines.append(f'    - "{hl}"')
-            if item.transcript_snippet:
-                word_count = len(item.transcript_snippet.split())
-                lines.append(f"  <details><summary>Full transcript ({word_count} words)</summary>")
+            if getattr(item, "transcript_snippet", None) and item.transcript_snippet:
+                wc = len(item.transcript_snippet.split())
+                lines.append(f"  <details><summary>字幕/文稿节选 ({wc} 词)</summary>")
                 lines.append(f"  {item.transcript_snippet}")
                 lines.append("  </details>")
             lines.append(f"  *{item.why_relevant}*")
             lines.append("")
 
-    # TikTok items
-    if report.tiktok_error:
-        lines.append("### TikTok Videos")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.tiktok_error}")
-        lines.append("")
-    elif report.tiktok:
-        lines.append("### TikTok Videos")
-        lines.append("")
-        for item in report.tiktok[:limit]:
-            eng_str = ""
-            if item.engagement:
-                eng = item.engagement
-                parts = []
-                if eng.views is not None:
-                    parts.append(f"{eng.views:,} views")
-                if eng.likes is not None:
-                    parts.append(f"{eng.likes:,} likes")
-                if parts:
-                    eng_str = f" [{', '.join(parts)}]"
-
+    zh_e = _err(report, "zhihu_error")
+    zh = _items(report, "zhihu")
+    if zh_e:
+        lines.extend(["### 知乎问答", "", f"**错误:** {zh_e}", ""])
+    elif zh:
+        lines.extend(["### 知乎问答", ""])
+        for item in zh[:limit]:
             date_str = f" ({item.date})" if item.date else ""
-
-            lines.append(f"**{item.id}** (score:{item.score}) @{item.author_name}{date_str}{eng_str}{_xref_tag(item)}")
-            lines.append(f"  {item.text[:200]}")
-            lines.append(f"  {item.url}")
-            if item.caption_snippet and item.caption_snippet != item.text[:len(item.caption_snippet)]:
-                snippet = item.caption_snippet[:200]
-                if len(item.caption_snippet) > 200:
-                    snippet += "..."
-                lines.append(f"  Caption: {snippet}")
-            if item.hashtags:
-                lines.append(f"  Tags: {' '.join('#' + h for h in item.hashtags[:8])}")
-            lines.append(f"  *{item.why_relevant}*")
-            lines.append("")
-
-    # Instagram items
-    if report.instagram_error:
-        lines.append("### Instagram Reels")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.instagram_error}")
-        lines.append("")
-    elif report.instagram:
-        lines.append("### Instagram Reels")
-        lines.append("")
-        for item in report.instagram[:limit]:
-            eng_str = ""
-            if item.engagement:
-                eng = item.engagement
-                parts = []
-                if eng.views is not None:
-                    parts.append(f"{eng.views:,} views")
-                if eng.likes is not None:
-                    parts.append(f"{eng.likes:,} likes")
-                if parts:
-                    eng_str = f" [{', '.join(parts)}]"
-
-            date_str = f" ({item.date})" if item.date else ""
-
-            lines.append(f"**{item.id}** (score:{item.score}) @{item.author_name}{date_str}{eng_str}{_xref_tag(item)}")
-            lines.append(f"  {item.text[:200]}")
-            lines.append(f"  {item.url}")
-            if item.caption_snippet and item.caption_snippet != item.text[:len(item.caption_snippet)]:
-                snippet = item.caption_snippet[:200]
-                if len(item.caption_snippet) > 200:
-                    snippet += "..."
-                lines.append(f"  Caption: {snippet}")
-            if item.hashtags:
-                lines.append(f"  Tags: {' '.join('#' + h for h in item.hashtags[:8])}")
-            lines.append(f"  *{item.why_relevant}*")
-            lines.append("")
-
-    # Hacker News items
-    if report.hackernews_error:
-        lines.append("### Hacker News Stories")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.hackernews_error}")
-        lines.append("")
-    elif report.hackernews:
-        lines.append("### Hacker News Stories")
-        lines.append("")
-        for item in report.hackernews[:limit]:
-            eng_str = ""
-            if item.engagement:
-                eng = item.engagement
-                parts = []
-                if eng.score is not None:
-                    parts.append(f"{eng.score}pts")
-                if eng.num_comments is not None:
-                    parts.append(f"{eng.num_comments}cmt")
-                if parts:
-                    eng_str = f" [{', '.join(parts)}]"
-
-            date_str = f" ({item.date})" if item.date else ""
-
-            lines.append(f"**{item.id}** (score:{item.score}) hn/{item.author}{date_str}{eng_str}{_xref_tag(item)}")
+            eng_str = _fmt_eng_zhihu(item.engagement)
+            zurl = getattr(item, "zhihu_url", None) or item.url
+            lines.append(
+                f"**{item.id}** (得分:{item.score}) {getattr(item, 'author', '')}{date_str}{eng_str}{_xref_tag(item)}"
+            )
             lines.append(f"  {item.title}")
-            lines.append(f"  {item.hn_url}")
+            lines.append(f"  {zurl}")
             lines.append(f"  *{item.why_relevant}*")
-
-            # Comment insights
-            if item.comment_insights:
-                lines.append(f"  Insights:")
+            if getattr(item, "comment_insights", None):
+                lines.append("  观点摘要:")
                 for insight in item.comment_insights[:3]:
                     lines.append(f"    - {insight}")
-
             lines.append("")
 
-    # Bluesky items
-    if report.bluesky_error:
-        lines.append("### Bluesky Posts")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.bluesky_error}")
-        lines.append("")
-    elif report.bluesky:
-        lines.append("### Bluesky Posts")
-        lines.append("")
-        for item in report.bluesky[:limit]:
-            eng_str = ""
-            if item.engagement:
-                eng = item.engagement
-                parts = []
-                if eng.likes is not None:
-                    parts.append(f"{eng.likes}lk")
-                if eng.reposts is not None:
-                    parts.append(f"{eng.reposts}rp")
-                if eng.replies is not None:
-                    parts.append(f"{eng.replies}re")
-                if parts:
-                    eng_str = f" [{', '.join(parts)}]"
-
+    dy_e = _err(report, "douyin_error")
+    dy = _items(report, "douyin")
+    if dy_e:
+        lines.extend(["### 抖音视频", "", f"**错误:** {dy_e}", ""])
+    elif dy:
+        lines.extend(["### 抖音视频", ""])
+        for item in dy[:limit]:
             date_str = f" ({item.date})" if item.date else ""
-
-            lines.append(f"**{item.id}** (score:{item.score}) @{item.author_handle}{date_str}{eng_str}{_xref_tag(item)}")
-            if item.text:
-                snippet = item.text[:200]
-                if len(item.text) > 200:
-                    snippet += "..."
-                lines.append(f"  {snippet}")
-            if item.url:
-                lines.append(f"  {item.url}")
-            lines.append(f"  *{item.why_relevant}*")
-            lines.append("")
-
-    # Truth Social items
-    if report.truthsocial_error:
-        lines.append("### Truth Social Posts")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.truthsocial_error}")
-        lines.append("")
-    elif report.truthsocial:
-        lines.append("### Truth Social Posts")
-        lines.append("")
-        for item in report.truthsocial[:limit]:
-            eng_str = ""
-            if item.engagement:
-                eng = item.engagement
-                parts = []
-                if eng.likes is not None:
-                    parts.append(f"{eng.likes}lk")
-                if eng.reposts is not None:
-                    parts.append(f"{eng.reposts}rp")
-                if eng.replies is not None:
-                    parts.append(f"{eng.replies}re")
-                if parts:
-                    eng_str = f" [{', '.join(parts)}]"
-
-            date_str = f" ({item.date})" if item.date else ""
-
-            lines.append(f"**{item.id}** (score:{item.score}) @{item.author_handle}{date_str}{eng_str}{_xref_tag(item)}")
-            if item.text:
-                snippet = item.text[:200]
-                if len(item.text) > 200:
-                    snippet += "..."
-                lines.append(f"  {snippet}")
-            if item.url:
-                lines.append(f"  {item.url}")
-            lines.append(f"  *{item.why_relevant}*")
-            lines.append("")
-
-    # Polymarket items
-    if report.polymarket_error:
-        lines.append("### Prediction Markets (Polymarket)")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.polymarket_error}")
-        lines.append("")
-    elif report.polymarket:
-        lines.append("### Prediction Markets (Polymarket)")
-        lines.append("")
-        for item in report.polymarket[:limit]:
-            eng_str = ""
-            if item.engagement:
-                eng = item.engagement
-                parts = []
-                if eng.volume is not None:
-                    if eng.volume >= 1_000_000:
-                        parts.append(f"${eng.volume/1_000_000:.1f}M volume")
-                    elif eng.volume >= 1_000:
-                        parts.append(f"${eng.volume/1_000:.0f}K volume")
-                    else:
-                        parts.append(f"${eng.volume:.0f} volume")
-                if eng.liquidity is not None:
-                    if eng.liquidity >= 1_000_000:
-                        parts.append(f"${eng.liquidity/1_000_000:.1f}M liquidity")
-                    elif eng.liquidity >= 1_000:
-                        parts.append(f"${eng.liquidity/1_000:.0f}K liquidity")
-                    else:
-                        parts.append(f"${eng.liquidity:.0f} liquidity")
-                if parts:
-                    eng_str = f" [{', '.join(parts)}]"
-
-            date_str = f" ({item.date})" if item.date else ""
-
-            lines.append(f"**{item.id}** (score:{item.score}){eng_str}{_xref_tag(item)}")
-            lines.append(f"  {item.question}")
-
-            # Outcome prices with price movement
-            if item.outcome_prices:
-                outcomes = []
-                for name, price in item.outcome_prices:
-                    pct = price * 100
-                    outcomes.append(f"{name}: {pct:.0f}%")
-                outcome_line = " | ".join(outcomes)
-                if item.outcomes_remaining > 0:
-                    outcome_line += f" and {item.outcomes_remaining} more"
-                if item.price_movement:
-                    outcome_line += f" ({item.price_movement})"
-                lines.append(f"  {outcome_line}")
-
+            eng_str = _fmt_eng_douyin(item.engagement)
+            auth = getattr(item, "author_name", "")
+            txt = getattr(item, "text", "") or ""
+            snippet = txt[:200] + ("..." if len(txt) > 200 else "")
+            lines.append(f"**{item.id}** (得分:{item.score}) @{auth}{date_str}{eng_str}{_xref_tag(item)}")
+            lines.append(f"  {snippet}")
             lines.append(f"  {item.url}")
+            cap = getattr(item, "caption_snippet", None)
+            if cap and cap != txt[: len(cap)]:
+                cs = cap[:200]
+                if len(cap) > 200:
+                    cs += "..."
+                lines.append(f"  文案: {cs}")
+            if getattr(item, "hashtags", None):
+                lines.append(f"  话题: {' '.join('#' + h for h in item.hashtags[:8])}")
             lines.append(f"  *{item.why_relevant}*")
             lines.append("")
 
-    # Web items (if any - populated by the assistant)
-    if report.web_error:
-        lines.append("### Web Results")
-        lines.append("")
-        lines.append(f"**ERROR:** {report.web_error}")
-        lines.append("")
-    elif report.web:
-        lines.append("### Web Results")
-        lines.append("")
-        for item in report.web[:limit]:
-            date_str = f" ({item.date})" if item.date else " (date unknown)"
-            conf_str = f" [date:{item.date_confidence}]" if item.date_confidence != "high" else ""
-
-            lines.append(f"**{item.id}** [WEB] (score:{item.score}) {item.source_domain}{date_str}{conf_str}{_xref_tag(item)}")
+    wx_e = _err(report, "wechat_error")
+    wx = _items(report, "wechat")
+    if wx_e:
+        lines.extend(["### 微信公众号文章", "", f"**错误:** {wx_e}", ""])
+    elif wx:
+        lines.extend(["### 微信公众号文章", ""])
+        for item in wx[:limit]:
+            date_str = f" ({item.date})" if item.date else ""
+            eng_str = _fmt_eng_wechat(item.engagement)
+            acct = getattr(item, "account_name", None) or getattr(item, "author_name", "") or getattr(item, "author", "")
+            lines.append(f"**{item.id}** (得分:{item.score}) {acct}{date_str}{eng_str}{_xref_tag(item)}")
             lines.append(f"  {item.title}")
             lines.append(f"  {item.url}")
-            lines.append(f"  {item.snippet[:150]}...")
+            sn = getattr(item, "snippet", "") or ""
+            if sn:
+                lines.append(f"  {sn[:150]}...")
             lines.append(f"  *{item.why_relevant}*")
+            lines.append("")
+
+    bd_e = _err(report, "baidu_error")
+    bd = _items(report, "baidu")
+    if bd_e:
+        lines.extend(["### 百度搜索结果", "", f"**错误:** {bd_e}", ""])
+    elif bd:
+        lines.extend(["### 百度搜索结果", ""])
+        for item in bd[:limit]:
+            date_str = f" ({item.date})" if item.date else " (日期未知)"
+            conf_str = f" [日期:{item.date_confidence}]" if getattr(item, "date_confidence", "high") != "high" else ""
+            lines.append(
+                f"**{item.id}** [百度] (得分:{item.score}) {item.source_domain}{date_str}{conf_str}{_xref_tag(item)}"
+            )
+            lines.append(f"  {item.title}")
+            lines.append(f"  {item.url}")
+            snip = (getattr(item, "snippet", None) or "")[:150]
+            lines.append(f"  {snip}...")
+            lines.append(f"  *{item.why_relevant}*")
+            lines.append("")
+
+    tt_e = _err(report, "toutiao_error")
+    tt = _items(report, "toutiao")
+    if tt_e:
+        lines.extend(["### 今日头条资讯", "", f"**错误:** {tt_e}", ""])
+    elif tt:
+        lines.extend(["### 今日头条资讯", ""])
+        for item in tt[:limit]:
+            date_str = f" ({item.date})" if item.date else ""
+            conf_str = f" [日期:{item.date_confidence}]" if getattr(item, "date_confidence", "high") != "high" else ""
+            dom = getattr(item, "source_domain", "") or getattr(item, "source", "")
+            lines.append(f"**{item.id}** [头条] (得分:{item.score}) {dom}{date_str}{conf_str}{_xref_tag(item)}")
+            title = getattr(item, "title", "")
+            lines.append(f"  {title}")
+            lines.append(f"  {item.url}")
+            sn = (getattr(item, "snippet", None) or getattr(item, "summary", None) or "")[:150]
+            if sn:
+                lines.append(f"  {sn}...")
+            lines.append(f"  *{getattr(item, 'why_relevant', '')}*")
             lines.append("")
 
     return "\n".join(lines)
 
 
 def render_quality_nudge(quality: dict) -> str:
-    """Render the quality score nudge block.
-
-    Args:
-        quality: Dict from quality_nudge.compute_quality_score()
-
-    Returns:
-        Markdown string with quality nudge, or empty string if no nudge.
-    """
+    """Render the quality score nudge block."""
     nudge_text = quality.get("nudge_text")
     if not nudge_text:
         return ""
 
-    lines = []
-    lines.append("---")
-    lines.append(f"**🔍 Research Coverage: {quality['score_pct']}%**")
-    lines.append("")
-    lines.append(nudge_text)
-    lines.append("")
+    lines = [
+        "---",
+        f"**🔍 研究覆盖度: {quality['score_pct']}%**",
+        "",
+        nudge_text,
+        "",
+    ]
     return "\n".join(lines)
 
 
 def render_source_status(report: schema.Report, source_info: dict = None) -> str:
-    """Render source status footer showing what was used/skipped and why.
-
-    Args:
-        report: Report data
-        source_info: Dict with source availability info:
-            x_skip_reason, youtube_skip_reason, web_skip_reason
-
-    Returns:
-        Source status markdown string
-    """
+    """Render source status footer (Chinese platforms)."""
     if source_info is None:
         source_info = {}
 
-    lines = []
-    lines.append("---")
-    lines.append("**Sources:**")
+    lines = ["---", "**来源:**"]
 
-    # Reddit
-    if report.reddit_error:
-        lines.append(f"  ❌ Reddit: error — {report.reddit_error}")
-    elif report.reddit:
-        lines.append(f"  ✅ Reddit: {len(report.reddit)} threads")
-    elif report.mode in ("both", "reddit-only", "all", "reddit-web"):
-        pass  # Hide zero-result sources
+    def line_ok(name: str, n: int, extra: str = ""):
+        lines.append(f"  ✅ {name}: {n} 条{extra}")
+
+    def line_err(name: str, err: str):
+        lines.append(f"  ❌ {name}: 错误 — {err}")
+
+    weibo = _items(report, "weibo")
+    weibo_e = _err(report, "weibo_error")
+    if weibo_e:
+        line_err("微博", weibo_e)
+    elif weibo:
+        line_ok("微博", len(weibo))
+
+    xhs = _items(report, "xiaohongshu")
+    xhs_e = _err(report, "xiaohongshu_error")
+    if xhs_e:
+        line_err("小红书", xhs_e)
+    elif xhs:
+        line_ok("小红书", len(xhs))
+
+    bl = _items(report, "bilibili")
+    bl_e = _err(report, "bilibili_error")
+    if bl_e:
+        line_err("B站", bl_e)
+    elif bl:
+        n_tr = sum(1 for v in bl if getattr(v, "transcript_snippet", None))
+        line_ok("B站", len(bl), f"（{n_tr} 条含字幕/文稿）")
+
+    zh = _items(report, "zhihu")
+    zh_e = _err(report, "zhihu_error")
+    if zh_e:
+        line_err("知乎", zh_e)
+    elif zh:
+        line_ok("知乎", len(zh))
+
+    dy = _items(report, "douyin")
+    dy_e = _err(report, "douyin_error")
+    if dy_e:
+        line_err("抖音", dy_e)
+    elif dy:
+        line_ok("抖音", len(dy))
+
+    wx = _items(report, "wechat")
+    wx_e = _err(report, "wechat_error")
+    if wx_e:
+        line_err("微信", wx_e)
+    elif wx:
+        line_ok("微信公众号", len(wx))
+
+    bd = _items(report, "baidu")
+    bd_e = _err(report, "baidu_error")
+    if bd_e:
+        line_err("百度", bd_e)
+    elif bd:
+        line_ok("百度", len(bd))
     else:
-        reason = source_info.get("reddit_skip_reason", "not configured")
-        lines.append(f"  ⏭️ Reddit: skipped — {reason}")
-
-    # X
-    if report.x_error:
-        lines.append(f"  ❌ X: error — {report.x_error}")
-    elif report.x:
-        x_line = f"  ✅ X: {len(report.x)} posts"
-        if report.resolved_x_handle:
-            x_line += f" (via @{report.resolved_x_handle} + keyword search)"
-        lines.append(x_line)
-    elif report.mode in ("both", "x-only", "all", "x-web"):
-        pass  # Hide zero-result sources
-    else:
-        reason = source_info.get("x_skip_reason", "No Bird CLI or XAI_API_KEY")
-        lines.append(f"  ⏭️ X: skipped — {reason}")
-
-    # YouTube
-    if report.youtube_error:
-        lines.append(f"  ❌ YouTube: error — {report.youtube_error}")
-    elif report.youtube:
-        with_transcripts = sum(1 for v in report.youtube if getattr(v, 'transcript_snippet', None))
-        lines.append(f"  ✅ YouTube: {len(report.youtube)} videos ({with_transcripts} with transcripts)")
-    # Hide when zero results (no skip reason line needed)
-
-    # TikTok
-    if report.tiktok_error:
-        lines.append(f"  ❌ TikTok: error — {report.tiktok_error}")
-    elif report.tiktok:
-        with_captions = sum(1 for v in report.tiktok if getattr(v, 'caption_snippet', None))
-        lines.append(f"  ✅ TikTok: {len(report.tiktok)} videos ({with_captions} with captions)")
-    # Hide when zero results
-
-    # Instagram
-    if report.instagram_error:
-        lines.append(f"  ❌ Instagram: error — {report.instagram_error}")
-    elif report.instagram:
-        with_captions = sum(1 for v in report.instagram if getattr(v, 'caption_snippet', None))
-        lines.append(f"  ✅ Instagram: {len(report.instagram)} reels ({with_captions} with captions)")
-    # Hide when zero results
-
-    # Xiaohongshu (from Web source bucket)
-    xhs_count = 0
-    if report.web:
-        xhs_count = sum(
-            1 for w in report.web
-            if getattr(w, "source_domain", "").lower().endswith("xiaohongshu.com")
-        )
-    if xhs_count > 0:
-        lines.append(f"  ✅ Xiaohongshu: {xhs_count} notes")
-    else:
-        reason = source_info.get("xiaohongshu_skip_reason")
+        reason = source_info.get("baidu_skip_reason") or source_info.get("web_skip_reason")
         if reason:
-            lines.append(f"  ⚡ Xiaohongshu: {reason}")
+            lines.append(f"  ⚡ 百度: {reason}")
 
-    # Hacker News
-    if report.hackernews_error:
-        lines.append(f"  ❌ HN: error - {report.hackernews_error}")
-    elif report.hackernews:
-        lines.append(f"  ✅ HN: {len(report.hackernews)} stories")
-    # Hide when zero results
-
-    # Bluesky
-    if report.bluesky_error:
-        lines.append(f"  ❌ Bluesky: error - {report.bluesky_error}")
-    elif report.bluesky:
-        lines.append(f"  ✅ Bluesky: {len(report.bluesky)} posts")
-    # Hide when zero results
-
-    # Truth Social
-    if report.truthsocial_error:
-        lines.append(f"  ❌ Truth Social: error - {report.truthsocial_error}")
-    elif report.truthsocial:
-        lines.append(f"  ✅ Truth Social: {len(report.truthsocial)} posts")
-    # Hide when zero results
-
-    # Polymarket
-    if report.polymarket_error:
-        lines.append(f"  ❌ Polymarket: error - {report.polymarket_error}")
-    elif report.polymarket:
-        lines.append(f"  ✅ Polymarket: {len(report.polymarket)} markets")
-    # Hide when zero results
-
-    # Web
-    if report.web_error:
-        lines.append(f"  ❌ Web: error — {report.web_error}")
-    elif report.web:
-        lines.append(f"  ✅ Web: {len(report.web)} pages")
-    else:
-        reason = source_info.get("web_skip_reason", "assistant will use WebSearch")
-        lines.append(f"  ⚡ Web: {reason}")
+    tt = _items(report, "toutiao")
+    tt_e = _err(report, "toutiao_error")
+    if tt_e:
+        line_err("头条", tt_e)
+    elif tt:
+        line_ok("今日头条", len(tt))
 
     lines.append("")
     return "\n".join(lines)
 
 
 def render_context_snippet(report: schema.Report) -> str:
-    """Render reusable context snippet.
-
-    Args:
-        report: Report data
-
-    Returns:
-        Context markdown string
-    """
-    lines = []
-    lines.append(f"# Context: {report.topic} (Last 30 Days)")
-    lines.append("")
-    lines.append(f"*Generated: {report.generated_at[:10]} | Sources: {report.mode}*")
-    lines.append("")
-
-    # Key sources summary
-    lines.append("## Key Sources")
-    lines.append("")
+    """Render reusable context snippet (Chinese sources)."""
+    lines = [
+        f"# 上下文: {report.topic}（近 30 天）",
+        "",
+        f"*生成时间: {report.generated_at[:10]} | 模式: {report.mode}*",
+        "",
+        "## 主要来源",
+        "",
+    ]
 
     all_items = []
-    for item in report.reddit[:5]:
-        all_items.append((item.score, "Reddit", item.title, item.url))
-    for item in report.x[:5]:
-        all_items.append((item.score, "X", item.text[:50] + "...", item.url))
-    for item in report.tiktok[:5]:
-        all_items.append((item.score, "TikTok", item.text[:50] + "...", item.url))
-    for item in report.instagram[:5]:
-        all_items.append((item.score, "Instagram", item.text[:50] + "...", item.url))
-    for item in report.hackernews[:5]:
-        all_items.append((item.score, "HN", item.title[:50] + "...", item.hn_url))
-    for item in report.bluesky[:5]:
-        all_items.append((item.score, "Bluesky", item.text[:50] + "...", item.url))
-    for item in report.truthsocial[:5]:
-        all_items.append((item.score, "Truth Social", item.text[:50] + "...", item.url))
-    for item in report.polymarket[:5]:
-        all_items.append((item.score, "Polymarket", item.question[:50] + "...", item.url))
-    for item in report.web[:5]:
-        all_items.append((item.score, "Web", item.title[:50] + "...", item.url))
+    for item in _items(report, "weibo")[:5]:
+        t = (getattr(item, "text", "") or "")[:50] + "..."
+        all_items.append((item.score, "微博", t, item.url))
+    for item in _items(report, "xiaohongshu")[:5]:
+        t = (getattr(item, "title", None) or getattr(item, "text", "") or "")[:50] + "..."
+        all_items.append((item.score, "小红书", t, item.url))
+    for item in _items(report, "bilibili")[:5]:
+        tit = item.title
+        all_items.append((item.score, "B站", (tit[:50] + "...") if len(tit) > 50 else tit, item.url))
+    for item in _items(report, "zhihu")[:5]:
+        tit = item.title
+        all_items.append((item.score, "知乎", (tit[:50] + "...") if len(tit) > 50 else tit, item.url))
+    for item in _items(report, "douyin")[:5]:
+        t = (getattr(item, "text", "") or "")[:50] + "..."
+        all_items.append((item.score, "抖音", t, item.url))
+    for item in _items(report, "wechat")[:5]:
+        tit = item.title
+        all_items.append((item.score, "微信", (tit[:50] + "...") if len(tit) > 50 else tit, item.url))
+    for item in _items(report, "baidu")[:5]:
+        tit = item.title
+        all_items.append((item.score, "百度", (tit[:50] + "...") if len(tit) > 50 else tit, item.url))
+    for item in _items(report, "toutiao")[:5]:
+        title = getattr(item, "title", "")
+        all_items.append((item.score, "头条", (title[:50] + "...") if len(title) > 50 else title, item.url))
 
     all_items.sort(key=lambda x: -x[0])
     for score, source, text, url in all_items[:7]:
         lines.append(f"- [{source}] {text}")
 
-    lines.append("")
-    lines.append("## Summary")
-    lines.append("")
-    lines.append("*See full report for best practices, prompt pack, and detailed sources.*")
-    lines.append("")
-
+    lines.extend(["", "## 摘要", "", "*完整报告含最佳实践、提示词包与详细来源。*", ""])
     return "\n".join(lines)
 
 
 def render_full_report(report: schema.Report) -> str:
-    """Render full markdown report.
+    """Render full markdown report (Chinese sections)."""
+    lines = [
+        f"# {report.topic} — 近 30 天研究报告",
+        "",
+        f"**生成时间:** {report.generated_at}",
+        f"**日期范围:** {report.range_from} ~ {report.range_to}",
+        f"**模式:** {report.mode}",
+        "",
+    ]
 
-    Args:
-        report: Report data
-
-    Returns:
-        Full report markdown
-    """
-    lines = []
-
-    # Title
-    lines.append(f"# {report.topic} - Last 30 Days Research Report")
-    lines.append("")
-    lines.append(f"**Generated:** {report.generated_at}")
-    lines.append(f"**Date Range:** {report.range_from} to {report.range_to}")
-    lines.append(f"**Mode:** {report.mode}")
-    lines.append("")
-
-    # Models
-    lines.append("## Models Used")
-    lines.append("")
-    if report.openai_model_used:
-        lines.append(f"- **OpenAI:** {report.openai_model_used}")
-    if report.xai_model_used:
-        lines.append(f"- **xAI:** {report.xai_model_used}")
-    lines.append("")
-
-    # Reddit section
-    if report.reddit:
-        lines.append("## Reddit Threads")
-        lines.append("")
-        for item in report.reddit:
-            lines.append(f"### {item.id}: {item.title}")
-            lines.append("")
-            lines.append(f"- **Subreddit:** r/{item.subreddit}")
-            lines.append(f"- **URL:** {item.url}")
-            lines.append(f"- **Date:** {item.date or 'Unknown'} (confidence: {item.date_confidence})")
-            lines.append(f"- **Score:** {item.score}/100")
-            lines.append(f"- **Relevance:** {item.why_relevant}")
-
-            if item.engagement:
-                eng = item.engagement
-                lines.append(f"- **Engagement:** {eng.score or '?'} points, {eng.num_comments or '?'} comments")
-
-            if item.top_comments and item.top_comments[0].score >= 10:
-                tc = item.top_comments[0]
-                excerpt = tc.excerpt[:200]
-                if len(tc.excerpt) > 200:
-                    excerpt = excerpt.rstrip() + "..."
-                lines.append("")
-                lines.append(f'**\U0001f4ac Top Comment** ({tc.score} upvotes, u/{tc.author}):')
-                lines.append(f'> {excerpt}')
-
-            if item.comment_insights:
-                lines.append("")
-                lines.append("**Key Insights from Comments:**")
-                for insight in item.comment_insights:
-                    lines.append(f"- {insight}")
-
-            lines.append("")
-
-    # X section
-    if report.x:
-        lines.append("## X Posts")
-        lines.append("")
-        for item in report.x:
+    wb = _items(report, "weibo")
+    if wb:
+        lines.extend(["## 微博动态", ""])
+        for item in wb:
             lines.append(f"### {item.id}: @{item.author_handle}")
             lines.append("")
-            lines.append(f"- **URL:** {item.url}")
-            lines.append(f"- **Date:** {item.date or 'Unknown'} (confidence: {item.date_confidence})")
-            lines.append(f"- **Score:** {item.score}/100")
-            lines.append(f"- **Relevance:** {item.why_relevant}")
-
+            lines.append(f"- **链接:** {item.url}")
+            lines.append(f"- **日期:** {item.date or '未知'} (置信: {getattr(item, 'date_confidence', 'low')})")
+            lines.append(f"- **得分:** {item.score}/100")
+            lines.append(f"- **相关性:** {item.why_relevant}")
             if item.engagement:
                 eng = item.engagement
-                lines.append(f"- **Engagement:** {eng.likes or '?'} likes, {eng.reposts or '?'} reposts")
-
+                c = eng.num_comments if eng.num_comments is not None else getattr(eng, "replies", "?")
+                lines.append(f"- **互动:** {eng.likes or '?'} 点赞, {eng.reposts or '?'} 转发, {c} 评论")
             lines.append("")
-            lines.append(f"> {item.text}")
-            lines.append("")
-
-    # TikTok section
-    if report.tiktok:
-        lines.append("## TikTok Videos")
-        lines.append("")
-        for item in report.tiktok:
-            lines.append(f"### {item.id}: @{item.author_name}")
-            lines.append("")
-            lines.append(f"- **URL:** {item.url}")
-            lines.append(f"- **Date:** {item.date or 'Unknown'}")
-            lines.append(f"- **Score:** {item.score}/100")
-            lines.append(f"- **Relevance:** {item.why_relevant}")
-
-            if item.engagement:
-                eng = item.engagement
-                lines.append(f"- **Engagement:** {eng.views or '?'} views, {eng.likes or '?'} likes, {eng.num_comments or '?'} comments")
-
-            if item.hashtags:
-                lines.append(f"- **Hashtags:** {' '.join('#' + h for h in item.hashtags[:10])}")
-
-            lines.append("")
-            lines.append(f"> {item.text[:300]}")
+            lines.append(f"> {getattr(item, 'text', '')}")
             lines.append("")
 
-    # Instagram section
-    if report.instagram:
-        lines.append("## Instagram Reels")
-        lines.append("")
-        for item in report.instagram:
-            lines.append(f"### {item.id}: @{item.author_name}")
+    xhs = _items(report, "xiaohongshu")
+    if xhs:
+        lines.extend(["## 小红书笔记", ""])
+        for item in xhs:
+            auth = getattr(item, "author_name", "") or getattr(item, "author_handle", "")
+            lines.append(f"### {item.id}: {auth}")
             lines.append("")
-            lines.append(f"- **URL:** {item.url}")
-            lines.append(f"- **Date:** {item.date or 'Unknown'}")
-            lines.append(f"- **Score:** {item.score}/100")
-            lines.append(f"- **Relevance:** {item.why_relevant}")
-
-            if item.engagement:
-                eng = item.engagement
-                lines.append(f"- **Engagement:** {eng.views or '?'} views, {eng.likes or '?'} likes, {eng.num_comments or '?'} comments")
-
-            if item.hashtags:
-                lines.append(f"- **Hashtags:** {' '.join('#' + h for h in item.hashtags[:10])}")
-
+            lines.append(f"- **链接:** {item.url}")
+            lines.append(f"- **日期:** {item.date or '未知'}")
+            lines.append(f"- **得分:** {item.score}/100")
+            if getattr(item, "hashtags", None):
+                lines.append(f"- **话题:** {' '.join('#' + h for h in item.hashtags[:10])}")
+            lines.append(f"- **相关性:** {item.why_relevant}")
             lines.append("")
-            lines.append(f"> {item.text[:300]}")
+            body = getattr(item, "text", None) or getattr(item, "title", "")
+            lines.append(f"> {body[:400]}")
             lines.append("")
 
-    # HN section
-    if report.hackernews:
-        lines.append("## Hacker News Stories")
-        lines.append("")
-        for item in report.hackernews:
+    bl = _items(report, "bilibili")
+    if bl:
+        lines.extend(["## B站视频", ""])
+        for item in bl:
             lines.append(f"### {item.id}: {item.title}")
             lines.append("")
-            lines.append(f"- **Author:** {item.author}")
-            lines.append(f"- **HN URL:** {item.hn_url}")
-            if item.url:
-                lines.append(f"- **Article URL:** {item.url}")
-            lines.append(f"- **Date:** {item.date or 'Unknown'}")
-            lines.append(f"- **Score:** {item.score}/100")
-            lines.append(f"- **Relevance:** {item.why_relevant}")
-
+            lines.append(f"- **UP主:** {item.channel_name}")
+            lines.append(f"- **链接:** {item.url}")
+            lines.append(f"- **日期:** {item.date or '未知'}")
+            lines.append(f"- **得分:** {item.score}/100")
+            lines.append(f"- **相关性:** {item.why_relevant}")
             if item.engagement:
                 eng = item.engagement
-                lines.append(f"- **Engagement:** {eng.score or '?'} points, {eng.num_comments or '?'} comments")
-
-            if item.comment_insights:
-                lines.append("")
-                lines.append("**Key Insights from Comments:**")
-                for insight in item.comment_insights:
-                    lines.append(f"- {insight}")
-
+                dm = getattr(eng, "danmaku", getattr(eng, "danmu", "?"))
+                lines.append(f"- **数据:** {eng.views or '?'} 播放, {dm} 弹幕")
             lines.append("")
 
-    # Bluesky section
-    if report.bluesky:
-        lines.append("## Bluesky Posts")
-        lines.append("")
-        for item in report.bluesky:
-            lines.append(f"### {item.id}: @{item.author_handle}")
-            lines.append("")
-            lines.append(f"- **URL:** {item.url}")
-            lines.append(f"- **Date:** {item.date or 'Unknown'}")
-            lines.append(f"- **Score:** {item.score}/100")
-            lines.append(f"- **Relevance:** {item.why_relevant}")
-
-            if item.engagement:
-                eng = item.engagement
-                lines.append(f"- **Engagement:** {eng.likes or '?'} likes, {eng.reposts or '?'} reposts, {eng.replies or '?'} replies")
-
-            lines.append("")
-            lines.append(f"> {item.text[:300]}")
-            lines.append("")
-
-    # Truth Social section
-    if report.truthsocial:
-        lines.append("## Truth Social Posts")
-        lines.append("")
-        for item in report.truthsocial:
-            lines.append(f"### {item.id}: @{item.author_handle}")
-            lines.append("")
-            lines.append(f"- **URL:** {item.url}")
-            lines.append(f"- **Date:** {item.date or 'Unknown'}")
-            lines.append(f"- **Score:** {item.score}/100")
-            lines.append(f"- **Relevance:** {item.why_relevant}")
-
-            if item.engagement:
-                eng = item.engagement
-                lines.append(f"- **Engagement:** {eng.likes or '?'} likes, {eng.reposts or '?'} reposts, {eng.replies or '?'} replies")
-
-            lines.append("")
-            lines.append(f"> {item.text[:300]}")
-            lines.append("")
-
-    # Polymarket section
-    if report.polymarket:
-        lines.append("## Prediction Markets (Polymarket)")
-        lines.append("")
-        for item in report.polymarket:
-            lines.append(f"### {item.id}: {item.question}")
-            lines.append("")
-            lines.append(f"- **Event:** {item.title}")
-            lines.append(f"- **URL:** {item.url}")
-            lines.append(f"- **Date:** {item.date or 'Unknown'}")
-            lines.append(f"- **Score:** {item.score}/100")
-
-            if item.outcome_prices:
-                outcomes = [f"{name}: {price*100:.0f}%" for name, price in item.outcome_prices]
-                lines.append(f"- **Outcomes:** {' | '.join(outcomes)}")
-            if item.price_movement:
-                lines.append(f"- **Trend:** {item.price_movement}")
-            if item.engagement:
-                eng = item.engagement
-                lines.append(f"- **Volume:** ${eng.volume or 0:,.0f} | Liquidity: ${eng.liquidity or 0:,.0f}")
-
-            lines.append("")
-
-    # Web section
-    if report.web:
-        lines.append("## Web Results")
-        lines.append("")
-        for item in report.web:
+    zh = _items(report, "zhihu")
+    if zh:
+        lines.extend(["## 知乎问答", ""])
+        for item in zh:
             lines.append(f"### {item.id}: {item.title}")
             lines.append("")
-            lines.append(f"- **Source:** {item.source_domain}")
-            lines.append(f"- **URL:** {item.url}")
-            lines.append(f"- **Date:** {item.date or 'Unknown'} (confidence: {item.date_confidence})")
-            lines.append(f"- **Score:** {item.score}/100")
-            lines.append(f"- **Relevance:** {item.why_relevant}")
+            zurl = getattr(item, "zhihu_url", None) or item.url
+            lines.append(f"- **作者:** {getattr(item, 'author', '')}")
+            lines.append(f"- **链接:** {zurl}")
+            lines.append(f"- **日期:** {item.date or '未知'}")
+            lines.append(f"- **得分:** {item.score}/100")
+            lines.append(f"- **相关性:** {item.why_relevant}")
+            if item.engagement:
+                eng = item.engagement
+                lines.append(f"- **互动:** {eng.score or '?'} 赞同, {eng.num_comments or '?'} 评论")
+            lines.append("")
+
+    dy = _items(report, "douyin")
+    if dy:
+        lines.extend(["## 抖音视频", ""])
+        for item in dy:
+            lines.append(f"### {item.id}: @{getattr(item, 'author_name', '')}")
+            lines.append("")
+            lines.append(f"- **链接:** {item.url}")
+            lines.append(f"- **日期:** {item.date or '未知'}")
+            lines.append(f"- **得分:** {item.score}/100")
+            lines.append(f"- **相关性:** {item.why_relevant}")
+            lines.append("")
+            lines.append(f"> {getattr(item, 'text', '')[:300]}")
+            lines.append("")
+
+    wx = _items(report, "wechat")
+    if wx:
+        lines.extend(["## 微信公众号文章", ""])
+        for item in wx:
+            lines.append(f"### {item.id}: {item.title}")
+            lines.append("")
+            acct = getattr(item, "account_name", None) or getattr(item, "author_name", "")
+            lines.append(f"- **公众号:** {acct}")
+            lines.append(f"- **链接:** {item.url}")
+            lines.append(f"- **日期:** {item.date or '未知'}")
+            lines.append(f"- **得分:** {item.score}/100")
+            lines.append(f"- **相关性:** {item.why_relevant}")
+            sn = getattr(item, "snippet", "")
+            if sn:
+                lines.extend(["", f"> {sn}"])
+            lines.append("")
+
+    bd = _items(report, "baidu")
+    if bd:
+        lines.extend(["## 百度搜索结果", ""])
+        for item in bd:
+            lines.append(f"### {item.id}: {item.title}")
+            lines.append("")
+            lines.append(f"- **站点:** {item.source_domain}")
+            lines.append(f"- **链接:** {item.url}")
+            lines.append(f"- **日期:** {item.date or '未知'} (置信: {item.date_confidence})")
+            lines.append(f"- **得分:** {item.score}/100")
+            lines.append(f"- **相关性:** {item.why_relevant}")
             lines.append("")
             lines.append(f"> {item.snippet}")
             lines.append("")
 
-    # Placeholders for assistant synthesis
-    lines.append("## Best Practices")
-    lines.append("")
-    lines.append("*To be synthesized by assistant*")
-    lines.append("")
+    tt = _items(report, "toutiao")
+    if tt:
+        lines.extend(["## 今日头条资讯", ""])
+        for item in tt:
+            title = getattr(item, "title", "")
+            lines.append(f"### {item.id}: {title}")
+            lines.append("")
+            lines.append(f"- **链接:** {item.url}")
+            lines.append(f"- **日期:** {getattr(item, 'date', None) or '未知'}")
+            lines.append(f"- **得分:** {item.score}/100")
+            lines.append(f"- **相关性:** {getattr(item, 'why_relevant', '')}")
+            lines.append("")
 
-    lines.append("## Prompt Pack")
-    lines.append("")
-    lines.append("*To be synthesized by assistant*")
-    lines.append("")
-
+    lines.extend(
+        [
+            "## 最佳实践",
+            "",
+            "*由助手归纳*",
+            "",
+            "## 提示词包",
+            "",
+            "*由助手归纳*",
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 
-
-
-def write_outputs(
-    report: schema.Report,
-    raw_openai: Optional[dict] = None,
-    raw_xai: Optional[dict] = None,
-    raw_reddit_enriched: Optional[list] = None,
-):
-    """Write all output files.
-
-    Args:
-        report: Report data
-        raw_openai: Raw OpenAI API response
-        raw_xai: Raw xAI API response
-        raw_reddit_enriched: Raw enriched Reddit thread data
-    """
+def write_outputs(report: schema.Report):
+    """Write report.json, report.md, and last30days.context.md."""
     ensure_output_dir()
 
-    # report.json
-    with open(OUTPUT_DIR / "report.json", 'w') as f:
-        json.dump(report.to_dict(), f, indent=2)
+    with open(OUTPUT_DIR / "report.json", "w", encoding="utf-8") as f:
+        json.dump(report.to_dict(), f, indent=2, ensure_ascii=False)
 
-    # report.md
-    with open(OUTPUT_DIR / "report.md", 'w') as f:
+    with open(OUTPUT_DIR / "report.md", "w", encoding="utf-8") as f:
         f.write(render_full_report(report))
 
-    # last30days.context.md
-    with open(OUTPUT_DIR / "last30days.context.md", 'w') as f:
+    with open(OUTPUT_DIR / "last30days.context.md", "w", encoding="utf-8") as f:
         f.write(render_context_snippet(report))
-
-    # Raw responses
-    if raw_openai:
-        with open(OUTPUT_DIR / "raw_openai.json", 'w') as f:
-            json.dump(raw_openai, f, indent=2)
-
-    if raw_xai:
-        with open(OUTPUT_DIR / "raw_xai.json", 'w') as f:
-            json.dump(raw_xai, f, indent=2)
-
-    if raw_reddit_enriched:
-        with open(OUTPUT_DIR / "raw_reddit_threads_enriched.json", 'w') as f:
-            json.dump(raw_reddit_enriched, f, indent=2)
 
 
 def get_context_path() -> str:

@@ -1,17 +1,12 @@
-# Private benchmark / evaluation artifacts — never push to upstream
-docs/comparison-results/
-scripts/evaluate-synthesis.py
-scripts/generate-synthesis-inputs.py
-fixtures/polymarket_sample.json
-docs/v2.1-tweets.md
-docs/30-day-anniversary-thread.md
-docs/30-day-anniversary-tweets.md
-variants/open/references/research.md
-
 # OS / tool files
 .DS_Store
 .claude/
 .entire/
 __pycache__/
 *.pyc
+.pytest_cache/
 mise.toml
+*.egg-info/
+dist/
+build/
+.env

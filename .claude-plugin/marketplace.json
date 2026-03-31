@@ -1,23 +1,18 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "last30days-skill",
-  "description": "Research any topic from the last 30 days across Reddit, X, YouTube, TikTok, Instagram, Hacker News, Polymarket, and the web.",
-  "owner": {
-    "name": "Matt Van Horn",
-    "url": "https://github.com/mvanhorn"
+  "name": "last30days-cn",
+  "author": {
+    "name": "Jesse",
+    "url": "https://github.com/ChiTing111"
   },
+  "description": "中国平台深度研究引擎 - 搜索微博、小红书、B站、知乎等8大平台最近30天的热门内容。",
   "plugins": [
     {
-      "name": "last30days",
-      "description": "Research any topic from the last 30 days. Become an expert and write copy-paste-ready prompts.",
-      "version": "2.9.6",
-      "author": {
-        "name": "Matt Van Horn",
-        "url": "https://github.com/mvanhorn"
-      },
+      "name": "last30days-cn",
+      "description": "中国互联网平台深度研究技能，生成有据可查的研究报告。",
+      "version": "1.0.0",
       "source": "./",
-      "category": "productivity",
-      "homepage": "https://github.com/mvanhorn/last30days-skill"
+      "category": "productivity"
     }
   ]
 }

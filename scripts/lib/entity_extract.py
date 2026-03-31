@@ -1,127 +1,144 @@
-"""Entity extraction from Phase 1 search results for supplemental searches."""
+"""Entity extraction from Phase 1 search results for supplemental searches.
+
+Author: Jesse (https://github.com/ChiTing111)
+"""
 
 import re
 from collections import Counter
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-# Handles that appear too frequently to be useful for targeted search.
-# These are generic/platform accounts, not topic-specific voices.
-GENERIC_HANDLES = {
-    "elonmusk", "openai", "google", "microsoft", "apple", "meta",
-    "github", "youtube", "x", "twitter", "reddit", "wikipedia",
-    "nytimes", "washingtonpost", "cnn", "bbc", "reuters",
-    "verified", "jack", "sundarpichai",
-}
+# Accounts that appear too frequently to be useful for targeted search.
+GENERIC_HANDLES = frozenset(
+    {
+        "人民日报",
+        "央视新闻",
+        "新华社",
+        "人民网",
+        "环球网",
+        "中国日报",
+        "光明日报",
+        "经济日报",
+        "解放军报",
+        "共青团中央",
+        "中央广播电视总台",
+        "微博管理员",
+        "小红书官方",
+    }
+)
+
+
+def _account_key(name: str) -> str:
+    n = name.strip().lstrip("@")
+    return n.casefold() if n.isascii() else n
+
+
+def _is_generic_account(name: str) -> bool:
+    if not name:
+        return True
+    key = _account_key(name)
+    return key in {_account_key(g) for g in GENERIC_HANDLES}
 
 
 def extract_entities(
-    reddit_items: List[Dict[str, Any]],
-    x_items: List[Dict[str, Any]],
-    max_handles: int = 5,
-    max_hashtags: int = 3,
-    max_subreddits: int = 5,
+    weibo_items: List[Dict[str, Any]],
+    xiaohongshu_items: List[Dict[str, Any]],
+    *,
+    zhihu_items: Optional[List[Dict[str, Any]]] = None,
+    max_weibo_users: int = 5,
+    max_xiaohongshu_topics: int = 3,
+    max_zhihu_questions: int = 5,
 ) -> Dict[str, List[str]]:
     """Extract key entities from Phase 1 results for supplemental searches.
 
-    Parses X results for @handles and #hashtags, Reddit results for subreddit
-    names and cross-referenced communities.
+    Parses Weibo for @用户, 小红书 for #话题# (double-hash topics), Zhihu for 问题标题.
 
     Args:
-        reddit_items: Raw Reddit item dicts from Phase 1
-        x_items: Raw X item dicts from Phase 1
-        max_handles: Maximum handles to return
-        max_hashtags: Maximum hashtags to return
-        max_subreddits: Maximum subreddits to return
+        weibo_items: Raw Weibo item dicts from Phase 1
+        xiaohongshu_items: Raw 小红书 item dicts from Phase 1
+        zhihu_items: Raw 知乎 item dicts (optional; used for question titles)
+        max_weibo_users: Max Weibo users to return
+        max_xiaohongshu_topics: Max 小红书话题 to return
+        max_zhihu_questions: Max 知乎问题 strings to return
 
     Returns:
-        Dict with keys: x_handles, x_hashtags, reddit_subreddits
+        Dict with keys: weibo_users, xiaohongshu_topics, zhihu_questions.
     """
-    handles = _extract_x_handles(x_items)
-    hashtags = _extract_x_hashtags(x_items)
-    subreddits = _extract_subreddits(reddit_items)
+    if zhihu_items is None:
+        zhihu_items = []
 
+    users = _extract_weibo_users(weibo_items)
+    topics = _extract_xiaohongshu_topics(xiaohongshu_items)
+    questions = _extract_zhihu_questions(zhihu_items)
+
+    wu = users[:max_weibo_users]
+    xt = topics[:max_xiaohongshu_topics]
+    zq = questions[:max_zhihu_questions]
     return {
-        "x_handles": handles[:max_handles],
-        "x_hashtags": hashtags[:max_hashtags],
-        "reddit_subreddits": subreddits[:max_subreddits],
+        "weibo_users": wu,
+        "xiaohongshu_topics": xt,
+        "zhihu_questions": zq,
     }
 
 
-def _extract_x_handles(x_items: List[Dict[str, Any]]) -> List[str]:
-    """Extract and rank @handles from X results.
-
-    Sources handles from:
-    1. author_handle field (who posted)
-    2. @mentions in post text (who they're talking about/to)
-
-    Returns handles ranked by frequency, filtered for generic accounts.
-    """
+def _extract_weibo_users(weibo_items: List[Dict[str, Any]]) -> List[str]:
+    """Extract and rank @用户 from Weibo results (author + @mentions in text)."""
     handle_counts = Counter()
+    canonical: Dict[str, str] = {}
+    mention_re = re.compile(r"@([\w\u4e00-\u9fff·]{1,40})")
 
-    for item in x_items:
-        # Author handle
-        author = item.get("author_handle", "").strip().lstrip("@").lower()
-        if author and author not in GENERIC_HANDLES:
-            handle_counts[author] += 1
+    def bump(raw: str) -> None:
+        raw = str(raw).strip().lstrip("@")
+        if not raw or _is_generic_account(raw):
+            return
+        nk = _account_key(raw)
+        if nk not in canonical:
+            canonical[nk] = raw
+        handle_counts[nk] += 1
 
-        # @mentions in text
-        text = item.get("text", "")
-        mentions = re.findall(r'@(\w{1,15})', text)
-        for mention in mentions:
-            mention_lower = mention.lower()
-            if mention_lower not in GENERIC_HANDLES:
-                handle_counts[mention_lower] += 1
+    for item in weibo_items:
+        bump(item.get("author_handle", "") or item.get("author", ""))
+        text = item.get("text", "") or item.get("title", "") or ""
+        for m in mention_re.findall(text):
+            bump(m)
 
-    # Return all handles ranked by frequency
-    return [h for h, _ in handle_counts.most_common()]
-
-
-def _extract_x_hashtags(x_items: List[Dict[str, Any]]) -> List[str]:
-    """Extract and rank #hashtags from X results.
-
-    Returns hashtags ranked by frequency.
-    """
-    hashtag_counts = Counter()
-
-    for item in x_items:
-        text = item.get("text", "")
-        tags = re.findall(r'#(\w{2,30})', text)
-        for tag in tags:
-            hashtag_counts[tag.lower()] += 1
-
-    # Return all hashtags ranked by frequency
-    return [f"#{t}" for t, _ in hashtag_counts.most_common()]
+    return [canonical[k] for k, _ in handle_counts.most_common()]
 
 
-def _extract_subreddits(reddit_items: List[Dict[str, Any]]) -> List[str]:
-    """Extract and rank subreddits from Reddit results.
+def _extract_xiaohongshu_topics(xiaohongshu_items: List[Dict[str, Any]]) -> List[str]:
+    """Extract and rank #话题# (double-hash) topics from 小红书 items."""
+    topic_counts = Counter()
+    topic_re = re.compile(r"#([^#\n][^#]{1,50}?)#")
 
-    Sources from:
-    1. subreddit field on each result
-    2. Cross-references in comment text (e.g., "check out r/localLLaMA")
+    for item in xiaohongshu_items:
+        chunks = []
+        for field in ("text", "title", "caption_snippet", "description"):
+            v = item.get(field)
+            if v:
+                chunks.append(str(v))
+        blob = "\n".join(chunks)
+        for raw in topic_re.findall(blob):
+            t = raw.strip()
+            if len(t) >= 2:
+                topic_counts[t] += 1
 
-    Returns subreddits ranked by frequency.
-    """
-    sub_counts = Counter()
+        for tag in item.get("hashtags") or []:
+            t = str(tag).strip().lstrip("#")
+            if len(t) >= 2:
+                topic_counts[t] += 1
 
-    for item in reddit_items:
-        # Primary subreddit
-        sub = item.get("subreddit", "").strip().lstrip("r/")
-        if sub:
-            sub_counts[sub] += 1
+    return [t for t, _ in topic_counts.most_common()]
 
-        # Cross-references in comment insights
-        for insight in item.get("comment_insights", []):
-            cross_refs = re.findall(r'r/(\w{2,30})', insight)
-            for ref in cross_refs:
-                sub_counts[ref] += 1
 
-        # Cross-references in top comments
-        for comment in item.get("top_comments", []):
-            excerpt = comment.get("excerpt", "")
-            cross_refs = re.findall(r'r/(\w{2,30})', excerpt)
-            for ref in cross_refs:
-                sub_counts[ref] += 1
+def _extract_zhihu_questions(zhihu_items: List[Dict[str, Any]]) -> List[str]:
+    """Extract and rank 知乎问题 titles from Zhihu items."""
+    q_counts = Counter()
 
-    # Return subreddits ranked by frequency
-    return [sub for sub, _ in sub_counts.most_common()]
+    for item in zhihu_items:
+        q = item.get("question") or item.get("title")
+        if not q:
+            continue
+        q = str(q).strip()
+        if len(q) >= 4:
+            q_counts[q] += 1
+
+    return [q for q, _ in q_counts.most_common()]

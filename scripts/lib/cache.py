@@ -1,4 +1,7 @@
-"""Caching utilities for last30days skill."""
+"""Caching utilities for last30days skill.
+
+Author: Jesse (https://github.com/ChiTing111)
+"""
 
 import hashlib
 import json
@@ -8,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-CACHE_DIR = Path.home() / ".cache" / "last30days"
+CACHE_DIR = Path.home() / ".cache" / "last30days-cn"
 DEFAULT_TTL_HOURS = 24
 MODEL_CACHE_TTL_DAYS = 7
 MODEL_CACHE_FILE = CACHE_DIR / "model_selection.json"
@@ -25,7 +28,7 @@ def ensure_cache_dir():
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
     except PermissionError:
-        CACHE_DIR = Path(tempfile.gettempdir()) / "last30days" / "cache"
+        CACHE_DIR = Path(tempfile.gettempdir()) / "last30days-cn" / "cache"
         MODEL_CACHE_FILE = CACHE_DIR / "model_selection.json"
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -1,4 +1,7 @@
-"""Terminal UI utilities for last30days skill."""
+"""last30days-cn 终端界面工具。
+
+Author: Jesse (https://github.com/ChiTing111)
+"""
 
 import sys
 import time
@@ -6,10 +9,9 @@ import threading
 import random
 from typing import Optional
 
-# Check if we're in a real terminal (not captured by Claude Code)
 IS_TTY = sys.stderr.isatty()
 
-# ANSI color codes
+
 class Colors:
     PURPLE = '\033[95m'
     BLUE = '\033[94m'
@@ -29,156 +31,144 @@ BANNER = f"""{Colors.PURPLE}{Colors.BOLD}
   ██║     ██╔══██║╚════██║   ██║    ╚═══██╗████╔╝██║██║  ██║██╔══██║  ╚██╔╝  ╚════██║
   ███████╗██║  ██║███████║   ██║   ██████╔╝╚██████╔╝██████╔╝██║  ██║   ██║   ███████║
   ╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═════╝  ╚═════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝
-{Colors.RESET}{Colors.DIM}  30 days of research. 30 seconds of work.{Colors.RESET}
+{Colors.RESET}{Colors.DIM}  30 天的研究，30 秒的结果。{Colors.RESET}
 """
 
-MINI_BANNER = f"""{Colors.PURPLE}{Colors.BOLD}/last30days{Colors.RESET} {Colors.DIM}· researching...{Colors.RESET}"""
+MINI_BANNER = f"""{Colors.PURPLE}{Colors.BOLD}/last30days-cn{Colors.RESET} {Colors.DIM}· 正在搜索...{Colors.RESET}"""
 
-# Fun status messages for each phase
-REDDIT_MESSAGES = [
-    "Diving into Reddit threads...",
-    "Scanning subreddits for gold...",
-    "Reading what Redditors are saying...",
-    "Exploring the front page of the internet...",
-    "Finding the good discussions...",
-    "Upvoting mentally...",
-    "Scrolling through comments...",
+WEIBO_MESSAGES = [
+    "正在检索微博话题与博文…",
+    "翻阅微博实时讨论…",
+    "抓取微博热门转发…",
+    "扫描微博相关关键词…",
+    "汇总微博上的公众声音…",
+    "深挖微博评论线索…",
 ]
 
-X_MESSAGES = [
-    "Checking what X is buzzing about...",
-    "Reading the timeline...",
-    "Finding the hot takes...",
-    "Scanning tweets and threads...",
-    "Discovering trending insights...",
-    "Following the conversation...",
-    "Reading between the posts...",
+XIAOHONGSHU_MESSAGES = [
+    "正在搜索小红书笔记…",
+    "浏览小红书种草与测评…",
+    "抓取小红书热门笔记…",
+    "发现小红书上的真实体验…",
+    "整理小红书标签内容…",
 ]
 
-ENRICHING_MESSAGES = [
-    "Getting the juicy details...",
-    "Fetching engagement metrics...",
-    "Reading top comments...",
-    "Extracting insights...",
-    "Analyzing discussions...",
+BILIBILI_MESSAGES = [
+    "正在搜索 B 站视频与稿件…",
+    "翻阅 B 站相关分区…",
+    "抓取 B 站弹幕与简介线索…",
+    "发现 B 站 UP 主观点…",
+    "汇总 B 站近期投稿…",
 ]
 
-YOUTUBE_MESSAGES = [
-    "Searching YouTube for videos...",
-    "Finding relevant video content...",
-    "Scanning YouTube channels...",
-    "Discovering video discussions...",
-    "Fetching transcripts...",
+ZHIHU_MESSAGES = [
+    "正在搜索知乎问答…",
+    "阅读知乎高赞回答…",
+    "梳理知乎话题讨论…",
+    "发现知乎专业见解…",
+    "汇总知乎相关问题…",
 ]
 
-TIKTOK_MESSAGES = [
-    "Searching TikTok for trending videos...",
-    "Finding what's viral on TikTok...",
-    "Scanning TikTok for relevant content...",
+DOUYIN_MESSAGES = [
+    "正在检索抖音短视频…",
+    "发现抖音热门话题…",
+    "抓取抖音相关视频线索…",
+    "浏览抖音创作者动态…",
 ]
 
-INSTAGRAM_MESSAGES = [
-    "Searching Instagram Reels...",
-    "Finding what's trending on Instagram...",
-    "Scanning Instagram for relevant reels...",
+WECHAT_MESSAGES = [
+    "正在检索微信公众号文章…",
+    "汇总公众号历史推文…",
+    "发现公众号深度长文…",
+    "抓取公众号标题与摘要…",
 ]
 
-HN_MESSAGES = [
-    "Searching Hacker News...",
-    "Scanning HN front page stories...",
-    "Finding technical discussions...",
-    "Discovering developer conversations...",
+BAIDU_MESSAGES = [
+    "正在通过百度搜索网页…",
+    "检索百度新闻与资讯…",
+    "汇总百度搜索结果摘要…",
+    "发现百度上的相关站点…",
 ]
 
-POLYMARKET_MESSAGES = [
-    "Checking prediction markets...",
-    "Finding what people are betting on...",
-    "Scanning Polymarket for odds...",
-    "Discovering prediction markets...",
+TOUTIAO_MESSAGES = [
+    "正在搜索今日头条资讯…",
+    "翻阅头条热点与稿件…",
+    "汇总今日头条相关报道…",
+    "发现头条号创作者内容…",
 ]
 
 PROCESSING_MESSAGES = [
-    "Crunching the data...",
-    "Scoring and ranking...",
-    "Finding patterns...",
-    "Removing duplicates...",
-    "Organizing findings...",
+    "正在清洗与去重数据…",
+    "打分排序中…",
+    "提取模式与要点…",
+    "整理研究结果…",
+    "合并多源线索…",
 ]
 
 WEB_ONLY_MESSAGES = [
-    "Searching the web...",
-    "Finding blogs and docs...",
-    "Crawling news sites...",
-    "Discovering tutorials...",
+    "正在搜索开放网页…",
+    "检索博客与文档…",
+    "浏览新闻站点…",
+    "发现教程与解读…",
 ]
 
+
 def _build_nux_message(diag: dict = None) -> str:
-    """Build conversational NUX message with dynamic source status."""
     if diag:
-        reddit = "✓" if diag.get("openai") else "✗"
-        x = "✓" if diag.get("x_source") else "✗"
-        youtube = "✓" if diag.get("youtube") else "✗"
-        web = "✓" if diag.get("web_search_backend") else "✗"
-        status_line = f"Reddit {reddit}, X {x}, YouTube {youtube}, Web {web}"
+        def _on(k: str) -> str:
+            return "✓" if diag.get(k) else "✗"
+
+        status_line = (
+            f"微博 {_on('weibo')}，小红书 {_on('xiaohongshu')}，B站 {_on('bilibili')}，"
+            f"知乎 {_on('zhihu')}，抖音 {_on('douyin')}，微信公众号 {_on('wechat')}，"
+            f"百度搜索 {_on('baidu')}，今日头条 {_on('toutiao')}"
+        )
     else:
-        status_line = "YouTube ✓, Web ✓, Reddit ✗, X ✗"
+        status_line = "百度搜索 ✓，今日头条 ✓，其余信源 ✗"
 
     return f"""
-I just researched that for you. Here's what I've got right now:
+已为你完成检索，当前可用信源如下：
 
 {status_line}
 
-You can unlock more sources with API keys or by signing in to Codex — just ask me how and I'll walk you through it. More sources means better research, but it works fine as-is.
+配置 API 密钥或完成向导后可解锁更多平台；随时问我如何设置。信源越多，综述越全；默认也可用。
 
-Some examples of what you can do:
-- "last30 what are people saying about Figma"
-- "last30 watch my biggest competitor every week"
-- "last30 watch Peter Steinberger every 30 days"
-- "last30 watch AI video tools monthly"
-- "last30 what have you found about AI video?"
+示例用法：
+- 「last30 大家在聊 Figma 什么」
+- 「last30 每周帮我盯竞品动态」
+- 「last30 每 30 天汇总一次 AI 视频工具」
+- 「last30 关于 AI 视频你找到了什么」
 
-Just start with "last30" and talk to me like normal.
+以「last30」开头，像平常对话一样提问即可。
 """
 
-# Shorter promo for single missing key
+
 PROMO_SINGLE_KEY = {
-    "reddit": "\n💡 You can unlock Reddit with an OpenAI API key or by running `codex login` — just ask me how.\n",
-    "x": "\n💡 You can unlock X with AUTH_TOKEN/CT0 or XAI_API_KEY - just ask me how.\n",
+    "weibo": "\n💡 配置微博相关 API 或环境变量即可解锁微博信源，需要时问我具体步骤。\n",
+    "xiaohongshu": "\n💡 配置小红书数据接口密钥即可解锁小红书笔记，需要时问我如何填写。\n",
+    "bilibili": "\n💡 配置 B 站数据接口即可解锁视频与稿件检索，需要时问我。\n",
+    "zhihu": "\n💡 配置知乎检索或 API 凭证即可解锁问答信源，需要时问我。\n",
+    "douyin": "\n💡 配置抖音相关 API 或爬虫凭证即可解锁短视频线索，需要时问我。\n",
+    "wechat": "\n💡 配置微信公众号文章抓取或第三方密钥即可解锁公号内容，需要时问我。\n",
+    "baidu": "\n💡 配置百度搜索或网页检索后端密钥可提升网页覆盖，需要时问我。\n",
+    "toutiao": "\n💡 配置今日头条数据接口可解锁更多资讯源，需要时问我。\n",
 }
 
-# Bird auth help (for local users with vendored Bird CLI)
-BIRD_AUTH_HELP = f"""
-{Colors.YELLOW}Bird authentication failed.{Colors.RESET}
-
-To fix this:
-1. Add AUTH_TOKEN and CT0 to ~/.config/last30days/.env or .claude/last30days.env
-2. Or set XAI_API_KEY for the xAI fallback backend
-"""
-
-BIRD_AUTH_HELP_PLAIN = """
-Bird authentication failed.
-
-To fix this:
-1. Add AUTH_TOKEN and CT0 to ~/.config/last30days/.env or .claude/last30days.env
-2. Or set XAI_API_KEY for the xAI fallback backend
-"""
-
-# Spinner frames
 SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
 DOTS_FRAMES = ['   ', '.  ', '.. ', '...']
 
 
 class Spinner:
-    """Animated spinner for long-running operations."""
+    """长时间操作的旋转指示。"""
 
-    def __init__(self, message: str = "Working", color: str = Colors.CYAN, quiet: bool = False):
+    def __init__(self, message: str = "处理中", color: str = Colors.CYAN, quiet: bool = False):
         self.message = message
         self.color = color
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self.frame_idx = 0
         self.shown_static = False
-        self.quiet = quiet  # Suppress non-TTY start message (still shows ✓ completion)
+        self.quiet = quiet
 
     def _spin(self):
         while self.running:
@@ -191,11 +181,9 @@ class Spinner:
     def start(self):
         self.running = True
         if IS_TTY:
-            # Real terminal - animate
             self.thread = threading.Thread(target=self._spin, daemon=True)
             self.thread.start()
         else:
-            # Not a TTY (Claude Code) - just print once
             if not self.shown_static and not self.quiet:
                 sys.stderr.write(f"⏳ {self.message}\n")
                 sys.stderr.flush()
@@ -204,7 +192,6 @@ class Spinner:
     def update(self, message: str):
         self.message = message
         if not IS_TTY and not self.shown_static:
-            # Print update in non-TTY mode
             sys.stderr.write(f"⏳ {message}\n")
             sys.stderr.flush()
 
@@ -213,7 +200,6 @@ class Spinner:
         if self.thread:
             self.thread.join(timeout=0.2)
         if IS_TTY:
-            # Clear the line in real terminal
             sys.stderr.write("\r" + " " * 80 + "\r")
         if final_message:
             sys.stderr.write(f"✓ {final_message}\n")
@@ -221,7 +207,7 @@ class Spinner:
 
 
 class ProgressDisplay:
-    """Progress display for research phases."""
+    """研究各阶段进度展示。"""
 
     def __init__(self, topic: str, show_banner: bool = True):
         self.topic = topic
@@ -234,269 +220,201 @@ class ProgressDisplay:
     def _show_banner(self):
         if IS_TTY:
             sys.stderr.write(MINI_BANNER + "\n")
-            sys.stderr.write(f"{Colors.DIM}Topic: {Colors.RESET}{Colors.BOLD}{self.topic}{Colors.RESET}\n\n")
+            sys.stderr.write(f"{Colors.DIM}主题：{Colors.RESET}{Colors.BOLD}{self.topic}{Colors.RESET}\n\n")
         else:
-            # Simple text for non-TTY
-            sys.stderr.write(f"/last30days · researching: {self.topic}\n")
+            sys.stderr.write(f"/last30days-cn · 正在搜索：{self.topic}\n")
         sys.stderr.flush()
 
-    def start_reddit(self):
-        msg = random.choice(REDDIT_MESSAGES)
-        self.spinner = Spinner(f"{Colors.YELLOW}Reddit{Colors.RESET} {msg}", Colors.YELLOW)
+    def start_weibo(self):
+        msg = random.choice(WEIBO_MESSAGES)
+        self.spinner = Spinner(f"{Colors.YELLOW}微博{Colors.RESET} {msg}", Colors.YELLOW)
         self.spinner.start()
 
-    def end_reddit(self, count: int):
+    def end_weibo(self, count: int):
         if self.spinner:
-            self.spinner.stop(f"{Colors.YELLOW}Reddit{Colors.RESET} Found {count} threads")
+            self.spinner.stop(f"{Colors.YELLOW}微博{Colors.RESET} 找到 {count} 条")
 
-    def start_reddit_enrich(self, current: int, total: int):
-        if self.spinner:
-            self.spinner.stop()
-        msg = random.choice(ENRICHING_MESSAGES)
-        self.spinner = Spinner(f"{Colors.YELLOW}Reddit{Colors.RESET} [{current}/{total}] {msg}", Colors.YELLOW)
+    def start_xiaohongshu(self):
+        msg = random.choice(XIAOHONGSHU_MESSAGES)
+        self.spinner = Spinner(f"{Colors.PURPLE}小红书{Colors.RESET} {msg}", Colors.PURPLE)
         self.spinner.start()
 
-    def update_reddit_enrich(self, current: int, total: int):
+    def end_xiaohongshu(self, count: int):
         if self.spinner:
-            msg = random.choice(ENRICHING_MESSAGES)
-            self.spinner.update(f"{Colors.YELLOW}Reddit{Colors.RESET} [{current}/{total}] {msg}")
+            self.spinner.stop(f"{Colors.PURPLE}小红书{Colors.RESET} 找到 {count} 条")
 
-    def end_reddit_enrich(self):
-        if self.spinner:
-            self.spinner.stop(f"{Colors.YELLOW}Reddit{Colors.RESET} Enriched with engagement data")
-
-    def start_x(self):
-        msg = random.choice(X_MESSAGES)
-        self.spinner = Spinner(f"{Colors.CYAN}X{Colors.RESET} {msg}", Colors.CYAN)
+    def start_bilibili(self):
+        msg = random.choice(BILIBILI_MESSAGES)
+        self.spinner = Spinner(f"{Colors.CYAN}B站{Colors.RESET} {msg}", Colors.CYAN)
         self.spinner.start()
 
-    def end_x(self, count: int):
+    def end_bilibili(self, count: int):
         if self.spinner:
-            self.spinner.stop(f"{Colors.CYAN}X{Colors.RESET} Found {count} posts")
+            self.spinner.stop(f"{Colors.CYAN}B站{Colors.RESET} 找到 {count} 条")
 
-    def start_youtube(self):
-        msg = random.choice(YOUTUBE_MESSAGES)
-        self.spinner = Spinner(f"{Colors.RED}YouTube{Colors.RESET} {msg}", Colors.RED)
+    def start_zhihu(self):
+        msg = random.choice(ZHIHU_MESSAGES)
+        self.spinner = Spinner(f"{Colors.BLUE}知乎{Colors.RESET} {msg}", Colors.BLUE)
         self.spinner.start()
 
-    def end_youtube(self, count: int):
+    def end_zhihu(self, count: int):
         if self.spinner:
-            self.spinner.stop(f"{Colors.RED}YouTube{Colors.RESET} Found {count} videos")
+            self.spinner.stop(f"{Colors.BLUE}知乎{Colors.RESET} 找到 {count} 条")
 
-    def start_tiktok(self):
-        msg = random.choice(TIKTOK_MESSAGES)
-        self.spinner = Spinner(f"{Colors.PURPLE}TikTok{Colors.RESET} {msg}", Colors.PURPLE)
+    def start_douyin(self):
+        msg = random.choice(DOUYIN_MESSAGES)
+        self.spinner = Spinner(f"{Colors.RED}抖音{Colors.RESET} {msg}", Colors.RED)
         self.spinner.start()
 
-    def end_tiktok(self, count: int):
+    def end_douyin(self, count: int):
         if self.spinner:
-            self.spinner.stop(f"{Colors.PURPLE}TikTok{Colors.RESET} Found {count} videos")
+            self.spinner.stop(f"{Colors.RED}抖音{Colors.RESET} 找到 {count} 条")
 
-    def start_instagram(self):
-        msg = random.choice(INSTAGRAM_MESSAGES)
-        self.spinner = Spinner(f"{Colors.PURPLE}Instagram{Colors.RESET} {msg}", Colors.PURPLE)
+    def start_wechat(self):
+        msg = random.choice(WECHAT_MESSAGES)
+        self.spinner = Spinner(f"{Colors.GREEN}微信公众号{Colors.RESET} {msg}", Colors.GREEN)
         self.spinner.start()
 
-    def end_instagram(self, count: int):
+    def end_wechat(self, count: int):
         if self.spinner:
-            self.spinner.stop(f"{Colors.PURPLE}Instagram{Colors.RESET} Found {count} reels")
+            self.spinner.stop(f"{Colors.GREEN}微信公众号{Colors.RESET} 找到 {count} 条")
 
-    def start_hackernews(self):
-        msg = random.choice(HN_MESSAGES)
-        self.spinner = Spinner(f"{Colors.YELLOW}HN{Colors.RESET} {msg}", Colors.YELLOW, quiet=True)
+    def start_baidu(self):
+        msg = random.choice(BAIDU_MESSAGES)
+        self.spinner = Spinner(f"{Colors.GREEN}百度搜索{Colors.RESET} {msg}", Colors.GREEN)
         self.spinner.start()
 
-    def end_hackernews(self, count: int):
+    def end_baidu(self, count: int):
         if self.spinner:
-            self.spinner.stop(f"{Colors.YELLOW}HN{Colors.RESET} Found {count} stories")
+            self.spinner.stop(f"{Colors.GREEN}百度搜索{Colors.RESET} 找到 {count} 条")
 
-    def start_polymarket(self):
-        msg = random.choice(POLYMARKET_MESSAGES)
-        self.spinner = Spinner(f"{Colors.GREEN}Polymarket{Colors.RESET} {msg}", Colors.GREEN, quiet=True)
+    def start_toutiao(self):
+        msg = random.choice(TOUTIAO_MESSAGES)
+        self.spinner = Spinner(f"{Colors.YELLOW}今日头条{Colors.RESET} {msg}", Colors.YELLOW)
         self.spinner.start()
 
-    def end_polymarket(self, count: int):
+    def end_toutiao(self, count: int):
         if self.spinner:
-            self.spinner.stop(f"{Colors.GREEN}Polymarket{Colors.RESET} Found {count} markets")
+            self.spinner.stop(f"{Colors.YELLOW}今日头条{Colors.RESET} 找到 {count} 条")
 
     def start_processing(self):
         msg = random.choice(PROCESSING_MESSAGES)
-        self.spinner = Spinner(f"{Colors.PURPLE}Processing{Colors.RESET} {msg}", Colors.PURPLE)
+        self.spinner = Spinner(f"{Colors.PURPLE}处理{Colors.RESET} {msg}", Colors.PURPLE)
         self.spinner.start()
 
     def end_processing(self):
         if self.spinner:
             self.spinner.stop()
 
-    def show_complete(self, reddit_count: int, x_count: int, youtube_count: int = 0, hn_count: int = 0, pm_count: int = 0, tiktok_count: int = 0, ig_count: int = 0):
+    def show_complete(
+        self,
+        weibo_count: int,
+        xhs_count: int,
+        bilibili_count: int,
+        zhihu_count: int,
+        douyin_count: int,
+        wechat_count: int,
+        baidu_count: int,
+        toutiao_count: int,
+    ):
         elapsed = time.time() - self.start_time
         if IS_TTY:
-            sys.stderr.write(f"\n{Colors.GREEN}{Colors.BOLD}✓ Research complete{Colors.RESET} ")
-            sys.stderr.write(f"{Colors.DIM}({elapsed:.1f}s){Colors.RESET}\n")
-            sys.stderr.write(f"  {Colors.YELLOW}Reddit:{Colors.RESET} {reddit_count} threads  ")
-            sys.stderr.write(f"{Colors.CYAN}X:{Colors.RESET} {x_count} posts")
-            if youtube_count:
-                sys.stderr.write(f"  {Colors.RED}YouTube:{Colors.RESET} {youtube_count} videos")
-            if tiktok_count:
-                sys.stderr.write(f"  {Colors.PURPLE}TikTok:{Colors.RESET} {tiktok_count} videos")
-            if ig_count:
-                sys.stderr.write(f"  {Colors.PURPLE}Instagram:{Colors.RESET} {ig_count} reels")
-            if hn_count:
-                sys.stderr.write(f"  {Colors.YELLOW}HN:{Colors.RESET} {hn_count} stories")
-            if pm_count:
-                sys.stderr.write(f"  {Colors.GREEN}Polymarket:{Colors.RESET} {pm_count} markets")
+            sys.stderr.write(f"\n{Colors.GREEN}{Colors.BOLD}✓ 检索完成{Colors.RESET} ")
+            sys.stderr.write(f"{Colors.DIM}（{elapsed:.1f} 秒）{Colors.RESET}\n")
+            sys.stderr.write(f"  {Colors.YELLOW}微博：{Colors.RESET} {weibo_count}  ")
+            sys.stderr.write(f"{Colors.PURPLE}小红书：{Colors.RESET} {xhs_count}  ")
+            sys.stderr.write(f"{Colors.CYAN}B站：{Colors.RESET} {bilibili_count}  ")
+            sys.stderr.write(f"{Colors.BLUE}知乎：{Colors.RESET} {zhihu_count}  ")
+            sys.stderr.write(f"{Colors.RED}抖音：{Colors.RESET} {douyin_count}  ")
+            sys.stderr.write(f"{Colors.GREEN}微信公众号：{Colors.RESET} {wechat_count}  ")
+            sys.stderr.write(f"{Colors.GREEN}百度搜索：{Colors.RESET} {baidu_count}  ")
+            sys.stderr.write(f"{Colors.YELLOW}今日头条：{Colors.RESET} {toutiao_count}")
             sys.stderr.write("\n\n")
         else:
-            parts = [f"Reddit: {reddit_count} threads", f"X: {x_count} posts"]
-            if youtube_count:
-                parts.append(f"YouTube: {youtube_count} videos")
-            if tiktok_count:
-                parts.append(f"TikTok: {tiktok_count} videos")
-            if ig_count:
-                parts.append(f"Instagram: {ig_count} reels")
-            if hn_count:
-                parts.append(f"HN: {hn_count} stories")
-            if pm_count:
-                parts.append(f"Polymarket: {pm_count} markets")
-            sys.stderr.write(f"✓ Research complete ({elapsed:.1f}s) - {', '.join(parts)}\n")
+            parts = [
+                f"微博 {weibo_count}",
+                f"小红书 {xhs_count}",
+                f"B站 {bilibili_count}",
+                f"知乎 {zhihu_count}",
+                f"抖音 {douyin_count}",
+                f"微信公众号 {wechat_count}",
+                f"百度搜索 {baidu_count}",
+                f"今日头条 {toutiao_count}",
+            ]
+            sys.stderr.write(f"✓ 检索完成（{elapsed:.1f} 秒）- {', '.join(parts)}\n")
         sys.stderr.flush()
 
     def show_cached(self, age_hours: float = None):
         if age_hours is not None:
-            age_str = f" ({age_hours:.1f}h old)"
+            age_str = f"（缓存约 {age_hours:.1f} 小时）"
         else:
             age_str = ""
-        sys.stderr.write(f"{Colors.GREEN}⚡{Colors.RESET} {Colors.DIM}Using cached results{age_str} - use --refresh for fresh data{Colors.RESET}\n\n")
+        sys.stderr.write(
+            f"{Colors.GREEN}⚡{Colors.RESET} {Colors.DIM}使用缓存结果{age_str}，加 --refresh 可强制刷新{Colors.RESET}\n\n"
+        )
         sys.stderr.flush()
 
     def show_error(self, message: str):
-        sys.stderr.write(f"{Colors.RED}✗ Error:{Colors.RESET} {message}\n")
+        sys.stderr.write(f"{Colors.RED}✗ 错误：{Colors.RESET} {message}\n")
         sys.stderr.flush()
 
     def start_web_only(self):
-        """Show web-only mode indicator."""
         msg = random.choice(WEB_ONLY_MESSAGES)
-        self.spinner = Spinner(f"{Colors.GREEN}Web{Colors.RESET} {msg}", Colors.GREEN)
+        self.spinner = Spinner(f"{Colors.GREEN}网页{Colors.RESET} {msg}", Colors.GREEN)
         self.spinner.start()
 
     def end_web_only(self):
-        """End web-only spinner."""
         if self.spinner:
-            self.spinner.stop(f"{Colors.GREEN}Web{Colors.RESET} assistant will search the web")
+            self.spinner.stop(f"{Colors.GREEN}网页{Colors.RESET} 助手将检索开放网页")
 
     def show_web_only_complete(self):
-        """Show completion for web-only mode."""
         elapsed = time.time() - self.start_time
         if IS_TTY:
-            sys.stderr.write(f"\n{Colors.GREEN}{Colors.BOLD}✓ Ready for web search{Colors.RESET} ")
-            sys.stderr.write(f"{Colors.DIM}({elapsed:.1f}s){Colors.RESET}\n")
-            sys.stderr.write(f"  {Colors.GREEN}Web:{Colors.RESET} assistant will search blogs, docs & news\n\n")
+            sys.stderr.write(f"\n{Colors.GREEN}{Colors.BOLD}✓ 已就绪（网页检索）{Colors.RESET} ")
+            sys.stderr.write(f"{Colors.DIM}（{elapsed:.1f} 秒）{Colors.RESET}\n")
+            sys.stderr.write(f"  {Colors.GREEN}网页：{Colors.RESET} 将搜索博客、文档与新闻\n\n")
         else:
-            sys.stderr.write(f"✓ Ready for web search ({elapsed:.1f}s)\n")
+            sys.stderr.write(f"✓ 已就绪（网页检索）（{elapsed:.1f} 秒）\n")
         sys.stderr.flush()
 
     def show_promo(self, missing: str = "both", diag: dict = None):
-        """Show NUX / promotional message for missing API keys.
-
-        Args:
-            missing: 'both', 'all', 'reddit', or 'x' - which keys are missing
-            diag: Optional diagnostics dict for dynamic source status
-        """
         if missing in ("both", "all"):
             sys.stderr.write(_build_nux_message(diag))
         elif missing in PROMO_SINGLE_KEY:
             sys.stderr.write(PROMO_SINGLE_KEY[missing])
-        sys.stderr.flush()
-
-    def show_bird_auth_help(self):
-        """Show Bird authentication help."""
-        if IS_TTY:
-            sys.stderr.write(BIRD_AUTH_HELP)
         else:
-            sys.stderr.write(BIRD_AUTH_HELP_PLAIN)
+            sys.stderr.write(
+                "\n💡 在 ~/.config/last30days-cn/.env 中配置各平台密钥，可解锁微博、小红书、B站、知乎、抖音、微信公众号等更多信源；需要时问我步骤。\n"
+            )
         sys.stderr.flush()
 
 
 def _build_status_banner(diag: dict) -> list[str]:
-    """Build the status banner lines (plain text, no ANSI).
-
-    Returns a list of strings, each being a line of the banner box.
-
-    Args:
-        diag: Dict with keys:
-            setup_complete, reddit_source, x_source, x_method,
-            youtube, tiktok, instagram, hackernews, polymarket,
-            bluesky, truthsocial, xiaohongshu, scrapecreators,
-            web_search_backend
-    """
     setup_complete = diag.get("setup_complete", False)
-    has_sc = diag.get("scrapecreators", False)
 
-    # --- Build active sources list: (label, method_label) ---
+    labels = [
+        ("weibo", "微博"),
+        ("xiaohongshu", "小红书"),
+        ("bilibili", "B站"),
+        ("zhihu", "知乎"),
+        ("douyin", "抖音"),
+        ("wechat", "微信公众号"),
+        ("baidu", "百度搜索"),
+        ("toutiao", "今日头条"),
+    ]
+
     active: list[str] = []
+    for key, label in labels:
+        if diag.get(key):
+            active.append(label)
 
-    # Reddit — always available; what matters to users is comments or not
-    reddit_src = diag.get("reddit_source")
-    if reddit_src == "scrapecreators":
-        active.append("Reddit (with comments)")
-    else:
-        active.append("Reddit (threads only)")
-
-    # X/Twitter
-    x_source = diag.get("x_source")
-    x_method = diag.get("x_method")
-    if x_source:
-        if x_method and x_method.startswith("browser-"):
-            browser = x_method.split("-", 1)[1].capitalize()
-            active.append(f"X ({browser})")
-        elif x_method == "env":
-            active.append("X (env)")
-        elif x_method == "api":
-            active.append("X (xAI)")
-        else:
-            active.append("X")
-
-    # YouTube
-    if diag.get("youtube"):
-        active.append("YouTube")
-
-    # HN — always available
-    if diag.get("hackernews"):
-        active.append("HN")
-
-    # Polymarket — always available
-    if diag.get("polymarket"):
-        active.append("Polymarket")
-
-    # TikTok (requires SC or Apify)
-    if diag.get("tiktok"):
-        active.append("TikTok")
-
-    # Instagram (requires SC)
-    if diag.get("instagram"):
-        active.append("Instagram")
-
-    # Bluesky
-    if diag.get("bluesky"):
-        active.append("Bluesky")
-
-    # Truth Social
-    if diag.get("truthsocial"):
-        active.append("Truth Social")
-
-    # Xiaohongshu
-    if diag.get("xiaohongshu"):
-        active.append("Xiaohongshu")
-
-    # --- Format active sources into wrapped lines ---
-    BOX_INNER = 53  # characters inside the box (between │ and │)
-    PREFIX = "  "    # 2-space indent inside box
+    BOX_INNER = 53
+    PREFIX = "  "
 
     def _wrap_sources(sources: list[str]) -> list[str]:
-        """Wrap source labels into lines that fit the box width."""
         result_lines: list[str] = []
         current = PREFIX
-        for i, s in enumerate(sources):
+        for s in sources:
             token = f"✅ {s}"
             sep = "  " if current != PREFIX else ""
             if len(current) + len(sep) + len(token) > BOX_INNER:
@@ -510,42 +428,34 @@ def _build_status_banner(diag: dict) -> list[str]:
 
     source_lines = _wrap_sources(active)
 
-    # --- Title ---
     if not setup_complete:
-        title = "/last30days v3.0 — First Run"
+        title = "/last30days-cn v1.0 — 首次运行"
     else:
-        title = "/last30days v3.0 — Source Status"
+        title = "/last30days-cn v1.0 — 信源状态"
 
-    # --- Build upgrade suggestions ---
     suggestions: list[str] = []
-
     if not setup_complete:
-        suggestions.append("Run /last30days setup to unlock more sources")
-    else:
-        # Recommend ScrapeCreators if missing
-        if not has_sc:
-            suggestions.append("⭐ Add SCRAPECREATORS_API_KEY for Reddit comments")
-            suggestions.append("   + TikTok + Instagram")
-            suggestions.append("   100 free calls, no CC — scrapecreators.com (no affiliation)")
+        suggestions.append("运行 /last30days-cn setup 以配置更多信源")
+    elif len(active) < len(labels):
+        suggestions.append("⭐ 在 ~/.config/last30days-cn/.env 填写各平台 API，可解锁微博、小红书、B站、知乎、抖音、微信公众号等完整能力")
 
-    # --- Assemble box lines ---
-    # Collect all content lines, then determine box width dynamically.
     content: list[str] = []
     content.append(f" {title}")
-    content.append("")  # blank line
-
-    for sl in source_lines:
-        content.append(sl)
+    content.append("")
+    if source_lines:
+        for sl in source_lines:
+            content.append(sl)
+    else:
+        content.append(f"{PREFIX}（当前无已启用的信源，请运行 setup 或检查配置）")
 
     if suggestions:
-        content.append("")  # blank line
+        content.append("")
         for sg in suggestions:
             content.append(f"  {sg}")
 
-    content.append("")  # blank line
-    content.append("  Config: ~/.config/last30days/.env")
+    content.append("")
+    content.append("  配置：~/.config/last30days-cn/.env")
 
-    # Width = widest content line + 1 for right margin
     width = max(len(line) for line in content) + 1
     if width < 53:
         width = 53
@@ -560,22 +470,18 @@ def _build_status_banner(diag: dict) -> list[str]:
 
 
 def _colorize_banner(lines: list[str]) -> list[str]:
-    """Apply ANSI colors to plain-text banner lines for TTY output."""
     colored: list[str] = []
     for line in lines:
         if line.startswith("\u250c") or line.startswith("\u2514"):
             colored.append(f"{Colors.DIM}{line}{Colors.RESET}")
         elif line.startswith("\u2502"):
-            inner = line[1:-1]  # strip box chars on both sides
+            inner = line[1:-1]
             inner_width = len(inner)
-            # Colorize check marks green, star yellow
             inner = inner.replace("\u2705", f"{Colors.GREEN}\u2705{Colors.RESET}")
             inner = inner.replace("\u2b50", f"{Colors.YELLOW}\u2b50{Colors.RESET}")
-            # Bold the title line
-            if "/last30days v3.0" in inner:
+            if "/last30days-cn v1.0" in inner:
                 stripped = inner.strip()
                 inner = f" {Colors.BOLD}{stripped}{Colors.RESET}"
-                # Re-pad to original width (ANSI codes are zero-width)
                 visible_len = 1 + len(stripped)
                 inner = inner + " " * max(0, inner_width - visible_len)
             colored.append(f"{Colors.DIM}\u2502{Colors.RESET}{inner}{Colors.DIM}\u2502{Colors.RESET}")
@@ -585,18 +491,7 @@ def _colorize_banner(lines: list[str]) -> list[str]:
 
 
 def show_diagnostic_banner(diag: dict):
-    """Show pre-flight source status banner.
-
-    Free-first design: leads with what's working (✅), not what's broken.
-    Shows upgrade suggestions only when relevant.
-
-    Args:
-        diag: Dict with keys:
-            setup_complete, reddit_source, x_source, x_method,
-            youtube, tiktok, instagram, hackernews, polymarket,
-            bluesky, truthsocial, xiaohongshu, scrapecreators,
-            web_search_backend
-    """
+    """起飞前展示已启用的中文平台信源（微博、小红书、B站、知乎、抖音、微信公众号、百度搜索、今日头条）。"""
     lines = _build_status_banner(diag)
 
     if IS_TTY:
@@ -607,10 +502,15 @@ def show_diagnostic_banner(diag: dict):
 
 
 def print_phase(phase: str, message: str):
-    """Print a phase message."""
     colors = {
-        "reddit": Colors.YELLOW,
-        "x": Colors.CYAN,
+        "weibo": Colors.YELLOW,
+        "xiaohongshu": Colors.PURPLE,
+        "bilibili": Colors.CYAN,
+        "zhihu": Colors.BLUE,
+        "douyin": Colors.RED,
+        "wechat": Colors.GREEN,
+        "baidu": Colors.GREEN,
+        "toutiao": Colors.YELLOW,
         "process": Colors.PURPLE,
         "done": Colors.GREEN,
         "error": Colors.RED,

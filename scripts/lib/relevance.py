@@ -1,5 +1,7 @@
 """Shared token-overlap relevance scoring for search result ranking.
 
+Author: Jesse (https://github.com/ChiTing111)
+
 The score is intentionally query-centric:
 - exact phrase matches should score very high
 - partial matches should pay a meaningful penalty
@@ -9,17 +11,25 @@ The score is intentionally query-centric:
 import re
 from typing import List, Optional, Set
 
-# Stopwords for relevance computation (common English words that dilute token overlap)
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+
+
+def _has_cjk(s: str) -> bool:
+    return bool(_CJK_RE.search(s))
+
+
+# Stopwords for relevance computation (common English + Chinese)
 STOPWORDS = frozenset({
     'the', 'a', 'an', 'to', 'for', 'how', 'is', 'in', 'of', 'on',
     'and', 'with', 'from', 'by', 'at', 'this', 'that', 'it', 'my',
     'your', 'i', 'me', 'we', 'you', 'what', 'are', 'do', 'can',
     'its', 'be', 'or', 'not', 'no', 'so', 'if', 'but', 'about',
     'all', 'just', 'get', 'has', 'have', 'was', 'will',
+    '的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '上', '也', '到',
+    '说', '要', '去', '你', '会', '着', '没有', '看', '好', '自己', '这', '他', '她', '很', '么',
 })
 
 # Synonym groups for relevance scoring (bidirectional expansion)
-# Superset of all platform-specific synonym dicts
 SYNONYMS = {
     'hip': {'rap', 'hiphop'},
     'hop': {'rap', 'hiphop'},
@@ -29,18 +39,24 @@ SYNONYMS = {
     'javascript': {'js'},
     'ts': {'typescript'},
     'typescript': {'ts'},
-    'ai': {'artificial', 'intelligence'},
+    'ai': {'artificial', 'intelligence', '人工智能', '机器学习', '深度学习'},
+    'artificial': {'ai', 'intelligence'},
+    'intelligence': {'ai', 'artificial'},
     'ml': {'machine', 'learning'},
+    'machine': {'ml', 'learning'},
+    'learning': {'ml', 'machine'},
     'react': {'reactjs'},
     'reactjs': {'react'},
     'svelte': {'sveltejs'},
     'sveltejs': {'svelte'},
     'vue': {'vuejs'},
     'vuejs': {'vue'},
+    '人工智能': {'ai', '机器学习', '深度学习'},
+    '机器学习': {'ai', '人工智能', '深度学习'},
+    '深度学习': {'ai', '人工智能', '机器学习'},
 }
 
 # Generic query words that should not carry relevance on their own.
-# They still help when paired with stronger entity/topic matches.
 LOW_SIGNAL_QUERY_TOKENS = frozenset({
     'advice', 'animation', 'animations', 'best', 'chance', 'chances',
     'code', 'compare', 'comparison', 'differences', 'explain', 'guide',
@@ -49,21 +65,55 @@ LOW_SIGNAL_QUERY_TOKENS = frozenset({
     'prompting', 'prompts', 'rate', 'review', 'reviews', 'thoughts',
     'tip', 'tips', 'tutorial', 'tutorials', 'update', 'updates', 'use',
     'using', 'versus', 'vs', 'worth',
+    '建议', '推荐', '教程', '评测', '对比', '最新', '消息', '更新', '分享', '经验',
 })
 
 
-def tokenize(text: str) -> Set[str]:
-    """Lowercase, strip punctuation, remove stopwords, drop single-char tokens.
+def _keep_token(w: str) -> bool:
+    if not w or w in STOPWORDS:
+        return False
+    if _has_cjk(w):
+        return True
+    return len(w) > 1
 
-    Expands tokens with synonyms for better cross-domain matching.
-    """
-    words = re.sub(r'[^\w\s]', ' ', text.lower()).split()
-    tokens = {w for w in words if w not in STOPWORDS and len(w) > 1}
+
+def _expand_synonyms(tokens: Set[str]) -> Set[str]:
     expanded = set(tokens)
     for t in tokens:
         if t in SYNONYMS:
             expanded.update(SYNONYMS[t])
     return expanded
+
+
+def tokenize(text: str) -> Set[str]:
+    """Lowercase, strip punctuation, remove stopwords, drop low-value English tokens.
+
+    Uses jieba when the text contains Han characters; otherwise whitespace split.
+    Expands tokens with synonyms for better cross-domain matching.
+    """
+    lower = text.lower()
+    has_chinese = bool(re.search(r'[\u4e00-\u9fff]', lower))
+
+    if has_chinese:
+        try:
+            import jieba
+            words = list(jieba.cut(lower))
+            tokens = {w for w in words if _keep_token(w)}
+            return _expand_synonyms(tokens)
+        except ImportError:
+            tokens = set()
+            for w in re.sub(r'[^\w\s]', ' ', lower).split():
+                if re.search(r'[\u4e00-\u9fff]', w):
+                    for ch in w:
+                        if _keep_token(ch):
+                            tokens.add(ch)
+                elif _keep_token(w):
+                    tokens.add(w)
+            return _expand_synonyms(tokens)
+
+    words = re.sub(r'[^\w\s]', ' ', lower).split()
+    tokens = {w for w in words if _keep_token(w)}
+    return _expand_synonyms(tokens)
 
 
 def _normalize_phrase(text: str) -> str:
@@ -89,7 +139,7 @@ def token_overlap_relevance(
     Args:
         query: Search query
         text: Content text to match against
-        hashtags: Optional list of hashtags (TikTok/Instagram). Concatenated
+        hashtags: Optional list of hashtags (抖音/小红书). Concatenated
             hashtags are split to match query tokens (e.g. "claudecode" matches "claude").
 
     Returns:
@@ -97,13 +147,11 @@ def token_overlap_relevance(
     """
     q_tokens = tokenize(query)
 
-    # Combine text and hashtags for matching
     combined = text
     if hashtags:
         combined = f"{text} {' '.join(hashtags)}"
     t_tokens = tokenize(combined)
 
-    # Split concatenated hashtags (e.g., "claudecode" -> matches "claude", "code")
     if hashtags:
         for tag in hashtags:
             tag_lower = tag.lower()
@@ -112,7 +160,7 @@ def token_overlap_relevance(
                     t_tokens.add(qt)
 
     if not q_tokens:
-        return 0.5  # Neutral fallback for empty/stopword-only queries
+        return 0.5
 
     overlap_tokens = q_tokens & t_tokens
     overlap = len(overlap_tokens)
@@ -140,8 +188,6 @@ def token_overlap_relevance(
         0.20 * precision
     )
 
-    # If we only matched generic query words, keep the score below the
-    # normal relevance filter threshold so these do not survive by default.
     if informative_q_tokens and not (informative_q_tokens & t_tokens):
         return round(min(0.24, base), 2)
 

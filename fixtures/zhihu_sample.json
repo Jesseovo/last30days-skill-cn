@@ -1,0 +1,43 @@
+{
+  "data": [
+    {
+      "type": "search_result",
+      "object": {
+        "type": "answer",
+        "id": 3456789012,
+        "question": {
+          "id": 678901234,
+          "title": "2026年有哪些值得关注的AI工具？"
+        },
+        "author": {
+          "name": "AI研究员",
+          "url_token": "ai-researcher",
+          "headline": "人工智能从业者"
+        },
+        "excerpt": "作为一个每天都在使用各种AI工具的从业者，我来分享一下2026年最值得关注的几个工具...",
+        "voteup_count": 2500,
+        "comment_count": 180,
+        "created_time": 1711065600,
+        "updated_time": 1711152000,
+        "url": "https://www.zhihu.com/question/678901234/answer/3456789012"
+      }
+    },
+    {
+      "type": "search_result",
+      "object": {
+        "type": "article",
+        "id": 789012345,
+        "title": "深入理解大语言模型的工作原理",
+        "author": {
+          "name": "机器学习专栏",
+          "url_token": "ml-column"
+        },
+        "excerpt": "本文从技术角度深入分析大语言模型的核心原理...",
+        "voteup_count": 1800,
+        "comment_count": 95,
+        "created": 1710979200,
+        "url": "https://zhuanlan.zhihu.com/p/789012345"
+      }
+    }
+  ]
+}

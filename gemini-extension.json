@@ -1,66 +1,60 @@
 {
-  "name": "last30days-skill",
-  "version": "2.9.5",
-  "description": "Research a topic from the last 30 days across Reddit, X, YouTube, TikTok, Instagram, Hacker News, Polymarket, and the web.",
+  "name": "last30days-cn",
+  "version": "1.0.0",
+  "description": "中国平台深度研究引擎 - 搜索微博、小红书、B站、知乎、抖音、微信公众号、百度搜索、今日头条等8大平台最近30天的热门内容。",
   "settings": [
     {
       "name": "Extension Directory",
-      "description": "Extension installation directory (auto-set by Gemini CLI)",
+      "description": "扩展安装目录（Gemini CLI 自动设置）",
       "envVar": "GEMINI_EXTENSION_DIR",
       "sensitive": false
     },
     {
+      "name": "微博访问令牌",
+      "description": "微博开放平台 Access Token（可选）",
+      "envVar": "WEIBO_ACCESS_TOKEN",
+      "sensitive": true
+    },
+    {
       "name": "ScrapeCreators API Key",
-      "description": "ScrapeCreators API Key for Reddit, TikTok, and Instagram search (required)",
+      "description": "ScrapeCreators API Key，用于小红书搜索（可选）",
       "envVar": "SCRAPECREATORS_API_KEY",
       "sensitive": true
     },
     {
-      "name": "OpenAI API Key",
-      "description": "OpenAI API Key - optional fallback for Reddit discovery",
-      "envVar": "OPENAI_API_KEY",
+      "name": "知乎 Cookie",
+      "description": "知乎登录 Cookie，用于增强搜索（可选）",
+      "envVar": "ZHIHU_COOKIE",
       "sensitive": true
     },
     {
-      "name": "xAI API Key",
-      "description": "xAI API Key for X/Twitter search (optional)",
-      "envVar": "XAI_API_KEY",
+      "name": "TikHub API Key",
+      "description": "TikHub API Key，用于抖音搜索（可选）",
+      "envVar": "TIKHUB_API_KEY",
       "sensitive": true
     },
     {
-      "name": "OpenRouter API Key",
-      "description": "OpenRouter API Key (optional)",
-      "envVar": "OPENROUTER_API_KEY",
+      "name": "微信 API Key",
+      "description": "微信公众号搜索 API Key（可选）",
+      "envVar": "WECHAT_API_KEY",
       "sensitive": true
     },
     {
-      "name": "Parallel AI API Key",
-      "description": "Parallel AI API Key (optional)",
-      "envVar": "PARALLEL_API_KEY",
+      "name": "百度 API Key",
+      "description": "百度搜索 API Key（可选）",
+      "envVar": "BAIDU_API_KEY",
       "sensitive": true
     },
     {
-      "name": "Brave Search API Key",
-      "description": "Brave Search API Key (optional)",
-      "envVar": "BRAVE_API_KEY",
+      "name": "百度 Secret Key",
+      "description": "百度搜索 Secret Key，与 API Key 配对使用（可选）",
+      "envVar": "BAIDU_SECRET_KEY",
       "sensitive": true
     },
     {
-      "name": "Apify API Token",
-      "description": "Apify API Token (optional legacy)",
-      "envVar": "APIFY_API_TOKEN",
-      "sensitive": true
-    },
-    {
-      "name": "Twitter AUTH_TOKEN",
-      "description": "Twitter browser AUTH_TOKEN cookie for direct X search (optional)",
-      "envVar": "AUTH_TOKEN",
-      "sensitive": true
-    },
-    {
-      "name": "Twitter CT0",
-      "description": "Twitter browser CT0 cookie (optional, pair with AUTH_TOKEN)",
-      "envVar": "CT0",
+      "name": "头条 API Key",
+      "description": "今日头条 API Key（可选）",
+      "envVar": "TOUTIAO_API_KEY",
       "sensitive": true
     }
   ]

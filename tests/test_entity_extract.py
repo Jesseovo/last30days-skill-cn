@@ -1,166 +1,109 @@
-"""Tests for entity_extract module."""
+"""Tests for entity_extract module (Chinese platforms)."""
 
 import sys
 import unittest
 from pathlib import Path
 
-# Add lib to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from lib import entity_extract
 
 
-class TestExtractXHandles(unittest.TestCase):
+class TestExtractWeiboUsers(unittest.TestCase):
     def test_basic_author_handle(self):
-        items = [{"author_handle": "techguru", "text": ""}]
-        result = entity_extract._extract_x_handles(items)
-        self.assertEqual(result, ["techguru"])
+        items = [{"author_handle": "科技博主", "text": ""}]
+        result = entity_extract._extract_weibo_users(items)
+        self.assertEqual(result, ["科技博主"])
 
     def test_mentions_in_text(self):
-        items = [{"text": "Great thread by @airesearcher and @mldev"}]
-        result = entity_extract._extract_x_handles(items)
-        self.assertIn("airesearcher", result)
-        self.assertIn("mldev", result)
+        items = [{"text": "转自 @研究员A 和 @开发者B"}]
+        result = entity_extract._extract_weibo_users(items)
+        self.assertIn("研究员A", result)
+        self.assertIn("开发者B", result)
 
     def test_generic_handles_filtered(self):
         items = [
-            {"author_handle": "@openai", "text": ""},
-            {"author_handle": "@elonmusk", "text": ""},
-            {"author_handle": "realexpert", "text": ""},
+            {"author_handle": "@人民日报", "text": ""},
+            {"author_handle": "真实用户", "text": ""},
         ]
-        result = entity_extract._extract_x_handles(items)
-        self.assertEqual(result, ["realexpert"])
-
-    def test_case_normalization(self):
-        items = [{"author_handle": "@CamelCase", "text": ""}]
-        result = entity_extract._extract_x_handles(items)
-        self.assertEqual(result, ["camelcase"])
+        result = entity_extract._extract_weibo_users(items)
+        self.assertEqual(result, ["真实用户"])
 
     def test_frequency_ranking(self):
         items = [
-            {"author_handle": "popular", "text": ""},
-            {"author_handle": "popular", "text": ""},
-            {"author_handle": "popular", "text": ""},
-            {"author_handle": "rare", "text": ""},
+            {"author_handle": "热门", "text": ""},
+            {"author_handle": "热门", "text": ""},
+            {"author_handle": "冷门", "text": ""},
         ]
-        result = entity_extract._extract_x_handles(items)
-        self.assertEqual(result[0], "popular")
-
-    def test_leading_at_stripped(self):
-        items = [{"author_handle": "@withatsign", "text": ""}]
-        result = entity_extract._extract_x_handles(items)
-        self.assertEqual(result, ["withatsign"])
+        result = entity_extract._extract_weibo_users(items)
+        self.assertEqual(result[0], "热门")
 
     def test_empty_input(self):
-        result = entity_extract._extract_x_handles([])
-        self.assertEqual(result, [])
-
-    def test_mixed_items(self):
-        items = [
-            {"author_handle": "poster1", "text": "Check @mentioned"},
-            {"text": "No author here"},
-            {"author_handle": "", "text": ""},
-        ]
-        result = entity_extract._extract_x_handles(items)
-        self.assertIn("poster1", result)
-        self.assertIn("mentioned", result)
-        self.assertEqual(len(result), 2)
+        self.assertEqual(entity_extract._extract_weibo_users([]), [])
 
 
-class TestExtractXHashtags(unittest.TestCase):
-    def test_basic_hashtag(self):
-        items = [{"text": "Exciting news #AI"}]
-        result = entity_extract._extract_x_hashtags(items)
-        self.assertEqual(result, ["#ai"])
+class TestExtractXiaohongshuTopics(unittest.TestCase):
+    def test_double_hash_topic(self):
+        items = [{"text": "今日分享 #旅行攻略# 干货"}]
+        result = entity_extract._extract_xiaohongshu_topics(items)
+        self.assertIn("旅行攻略", result)
 
-    def test_multiple_tags(self):
-        items = [{"text": "#Python and #MachineLearning are trending"}]
-        result = entity_extract._extract_x_hashtags(items)
-        self.assertIn("#python", result)
-        self.assertIn("#machinelearning", result)
+    def test_multiple_topics(self):
+        items = [{"title": "#美妆# 和 #护肤#"}]
+        result = entity_extract._extract_xiaohongshu_topics(items)
+        self.assertIn("美妆", result)
+        self.assertIn("护肤", result)
 
-    def test_frequency_ranking(self):
-        items = [
-            {"text": "#ai is great"},
-            {"text": "#ai again"},
-            {"text": "#rare tag"},
-        ]
-        result = entity_extract._extract_x_hashtags(items)
-        self.assertEqual(result[0], "#ai")
-
-    def test_single_char_tag_filtered(self):
-        items = [{"text": "#X is not enough chars but #AI is"}]
-        result = entity_extract._extract_x_hashtags(items)
-        # #X is only 1 char, filtered by \w{2,30} regex
-        self.assertNotIn("#x", result)
-        self.assertIn("#ai", result)
+    def test_hashtags_list(self):
+        items = [{"hashtags": ["露营", "户外"]}]
+        result = entity_extract._extract_xiaohongshu_topics(items)
+        self.assertIn("露营", result)
+        self.assertIn("户外", result)
 
     def test_empty_input(self):
-        result = entity_extract._extract_x_hashtags([])
-        self.assertEqual(result, [])
+        self.assertEqual(entity_extract._extract_xiaohongshu_topics([]), [])
 
 
-class TestExtractSubreddits(unittest.TestCase):
-    def test_basic_subreddit_field(self):
-        items = [{"subreddit": "MachineLearning"}]
-        result = entity_extract._extract_subreddits(items)
-        self.assertEqual(result, ["MachineLearning"])
+class TestExtractZhihuQuestions(unittest.TestCase):
+    def test_title_field(self):
+        items = [{"title": "如何评价某产品的 2026 年更新？"}]
+        result = entity_extract._extract_zhihu_questions(items)
+        self.assertIn("如何评价某产品的 2026 年更新？", result)
 
-    def test_cross_ref_in_comment_insights(self):
-        items = [{"subreddit": "AI", "comment_insights": ["Check out r/localLLaMA for more"]}]
-        result = entity_extract._extract_subreddits(items)
-        self.assertIn("localLLaMA", result)
-
-    def test_cross_ref_in_top_comments(self):
-        items = [{"subreddit": "tech", "top_comments": [{"excerpt": "Also see r/programming"}]}]
-        result = entity_extract._extract_subreddits(items)
-        self.assertIn("programming", result)
-
-    def test_frequency_ranking(self):
-        items = [
-            {"subreddit": "popular"},
-            {"subreddit": "popular"},
-            {"subreddit": "rare"},
-        ]
-        result = entity_extract._extract_subreddits(items)
-        self.assertEqual(result[0], "popular")
-
-    def test_leading_r_slash_stripped(self):
-        items = [{"subreddit": "r/stripped"}]
-        result = entity_extract._extract_subreddits(items)
-        self.assertEqual(result, ["stripped"])
-
-    def test_empty_input(self):
-        result = entity_extract._extract_subreddits([])
-        self.assertEqual(result, [])
+    def test_question_field(self):
+        items = [{"question": "深度学习入门路线？"}]
+        result = entity_extract._extract_zhihu_questions(items)
+        self.assertIn("深度学习入门路线？", result)
 
 
 class TestExtractEntities(unittest.TestCase):
     def test_integration(self):
-        reddit = [{"subreddit": "AI", "comment_insights": ["r/localLLaMA"]}]
-        x = [{"author_handle": "researcher", "text": "#deeplearning @colleague"}]
-        result = entity_extract.extract_entities(reddit, x)
-        self.assertIn("researcher", result["x_handles"])
-        self.assertIn("#deeplearning", result["x_hashtags"])
-        self.assertIn("AI", result["reddit_subreddits"])
+        weibo = [{"author_handle": "数码君", "text": "关注 @同事小王 #忽略#"}]
+        xhs = [{"text": "推荐 #好物分享#"}]
+        zh = [{"title": "值得购买吗？"}]
+        result = entity_extract.extract_entities(weibo, xhs, zhihu_items=zh)
+        self.assertIn("数码君", result["weibo_users"])
+        self.assertIn("同事小王", result["weibo_users"])
+        self.assertIn("好物分享", result["xiaohongshu_topics"])
+        self.assertIn("值得购买吗？", result["zhihu_questions"])
 
     def test_max_limits(self):
-        x = [
-            {"author_handle": f"user{i}", "text": ""}
-            for i in range(10)
-        ]
-        result = entity_extract.extract_entities([], x, max_handles=2)
-        self.assertLessEqual(len(result["x_handles"]), 2)
+        wb = [{"author_handle": f"用户{i}", "text": ""} for i in range(10)]
+        result = entity_extract.extract_entities(wb, [], max_weibo_users=2)
+        self.assertLessEqual(len(result["weibo_users"]), 2)
 
     def test_empty_inputs(self):
         result = entity_extract.extract_entities([], [])
-        self.assertEqual(result["x_handles"], [])
-        self.assertEqual(result["x_hashtags"], [])
-        self.assertEqual(result["reddit_subreddits"], [])
+        self.assertEqual(result["weibo_users"], [])
+        self.assertEqual(result["xiaohongshu_topics"], [])
+        self.assertEqual(result["zhihu_questions"], [])
 
     def test_return_keys(self):
         result = entity_extract.extract_entities([], [])
-        self.assertSetEqual(set(result.keys()), {"x_handles", "x_hashtags", "reddit_subreddits"})
+        self.assertEqual(
+            set(result.keys()),
+            {"weibo_users", "xiaohongshu_topics", "zhihu_questions"},
+        )
 
 
 if __name__ == "__main__":

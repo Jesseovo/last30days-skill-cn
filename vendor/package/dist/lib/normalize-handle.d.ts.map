@@ -1,1 +1,0 @@
-{"version":3,"file":"normalize-handle.d.ts","sourceRoot":"","sources":["../../src/lib/normalize-handle.ts"],"names":[],"mappings":"AAEA,wBAAgB,eAAe,CAAC,KAAK,CAAC,EAAE,MAAM,GAAG,IAAI,GAAG,MAAM,GAAG,IAAI,CAkBpE;AAED,wBAAgB,2BAA2B,CAAC,UAAU,CAAC,EAAE,MAAM,GAAG,IAAI,GAAG;IACvE,KAAK,EAAE,MAAM,GAAG,IAAI,CAAC;IACrB,KAAK,EAAE,MAAM,GAAG,IAAI,CAAC;CACtB,CAcA"}

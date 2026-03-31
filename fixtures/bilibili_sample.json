@@ -1,0 +1,40 @@
+{
+  "data": {
+    "result": [
+      {
+        "type": "video",
+        "bvid": "BV1xx411c7XY",
+        "title": "2026年最值得学的AI工具盘点",
+        "description": "本期视频盘点了2026年最火的AI工具...",
+        "author": "科技视频号",
+        "mid": 12345678,
+        "play": 150000,
+        "danmaku": 800,
+        "like": 5000,
+        "coin": 2000,
+        "favorites": 3000,
+        "review": 600,
+        "pubdate": 1710892800,
+        "duration": "15:30",
+        "arcurl": "https://www.bilibili.com/video/BV1xx411c7XY"
+      },
+      {
+        "type": "video",
+        "bvid": "BV1yy411c8ZW",
+        "title": "AI编程助手横评：谁是最强？",
+        "description": "测试了多款AI编程助手的实际表现...",
+        "author": "编程小课堂",
+        "mid": 23456789,
+        "play": 80000,
+        "danmaku": 400,
+        "like": 3000,
+        "coin": 1000,
+        "favorites": 2000,
+        "review": 350,
+        "pubdate": 1711324800,
+        "duration": "20:45",
+        "arcurl": "https://www.bilibili.com/video/BV1yy411c8ZW"
+      }
+    ]
+  }
+}

@@ -1,8 +1,8 @@
 interface:
-  display_name: "Last 30 Days"
-  short_description: "Research any topic across Reddit, X, YouTube, and the web from the last 30 days. Returns synthesized expert answers and copy-paste prompts."
-  default_prompt: "Research this topic from the last 30 days across Reddit, X, YouTube, and web. Synthesize what people are actually saying, upvoting, and sharing right now."
-  brand_color: "#FF6B35"
+  display_name: "近30天研究"
+  short_description: "搜索微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条等8大中国平台最近30天的热门内容，生成综合研究报告。"
+  default_prompt: "研究这个话题在中国互联网平台上最近30天的讨论。综合各平台观点，分析趋势，找出核心发现。"
+  brand_color: "#E53935"
 
 policy:
   allow_implicit_invocation: true

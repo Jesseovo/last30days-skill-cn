@@ -1,16 +1,13 @@
 {
-  "name": "last30days",
-  "version": "2.9.6",
-  "description": "Research any topic from the last 30 days across Reddit, X, YouTube, TikTok, Instagram, Hacker News, Polymarket, and the web.",
+  "name": "last30days-cn",
+  "version": "1.0.0",
+  "description": "中国平台深度研究引擎 - 覆盖微博、小红书、B站、知乎、抖音、微信公众号、百度搜索、今日头条等8大平台。",
   "author": {
-    "name": "Matt Van Horn",
-    "email": "mvanhorn@gmail.com",
-    "url": "https://github.com/mvanhorn"
+    "name": "Jesse",
+    "url": "https://github.com/ChiTing111"
   },
-  "homepage": "https://github.com/mvanhorn/last30days-skill",
-  "repository": "https://github.com/mvanhorn/last30days-skill",
   "license": "MIT",
-  "keywords": ["research", "reddit", "twitter", "youtube", "tiktok", "instagram", "trends", "prompts", "polymarket"],
+  "keywords": ["research", "weibo", "xiaohongshu", "bilibili", "zhihu", "douyin", "wechat", "baidu", "toutiao", "chinese-platforms"],
   "skills": ["./"],
   "hooks": {}
 }

@@ -1,7 +1,4 @@
-"""Tests for relevance.py — shared relevance scoring.
-
-Migrated from test_youtube_relevance.py + new hashtag/synonym tests.
-"""
+"""Tests for relevance.py — shared relevance scoring."""
 
 import sys
 import unittest
@@ -107,7 +104,7 @@ class TestTokenOverlapRelevance(unittest.TestCase):
 
 
 class TestHashtagRelevance(unittest.TestCase):
-    """Tests for hashtag-aware relevance (TikTok/Instagram pattern)."""
+    """Tests for hashtag-aware relevance (抖音/小红书 pattern)."""
 
     def test_hashtag_boost(self):
         rel_no_hash = token_overlap_relevance("claude code", "random video about stuff")

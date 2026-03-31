@@ -20,7 +20,6 @@ class TestDetectQueryType(unittest.TestCase):
         self.assertEqual(detect_query_type("cursor IDE pricing"), "product")
         self.assertEqual(detect_query_type("is Claude Pro worth the cost"), "product")
         self.assertEqual(detect_query_type("best free tier LLM API"), "product")
-        self.assertEqual(detect_query_type("nano banana pro prompting"), "product")
 
     def test_concept_queries(self):
         self.assertEqual(detect_query_type("what is WebTransport"), "concept")
@@ -46,7 +45,7 @@ class TestDetectQueryType(unittest.TestCase):
 
     def test_breaking_news_queries(self):
         self.assertEqual(detect_query_type("latest AI funding rounds"), "breaking_news")
-        self.assertEqual(detect_query_type("OpenAI just announced GPT-6"), "breaking_news")
+        self.assertEqual(detect_query_type("刚刚宣布了GPT-6"), "breaking_news")
 
     def test_prediction_queries(self):
         self.assertEqual(detect_query_type("odds of Fed rate cut"), "prediction")
@@ -76,32 +75,31 @@ class TestDetectQueryType(unittest.TestCase):
 
 class TestIsSourceEnabled(unittest.TestCase):
 
-    def test_truthsocial_always_opt_in(self):
-        for qt in ["product", "concept", "opinion", "breaking_news", "prediction"]:
-            self.assertFalse(is_source_enabled("truthsocial", qt))
-        self.assertTrue(is_source_enabled("truthsocial", "breaking_news", explicitly_requested=True))
+    def test_douyin_opt_in_for_comparison(self):
+        self.assertFalse(is_source_enabled("douyin", "comparison"))
+        self.assertTrue(is_source_enabled("douyin", "comparison", explicitly_requested=True))
 
     def test_tier1_sources_enabled(self):
-        self.assertTrue(is_source_enabled("reddit", "product"))
-        self.assertTrue(is_source_enabled("youtube", "how_to"))
-        self.assertTrue(is_source_enabled("polymarket", "prediction"))
-        self.assertTrue(is_source_enabled("x", "breaking_news"))
+        self.assertTrue(is_source_enabled("xiaohongshu", "product"))
+        self.assertTrue(is_source_enabled("bilibili", "how_to"))
+        self.assertTrue(is_source_enabled("toutiao", "prediction"))
+        self.assertTrue(is_source_enabled("weibo", "breaking_news"))
 
     def test_tier2_sources_enabled(self):
-        self.assertTrue(is_source_enabled("web", "product"))
-        self.assertTrue(is_source_enabled("bluesky", "opinion"))
-        self.assertTrue(is_source_enabled("x", "how_to"))
-        self.assertTrue(is_source_enabled("youtube", "breaking_news"))
-        self.assertTrue(is_source_enabled("hn", "prediction"))
+        self.assertTrue(is_source_enabled("baidu", "product"))
+        self.assertTrue(is_source_enabled("wechat", "opinion"))
+        self.assertTrue(is_source_enabled("weibo", "how_to"))
+        self.assertTrue(is_source_enabled("bilibili", "breaking_news"))
+        self.assertTrue(is_source_enabled("zhihu", "prediction"))
 
     def test_tier3_sources_disabled_by_default(self):
-        self.assertFalse(is_source_enabled("instagram", "concept"))
-        self.assertFalse(is_source_enabled("tiktok", "comparison"))
-        self.assertFalse(is_source_enabled("bluesky", "product"))
+        self.assertFalse(is_source_enabled("toutiao", "concept"))
+        self.assertFalse(is_source_enabled("douyin", "comparison"))
+        self.assertFalse(is_source_enabled("wechat", "product"))
 
     def test_explicit_request_overrides_tier(self):
-        self.assertTrue(is_source_enabled("instagram", "concept", explicitly_requested=True))
-        self.assertTrue(is_source_enabled("tiktok", "comparison", explicitly_requested=True))
+        self.assertTrue(is_source_enabled("toutiao", "concept", explicitly_requested=True))
+        self.assertTrue(is_source_enabled("douyin", "comparison", explicitly_requested=True))
 
 
 class TestWebSearchPenalty(unittest.TestCase):
@@ -122,17 +120,17 @@ class TestWebSearchPenalty(unittest.TestCase):
 
 class TestTiebreakerPriority(unittest.TestCase):
 
-    def test_youtube_highest_for_howto(self):
-        self.assertEqual(TIEBREAKER_BY_TYPE["how_to"]["youtube"], 0)
+    def test_bilibili_highest_for_howto(self):
+        self.assertEqual(TIEBREAKER_BY_TYPE["how_to"]["bilibili"], 0)
 
-    def test_x_highest_for_breaking_news(self):
-        self.assertEqual(TIEBREAKER_BY_TYPE["breaking_news"]["x"], 0)
+    def test_weibo_highest_for_breaking_news(self):
+        self.assertEqual(TIEBREAKER_BY_TYPE["breaking_news"]["weibo"], 0)
 
-    def test_polymarket_highest_for_prediction(self):
-        self.assertEqual(TIEBREAKER_BY_TYPE["prediction"]["polymarket"], 0)
+    def test_toutiao_highest_for_prediction(self):
+        self.assertEqual(TIEBREAKER_BY_TYPE["prediction"]["toutiao"], 0)
 
-    def test_hn_highest_for_concept(self):
-        self.assertEqual(TIEBREAKER_BY_TYPE["concept"]["hn"], 0)
+    def test_zhihu_highest_for_concept(self):
+        self.assertEqual(TIEBREAKER_BY_TYPE["concept"]["zhihu"], 0)
 
     def test_all_query_types_have_tiebreakers(self):
         for qt in ["product", "concept", "opinion", "how_to", "comparison", "breaking_news", "prediction"]:
@@ -147,10 +145,13 @@ class TestSourceTiers(unittest.TestCase):
             self.assertIn("tier1", SOURCE_TIERS[qt])
             self.assertIn("tier2", SOURCE_TIERS[qt])
 
-    def test_truthsocial_not_in_any_tier(self):
+    def test_chinese_platforms_in_tiers(self):
         for qt, tiers in SOURCE_TIERS.items():
-            self.assertNotIn("truthsocial", tiers["tier1"], f"truthsocial in tier1 for {qt}")
-            self.assertNotIn("truthsocial", tiers["tier2"], f"truthsocial in tier2 for {qt}")
+            all_sources = set()
+            for tier_key in ("tier1", "tier2", "tier3"):
+                val = tiers.get(tier_key, set())
+                all_sources.update(val)
+            self.assertTrue(len(all_sources) > 0, f"no sources for {qt}")
 
 
 if __name__ == "__main__":

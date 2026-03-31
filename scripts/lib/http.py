@@ -1,4 +1,7 @@
-"""HTTP utilities for last30days skill (stdlib only)."""
+"""HTTP utilities for last30days skill (stdlib only).
+
+Author: Jesse (https://github.com/ChiTing111)
+"""
 
 import json
 import os
@@ -20,7 +23,7 @@ def log(msg: str):
         sys.stderr.flush()
 MAX_RETRIES = 5
 RETRY_DELAY = 2.0
-USER_AGENT = "last30days-skill/2.1 (Assistant Skill)"
+USER_AGENT = "last30days-cn/1.0 (Research Skill)"
 
 
 class HTTPError(Exception):
@@ -142,33 +145,3 @@ def post(url: str, json_data: Dict[str, Any], headers: Optional[Dict[str, str]] 
 def post_raw(url: str, json_data: Dict[str, Any], headers: Optional[Dict[str, str]] = None, **kwargs) -> str:
     """Make a POST request with JSON body and return raw text."""
     return request("POST", url, headers=headers, json_data=json_data, raw=True, **kwargs)
-
-
-def get_reddit_json(path: str, timeout: int = DEFAULT_TIMEOUT, retries: int = MAX_RETRIES) -> Dict[str, Any]:
-    """Fetch Reddit thread JSON.
-
-    Args:
-        path: Reddit path (e.g., /r/subreddit/comments/id/title)
-        timeout: HTTP timeout per attempt in seconds
-        retries: Number of retries on failure
-
-    Returns:
-        Parsed JSON response
-    """
-    # Ensure path starts with /
-    if not path.startswith('/'):
-        path = '/' + path
-
-    # Remove trailing slash and add .json
-    path = path.rstrip('/')
-    if not path.endswith('.json'):
-        path = path + '.json'
-
-    url = f"https://www.reddit.com{path}?raw_json=1"
-
-    headers = {
-        "User-Agent": USER_AGENT,
-        "Accept": "application/json",
-    }
-
-    return get(url, headers=headers, timeout=timeout, retries=retries)

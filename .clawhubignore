@@ -1,15 +1,10 @@
-# Exclude binary assets and dev/test artifacts from ClawHub bundle
-assets/
-docs/
+# 排除开发/测试文件，仅保留 ClawHub 发布所需
 fixtures/
 tests/
-plans/
 agents/
-variants/
 release-notes.md
 SPEC.md
 TASKS.md
-SKILL-original.md
 *.jsonl
 *.mp3
 *.jpeg

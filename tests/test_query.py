@@ -92,8 +92,7 @@ class TestCustomNoise(unittest.TestCase):
     """Tests for noise override parameter."""
 
     def test_custom_noise_keeps_tips(self):
-        # YouTube keeps tips/tricks/tutorial — pass a noise set without them
-        youtube_noise = frozenset({
+        custom_noise = frozenset({
             'best', 'top', 'good', 'great', 'awesome', 'killer',
             'latest', 'new', 'news', 'update', 'updates',
             'trending', 'hottest', 'popular', 'viral',
@@ -102,7 +101,7 @@ class TestCustomNoise(unittest.TestCase):
             'prompt', 'prompts', 'prompting',
             'methods', 'strategies', 'approaches',
         })
-        result = extract_core_subject("best react tips", noise=youtube_noise)
+        result = extract_core_subject("best react tips", noise=custom_noise)
         self.assertIn("tips", result)
 
     def test_default_noise_removes_tips(self):
