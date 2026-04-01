@@ -350,7 +350,7 @@ class ProgressDisplay:
         else:
             age_str = ""
         sys.stderr.write(
-            f"{Colors.GREEN}⚡{Colors.RESET} {Colors.DIM}使用缓存结果{age_str}，加 --refresh 可强制刷新{Colors.RESET}\n\n"
+            f"{Colors.GREEN}⚡{Colors.RESET} {Colors.DIM}使用缓存结果{age_str}{Colors.RESET}\n\n"
         )
         sys.stderr.flush()
 

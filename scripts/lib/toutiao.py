@@ -22,7 +22,6 @@ def search_toutiao(
     from_date: str,
     to_date: str,
     depth: str = "default",
-    api_key: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """搜索今日头条内容。
 
@@ -31,7 +30,6 @@ def search_toutiao(
         from_date: 起始日期
         to_date: 结束日期
         depth: 搜索深度
-        api_key: 头条 API Key（可选）
 
     Returns:
         头条文章/视频列表

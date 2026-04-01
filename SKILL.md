@@ -68,17 +68,18 @@ metadata:
 - "搜索"、"研究"、"调研"
 - "热门话题"、"趋势"、"动态"
 
-## 首次运行向导
+## 配置与零成本信源
 
-如果脚本输出包含 `FIRST_RUN: true`，向用户展示配置向导：
+首次使用或用户询问「需要什么配置」时，可简要说明：
 
 ```
 🎉 欢迎使用 last30days-cn！
 
-📋 零配置即可使用 3 个免费数据源：
+📋 零配置即可使用 4 个免费数据源：
    ✅ B站（公开 API）
    ✅ 知乎（公开搜索）
-   ✅ 百度搜索（基础公开搜索）
+   ✅ 百度（基础公开搜索，无需 API Key）
+   ✅ 今日头条（公开接口）
 
 🔧 推荐配置以解锁更多数据源：
    1. WEIBO_ACCESS_TOKEN - 微博搜索（强烈推荐）
@@ -115,7 +116,7 @@ cd {{SKILL_DIR}}/scripts && python3 last30days.py "{{用户查询}}" --emit comp
 | 知乎 | zhihu.py | 问答/文章 | ZHIHU_COOKIE（可选） |
 | 抖音 | douyin.py | 短视频 | TIKHUB_API_KEY（可选） |
 | 微信 | wechat.py | 公众号文章 | WECHAT_API_KEY（可选） |
-| 百度 | baidu.py | 网页搜索 | BAIDU_API_KEY（可选） |
+| 百度 | baidu.py | 网页搜索 | 基础无需密钥；BAIDU_API_KEY（可选，高级） |
 | 头条 | toutiao.py | 资讯/热榜 | 无需（公开接口） |
 
 ### 步骤 3: 综合分析

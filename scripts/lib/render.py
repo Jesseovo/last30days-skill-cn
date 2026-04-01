@@ -191,20 +191,6 @@ def render_compact(report: schema.Report, limit: int = 15, missing_keys: str = "
         lines.append("下列结果可能含较早或常青内容，请向用户如实说明时效性。")
         lines.append("")
 
-    if report.mode == "web-only":
-        lines.append("**🌐 仅网页/搜索模式** — 助手将检索网页、文档与新闻。")
-        lines.append("")
-        lines.append("---")
-        lines.append("**⚡ 想提升覆盖？** 在 `~/.config/last30days-cn/.env` 配置国内平台 API Key，解锁微博、小红书、B 站、知乎、抖音、微信公众号等结构化数据：")
-        lines.append("- WEIBO_ACCESS_TOKEN / SCRAPECREATORS_API_KEY / TIKHUB_API_KEY 等（详见 README）")
-        lines.append("---")
-        lines.append("")
-
-    if report.from_cache:
-        age_str = f"{report.cache_age_hours:.1f} 小时前" if report.cache_age_hours else "已缓存"
-        lines.append(f"**⚡ 缓存结果**（{age_str}）— 使用 `--refresh` 获取最新数据")
-        lines.append("")
-
     lines.append(f"**日期范围:** {report.range_from} ~ {report.range_to}")
     lines.append(f"**模式:** {report.mode}")
     rw = getattr(report, "resolved_weibo_handle", None)
@@ -212,7 +198,7 @@ def render_compact(report: schema.Report, limit: int = 15, missing_keys: str = "
         lines.append(f"**解析的微博用户:** @{rw}")
     lines.append("")
 
-    if missing_keys != "none" and report.mode != "web-only":
+    if missing_keys != "none":
         lines.append("*💡 提示: 补齐各平台 API Key 可多源交叉验证。*")
         lines.append("")
 

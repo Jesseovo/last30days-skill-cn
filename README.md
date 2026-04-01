@@ -17,7 +17,7 @@
 - 🇨🇳 **中文 NLP** — 基于 jieba 分词，中文停用词、同义词扩展
 - 📊 **智能评分** — 相关性 45% + 时效性 25% + 互动度 30% 综合评分
 - 🔄 **跨平台对比** — 自动关联多平台相同话题，交叉验证
-- ⚡ **3 个免费源** — B站、知乎、今日头条无需任何配置即可使用
+- ⚡ **4 个免费源** — B站、知乎、百度（基础公开搜索）、今日头条无需 API Key 即可使用
 
 ---
 
@@ -31,7 +31,7 @@
 | 💬 知乎 | `zhihu.py` | 问答/文章 | `ZHIHU_COOKIE`（可选） |
 | 🎵 抖音 | `douyin.py` | 短视频 | `TIKHUB_API_KEY`（可选） |
 | 💚 微信 | `wechat.py` | 公众号文章 | `WECHAT_API_KEY`（可选） |
-| 🔵 百度 | `baidu.py` | 网页搜索 | `BAIDU_API_KEY`（可选） |
+| 🔵 百度 | `baidu.py` | 网页搜索 | ✅ 基础搜索无需密钥；`BAIDU_API_KEY`（可选，高级） |
 | 📰 头条 | `toutiao.py` | 资讯/热榜 | ✅ 无需（公开接口） |
 
 ---
@@ -100,7 +100,7 @@ chmod 600 ~/.config/last30days-cn/.env
 # 作者: Jesse (https://github.com/ChiTing111)
 #
 # 📌 说明：所有配置均为可选
-# B站、知乎、今日头条无需任何配置即可使用
+# B站、知乎、百度（基础）、今日头条无需 API Key 即可使用
 # 配置更多 API Key 可解锁更多数据源
 # ============================================
 
@@ -296,7 +296,7 @@ last30days-skill-cn/
 - 🇨🇳 **Chinese NLP** — jieba-based word segmentation, Chinese stopwords, synonym expansion
 - 📊 **Smart Scoring** — Relevance 45% + Recency 25% + Engagement 30%
 - 🔄 **Cross-Platform Linking** — Auto-links same topics across platforms
-- ⚡ **3 Free Sources** — Bilibili, Zhihu, Toutiao work without any API keys
+- ⚡ **4 Free Sources** — Bilibili, Zhihu, Baidu (basic public search), and Toutiao work without API keys
 
 ---
 
@@ -310,7 +310,7 @@ last30days-skill-cn/
 | 💬 Zhihu | `zhihu.py` | Q&A/Articles | `ZHIHU_COOKIE` (optional) |
 | 🎵 Douyin | `douyin.py` | Short Videos | `TIKHUB_API_KEY` (optional) |
 | 💚 WeChat | `wechat.py` | Official Account Articles | `WECHAT_API_KEY` (optional) |
-| 🔵 Baidu | `baidu.py` | Web Search | `BAIDU_API_KEY` (optional) |
+| 🔵 Baidu | `baidu.py` | Web Search | ✅ Basic search free; `BAIDU_API_KEY` (optional, advanced) |
 | 📰 Toutiao | `toutiao.py` | News/Trending | ✅ Free (public API) |
 
 ---

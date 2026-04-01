@@ -8,6 +8,7 @@ Author: Jesse (https://github.com/ChiTing111)
 import json
 import re
 import sys
+import time
 import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
@@ -95,7 +96,9 @@ def _search_via_public(topic: str, limit: int) -> List[Dict[str, Any]]:
     items = []
     try:
         encoded = urllib.parse.quote(topic)
-        url = f"https://www.baidu.com/s?wd={encoded}&rn={min(limit, 20)}&gpc=stf%3D1709251200%2C1711929600%7Cstftype%3D1"
+        now_ts = int(time.time())
+        ago_ts = now_ts - 30 * 86400
+        url = f"https://www.baidu.com/s?wd={encoded}&rn={min(limit, 20)}&gpc=stf%3D{ago_ts}%2C{now_ts}%7Cstftype%3D1"
         headers = {
             "User-Agent": _UA,
             "Accept": "text/html",

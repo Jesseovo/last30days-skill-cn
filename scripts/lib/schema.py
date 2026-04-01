@@ -35,7 +35,7 @@ class Engagement:
     hot_value: Optional[float] = None
     favorites: Optional[int] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> Optional[Dict[str, Any]]:
         d: Dict[str, Any] = {}
         if self.score is not None:
             d['score'] = self.score

@@ -459,7 +459,7 @@ def relevance_filter(items, source_name: str, threshold: float = 0.3):
     passed = [i for i in items if getattr(i, "relevance", 0.0) >= threshold]
     if not passed:
         print(
-            f"[{source_name} WARNING] All results below relevance {threshold}, keeping top 3",
+            f"[{source_name} 警告] 全部结果相关性低于 {threshold}，保留前 3 条",
             file=sys.stderr,
         )
         by_rel = sorted(items, key=lambda x: getattr(x, "relevance", 0.0), reverse=True)

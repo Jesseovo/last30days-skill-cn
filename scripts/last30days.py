@@ -115,14 +115,13 @@ from lib import (
     toutiao,
     dates,
     dedupe,
-    entity_extract,
     env,
     normalize,
+    query,
     render,
     schema,
     score,
     setup_wizard,
-    ui,
     query_type as qt,
 )
 
@@ -200,6 +199,7 @@ def run_research(
     depth: str = "default",
     timeouts: dict = None,
     search_sources: set = None,
+    query_type: str = "breaking_news",
 ) -> dict:
     if timeouts is None:
         timeouts = TIMEOUT_PROFILES[depth]
@@ -209,7 +209,7 @@ def run_research(
     if search_sources:
         active = search_sources & all_sources
     else:
-        active = all_sources
+        active = {s for s in all_sources if qt.is_source_enabled(s, query_type)}
 
     results = {src: {"items": [], "error": None} for src in all_sources}
 
@@ -340,14 +340,18 @@ def main():
         search_sources = parse_search_flag(args.search)
 
     query_type = qt.detect_query_type(args.topic)
+    search_topic = query.extract_core_subject(args.topic)
 
     sys.stderr.write(f"正在搜索: {args.topic}\n")
-    sys.stderr.write(f"日期范围: {from_date} 至 {to_date}\n")
+    if search_topic != args.topic:
+        sys.stderr.write(f"提纯关键词: {search_topic}\n")
+    sys.stderr.write(f"查询类型: {query_type} | 日期范围: {from_date} 至 {to_date}\n")
     sys.stderr.flush()
 
     raw_results = run_research(
-        args.topic, config, from_date, to_date, depth,
+        search_topic, config, from_date, to_date, depth,
         timeouts=timeouts, search_sources=search_sources,
+        query_type=query_type,
     )
 
     sys.stderr.write("正在处理结果...\n")

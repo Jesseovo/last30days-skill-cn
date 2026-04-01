@@ -33,7 +33,7 @@
 |------|-----------|
 | `env.py` | 加载 `~/.config/last30days-cn/.env`、项目级 `.claude/last30days-cn.env` 及环境变量，汇总各平台 API Key / Cookie 可用性判断 |
 | `dates.py` | 日期范围计算、与时间窗口相关的辅助逻辑 |
-| `cache.py` | 基于 TTL 的缓存，减轻重复请求 |
+| `cache.py` | 可选工具模块：基于 TTL 的缓存（供扩展或脚本复用；主 CLI 流水线不依赖） |
 | `http.py` | 带重试的 HTTP 客户端（stdlib 为主） |
 | `normalize.py` | 将各平台原始条目转为统一内部结构，并按日期窗口过滤 |
 | `score.py` | 互动、时间、查询类型等维度的打分与排序 |
@@ -42,7 +42,7 @@
 | `schema.py` | 报告与条目的数据模型、`to_dict` 等 |
 | `query.py` | 查询解析、扩展（含 jieba 中文分词路径） |
 | `relevance.py` | 文本相关性（含中文 jieba 分词分支） |
-| `entity_extract.py` | 实体或短语级抽取，服务排序与展示 |
+| `entity_extract.py` | 可选工具模块：实体或短语级抽取（供测试与扩展；主 CLI 流水线不依赖） |
 | `query_type.py` | 查询类型检测，影响部分源的排序权重 |
 
 **辅助模块**（与 CLI / 运维相关）：`ui.py`、`setup_wizard.py` 等，详见 `scripts/lib/` 目录列表。

@@ -6,6 +6,8 @@ Author: Jesse (https://github.com/ChiTing111)
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
+CST = timezone(timedelta(hours=8))
+
 
 def get_date_range(days: int = 30) -> Tuple[str, str]:
     """Get the date range for the last N days.
@@ -13,7 +15,7 @@ def get_date_range(days: int = 30) -> Tuple[str, str]:
     Returns:
         Tuple of (from_date, to_date) as YYYY-MM-DD strings
     """
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(CST).date()
     from_date = today - timedelta(days=days)
     return from_date.isoformat(), today.isoformat()
 
@@ -103,7 +105,7 @@ def days_ago(date_str: Optional[str]) -> Optional[int]:
 
     try:
         dt = datetime.strptime(date_str, "%Y-%m-%d").date()
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(CST).date()
         delta = today - dt
         return delta.days
     except ValueError:

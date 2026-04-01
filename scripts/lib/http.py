@@ -42,7 +42,7 @@ def request(
     timeout: int = DEFAULT_TIMEOUT,
     retries: int = MAX_RETRIES,
     raw: bool = False,
-) -> Dict[str, Any]:
+) -> Any:
     """Make an HTTP request and return JSON response.
 
     Args:
@@ -84,7 +84,7 @@ def request(
             body = None
             try:
                 body = e.read().decode('utf-8')
-            except:
+            except Exception:
                 pass
             log(f"HTTP Error {e.code}: {e.reason}")
             if body:
