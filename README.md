@@ -6,7 +6,7 @@
 
 🔗 本项目基于 [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) 进行深度本土化改造，完全面向中国用户和中文互联网平台。
 
-👤 **作者 / Author:** Jesse ([@ChiTing111](https://github.com/ChiTing111))
+👤 **作者 / Author:** Jesse ([@Jesseovo](https://github.com/Jesseovo))
 
 ---
 
