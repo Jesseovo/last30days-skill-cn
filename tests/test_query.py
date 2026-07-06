@@ -42,6 +42,13 @@ class TestExtractCoreSubject(unittest.TestCase):
         result = extract_core_subject("how to use how to debug")
         self.assertIn("debug", result)
 
+    def test_chinese_fallback_keeps_query_phrases(self):
+        result = extract_core_subject("最新 Claude Code 编程助手 推荐")
+        self.assertIn("claude", result)
+        self.assertIn("code", result)
+        self.assertIn("编程助手", result)
+        self.assertNotIn("编 程", result)
+
 
 class TestMaxWords(unittest.TestCase):
     """Tests for max_words parameter."""

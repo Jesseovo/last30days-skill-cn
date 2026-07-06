@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from . import relevance
+from . import dates, relevance
 
 _UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
 
@@ -188,11 +188,7 @@ def _parse_aweme(aweme: dict) -> Dict[str, Any]:
     create_time = aweme.get("create_time", 0)
     date_str = None
     if create_time:
-        try:
-            from datetime import datetime
-            date_str = datetime.fromtimestamp(create_time).strftime("%Y-%m-%d")
-        except Exception:
-            pass
+        date_str = dates.timestamp_to_date(create_time)
 
     aweme_id = aweme.get("aweme_id", "")
     hashtags = []

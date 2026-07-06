@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-from lib import dedupe, schema
+from lib import cjk, dedupe, schema
 
 
 class TestNormalizeText(unittest.TestCase):
@@ -103,6 +103,20 @@ class TestDedupeItems(unittest.TestCase):
         items = [schema.ZhihuItem(id="ZH1", title="测试", excerpt="", url="", author="")]
         result = dedupe.dedupe_items(items)
         self.assertEqual(len(result), 1)
+
+
+class TestCrossSourceTokenization(unittest.TestCase):
+    def test_chinese_xref_tokenization_uses_bigram_fallback(self):
+        old_jieba = cjk._jieba
+        try:
+            cjk._jieba = None
+            tokens = dedupe._tokenize_for_xref("国产大模型评测")
+        finally:
+            cjk._jieba = old_jieba
+
+        self.assertIn("大模", tokens)
+        self.assertIn("模型", tokens)
+        self.assertNotIn("大", tokens)
 
 
 if __name__ == "__main__":

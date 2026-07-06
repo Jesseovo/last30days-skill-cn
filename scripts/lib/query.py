@@ -7,11 +7,7 @@ Author: Jesse (https://github.com/Jesseovo)
 import re
 from typing import FrozenSet, List, Optional
 
-_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
-
-
-def _has_cjk(s: str) -> bool:
-    return bool(_CJK_RE.search(s))
+from . import cjk
 
 
 # Common multi-word prefixes stripped from all queries (identical across modules)
@@ -66,24 +62,12 @@ NOISE_WORDS = frozenset({
     '的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '上', '也', '到',
     '说', '要', '去', '你', '会', '着', '没有', '看', '好', '自己', '这', '他', '她', '很', '么',
     '什么', '怎么', '如何', '最好', '推荐', '最新', '最近', '那些', '哪些', '为什么',
-})
+}) | cjk.CHINESE_STOPWORDS
 
 
 def _tokenize_for_noise(text: str) -> List[str]:
-    if _has_cjk(text):
-        try:
-            import jieba
-            return list(jieba.cut(text))
-        except ImportError:
-            tokens: List[str] = []
-            for segment in re.split(r'\s+', text.strip()):
-                if not segment:
-                    continue
-                if _has_cjk(segment):
-                    tokens.extend(list(segment))
-                else:
-                    tokens.extend(segment.split())
-            return tokens
+    if cjk.has_cjk(text):
+        return cjk.segment_runs(text)
     return text.split()
 
 
@@ -114,7 +98,7 @@ def extract_core_subject(
 
     # Phase 1: strip one matching prefix (longest first)
     for p in sorted(PREFIXES, key=len, reverse=True):
-        if _has_cjk(p):
+        if cjk.has_cjk(p):
             if text.startswith(p):
                 text = text[len(p):].strip()
                 break
@@ -125,7 +109,7 @@ def extract_core_subject(
     # Phase 2: strip one matching suffix (opt-in)
     if strip_suffixes:
         for s in sorted(SUFFIXES, key=len, reverse=True):
-            if _has_cjk(s):
+            if cjk.has_cjk(s):
                 if text.endswith(s):
                     text = text[:-len(s)].strip()
                     break

@@ -9,6 +9,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from lib import dates
+from lib.weibo import _parse_weibo_date
+from lib.crawler_bridge import _parse_relative_date
 
 
 class TestGetDateRange(unittest.TestCase):
@@ -57,6 +59,26 @@ class TestParseDate(unittest.TestCase):
         result = dates.parse_date("1768435200")
         self.assertIsNotNone(result)
 
+    def test_parse_timestamp_uses_cst_calendar_day(self):
+        # 2026-01-14 16:30:00 UTC is 2026-01-15 00:30:00 in China.
+        result = dates.parse_date("1768408200")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.date().isoformat(), "2026-01-15")
+        self.assertEqual(result.tzinfo, dates.CST)
+
+    def test_parse_tz_aware_iso_converts_to_cst(self):
+        # 2026-01-15 00:30 +09:00 is still 2026-01-14 in China.
+        result = dates.parse_date("2026-01-15T00:30:00+0900")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.date().isoformat(), "2026-01-14")
+        self.assertEqual(result.tzinfo, dates.CST)
+
+    def test_parse_naive_iso_treats_as_cst(self):
+        result = dates.parse_date("2026-01-15T00:30:00")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.date().isoformat(), "2026-01-15")
+        self.assertEqual(result.tzinfo, dates.CST)
+
     def test_parse_none(self):
         result = dates.parse_date(None)
         self.assertIsNone(result)
@@ -70,6 +92,11 @@ class TestTimestampToDate(unittest.TestCase):
     def test_valid_timestamp(self):
         # 2026-01-15 00:00:00 UTC
         result = dates.timestamp_to_date(1768435200)
+        self.assertEqual(result, "2026-01-15")
+
+    def test_timestamp_to_date_uses_cst_calendar_day(self):
+        # 2026-01-14 16:30:00 UTC is 2026-01-15 00:30:00 in China.
+        result = dates.timestamp_to_date(1768408200)
         self.assertEqual(result, "2026-01-15")
 
     def test_none_timestamp(self):
@@ -121,6 +148,16 @@ class TestRecencyScore(unittest.TestCase):
     def test_none_date_is_0(self):
         result = dates.recency_score(None)
         self.assertEqual(result, 0)
+
+
+class TestPlatformDateParsing(unittest.TestCase):
+    def test_weibo_tz_offset_converts_to_cst(self):
+        result = _parse_weibo_date("Wed Jan 14 23:30:00 -0500 2026")
+        self.assertEqual(result, "2026-01-15")
+
+    def test_crawler_weibo_tz_offset_converts_to_cst(self):
+        result = _parse_relative_date("Wed Jan 14 23:30:00 -0500 2026")
+        self.assertEqual(result, "2026-01-15")
 
 
 if __name__ == "__main__":

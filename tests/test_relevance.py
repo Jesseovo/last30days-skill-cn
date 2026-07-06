@@ -6,6 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
+from lib import cjk
 from lib.relevance import STOPWORDS, SYNONYMS, token_overlap_relevance, tokenize
 
 
@@ -54,6 +55,18 @@ class TestTokenize(unittest.TestCase):
         tokens = tokenize("vue components")
         self.assertIn("vuejs", tokens)
 
+    def test_chinese_uses_bigram_fallback_without_jieba(self):
+        old_jieba = cjk._jieba
+        try:
+            cjk._jieba = None
+            tokens = tokenize("国产大模型评测")
+        finally:
+            cjk._jieba = old_jieba
+
+        self.assertIn("大模", tokens)
+        self.assertIn("模型", tokens)
+        self.assertNotIn("大", tokens)
+
 
 class TestTokenOverlapRelevance(unittest.TestCase):
     """Tests for token_overlap_relevance()."""
@@ -101,6 +114,10 @@ class TestTokenOverlapRelevance(unittest.TestCase):
         generic_only = token_overlap_relevance("anthropic odds", "Republican house odds update")
         informative = token_overlap_relevance("anthropic odds", "Anthropic valuation market")
         self.assertGreater(informative, generic_only)
+
+    def test_cjk_phrase_containment_bonus_ignores_spaces(self):
+        rel = token_overlap_relevance("AI 编程助手", "这篇文章讨论 AI编程助手 的真实体验")
+        self.assertGreater(rel, 0.7)
 
 
 class TestHashtagRelevance(unittest.TestCase):

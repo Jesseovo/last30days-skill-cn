@@ -19,7 +19,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from . import http, relevance
+from . import dates, http, relevance
 
 _UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
 _DESKTOP_UA = (
@@ -215,17 +215,9 @@ def _parse_note(note: dict) -> Dict[str, Any]:
 
     date_str = note.get("time") or note.get("created_time") or note.get("date")
     if date_str and len(str(date_str)) == 13:
-        try:
-            from datetime import datetime
-            date_str = datetime.fromtimestamp(int(date_str) / 1000).strftime("%Y-%m-%d")
-        except Exception:
-            date_str = None
+        date_str = dates.timestamp_to_date(int(date_str) / 1000)
     elif date_str and len(str(date_str)) == 10 and str(date_str).isdigit():
-        try:
-            from datetime import datetime
-            date_str = datetime.fromtimestamp(int(date_str)).strftime("%Y-%m-%d")
-        except Exception:
-            date_str = None
+        date_str = dates.timestamp_to_date(int(date_str))
 
     return {
         "title": title,

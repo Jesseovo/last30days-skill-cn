@@ -6,7 +6,7 @@ Author: Jesse (https://github.com/Jesseovo)
 import re
 from typing import List, Set, Tuple, Union
 
-from . import schema
+from . import cjk, schema
 
 STOPWORDS = frozenset({
     "the", "a", "an", "to", "for", "how", "is", "in", "of", "on",
@@ -14,7 +14,7 @@ STOPWORDS = frozenset({
     "your", "i", "me", "we", "you", "what", "are", "do", "can",
     "its", "be", "or", "not", "no", "so", "if", "but", "about",
     "all", "just", "get", "has", "have", "was", "will", "show", "hn",
-})
+}) | cjk.CHINESE_STOPWORDS
 
 
 def normalize_text(text: str) -> str:
@@ -100,8 +100,8 @@ def _get_cross_source_text(item: AnyItem) -> str:
 
 def _tokenize_for_xref(text: str) -> Set[str]:
     """Tokenize text for cross-source token Jaccard comparison."""
-    words = re.sub(r"[^\w\s]", " ", text.lower()).split()
-    return {w for w in words if w not in STOPWORDS and len(w) > 1}
+    words = cjk.segment(text.lower())
+    return {w for w in words if w not in STOPWORDS and (cjk.has_cjk(w) or len(w) > 1)}
 
 
 def _token_jaccard(text_a: str, text_b: str) -> float:

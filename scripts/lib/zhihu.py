@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from . import relevance
+from . import dates, relevance
 
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
@@ -240,11 +240,7 @@ def _parse_search_result(obj: dict, item_type: str = "") -> Optional[Dict[str, A
     created = obj.get("created_time") or obj.get("created", 0)
     date_str = None
     if created and isinstance(created, (int, float)) and created > 1000000000:
-        try:
-            from datetime import datetime
-            date_str = datetime.fromtimestamp(created).strftime("%Y-%m-%d")
-        except Exception:
-            pass
+        date_str = dates.timestamp_to_date(created)
 
     return {
         "title": title,

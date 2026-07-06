@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from . import relevance
+from . import dates, relevance
 
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
@@ -108,11 +108,7 @@ def _parse_video(v: dict) -> Dict[str, Any]:
     pubdate = v.get("pubdate", 0)
     date_str = None
     if pubdate:
-        try:
-            from datetime import datetime
-            date_str = datetime.fromtimestamp(pubdate).strftime("%Y-%m-%d")
-        except Exception:
-            pass
+        date_str = dates.timestamp_to_date(pubdate)
 
     return {
         "title": v.get("title", ""),
