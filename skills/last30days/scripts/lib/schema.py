@@ -689,6 +689,7 @@ class Report:
             toutiao_error=data.get('toutiao_error'),
             from_cache=data.get('from_cache', False),
             cache_age_hours=data.get('cache_age_hours'),
+            clusters=data.get('clusters', []),
         )
 
 

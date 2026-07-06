@@ -12,7 +12,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from . import relevance
+from . import dates, relevance
 
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
@@ -187,11 +187,7 @@ def _parse_article(entry: dict) -> Optional[Dict[str, Any]]:
     date_str = None
     publish_time = entry.get("publish_time") or entry.get("behot_time", 0)
     if publish_time:
-        try:
-            from datetime import datetime
-            date_str = datetime.fromtimestamp(int(publish_time)).strftime("%Y-%m-%d")
-        except Exception:
-            pass
+        date_str = dates.timestamp_to_date(int(publish_time))
 
     article_url = entry.get("article_url") or entry.get("display_url", "")
     if article_url and not article_url.startswith("http"):

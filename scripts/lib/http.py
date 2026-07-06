@@ -15,6 +15,8 @@ from email.utils import parsedate_to_datetime
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from .version import VERSION
+
 DEFAULT_TIMEOUT = 30
 DEBUG = os.environ.get("LAST30DAYS_DEBUG", "").lower() in ("1", "true", "yes")
 
@@ -27,7 +29,7 @@ def log(msg: str):
 MAX_RETRIES = 5
 RETRY_DELAY = 2.0
 RETRY_BACKOFF = 2.0
-USER_AGENT = "last30days-cn/2.1.0 (Research Skill)"
+USER_AGENT = f"last30days-cn/{VERSION} (Research Skill)"
 RETRY_CAP = 30.0
 RETRY_AFTER_CAP = 60.0
 SECRET_QUERY_KEYS = ("key", "token", "secret", "password", "auth")

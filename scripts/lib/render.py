@@ -10,6 +10,7 @@ from html import escape
 from pathlib import Path
 
 from . import schema
+from .version import DISPLAY_VERSION
 
 OUTPUT_DIR = Path.home() / ".local" / "share" / "last30days" / "out"
 
@@ -213,6 +214,11 @@ def render_compact(report: schema.Report, limit: int = 15, missing_keys: str = "
 
     lines.append(f"## 研究结果: {report.topic}")
     lines.append("")
+    if getattr(report, "from_cache", False):
+        age = getattr(report, "cache_age_hours", None)
+        age_text = f"约 {age:.1f} 小时前" if age is not None else "时间未知"
+        lines.append(f"*缓存命中：{age_text}生成。使用 `--refresh` 可强制刷新。*")
+        lines.append("")
 
     freshness = _assess_data_freshness(report)
     if freshness["is_sparse"]:
@@ -956,6 +962,6 @@ h1 {{ font-size:clamp(48px,9vw,136px); line-height:.92; letter-spacing:-.02em; m
     <div class="items">{''.join(item_cards) if item_cards else '<p>暂无结果。</p>'}</div>
   </section>
 </main>
-<footer class="footer">last30days-cn v3.0.0 · HTML renderer inspired by op7418/guizang-ppt-skill · Generated locally.</footer>
+<footer class="footer">last30days-cn v{DISPLAY_VERSION} · HTML renderer inspired by op7418/guizang-ppt-skill · Generated locally.</footer>
 </body>
 </html>"""

@@ -1,13 +1,14 @@
 """Tests for cache module."""
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 # Add lib to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-from lib import cache
+from lib import cache, schema
 
 
 class TestGetCacheKey(unittest.TestCase):
@@ -45,6 +46,40 @@ class TestCacheValidity(unittest.TestCase):
         fake_path = Path("/nonexistent/path/file.json")
         result = cache.is_cache_valid(fake_path)
         self.assertFalse(result)
+
+
+class TestCacheRoundTrip(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.old_cache_dir = cache.CACHE_DIR
+        self.old_model_cache_file = cache.MODEL_CACHE_FILE
+        cache.CACHE_DIR = Path(self.tmp.name)
+        cache.MODEL_CACHE_FILE = cache.CACHE_DIR / "model_selection.json"
+
+    def tearDown(self):
+        cache.CACHE_DIR = self.old_cache_dir
+        cache.MODEL_CACHE_FILE = self.old_model_cache_file
+        self.tmp.cleanup()
+
+    def test_save_cache_writes_readable_utf8_chinese(self):
+        cache.save_cache("utf8", {"topic": "中文平台", "items": ["微博"]})
+        raw = cache.get_cache_path("utf8").read_text(encoding="utf-8")
+        self.assertIn("中文平台", raw)
+        self.assertEqual(cache.load_cache("utf8")["items"], ["微博"])
+
+    def test_report_from_cache_preserves_clusters(self):
+        report = schema.create_report("中文平台", "2026-01-01", "2026-01-31", "all")
+        report.clusters = [{
+            "representative_title": "同一热点",
+            "sources": ["微博", "知乎"],
+            "size": 2,
+        }]
+        cache.save_cache("report", report.to_dict())
+
+        loaded = cache.load_cache("report")
+        rebuilt = schema.Report.from_dict(loaded)
+        self.assertEqual(rebuilt.topic, "中文平台")
+        self.assertEqual(rebuilt.clusters[0]["representative_title"], "同一热点")
 
 
 class TestModelCache(unittest.TestCase):

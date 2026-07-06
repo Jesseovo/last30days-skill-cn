@@ -8,11 +8,19 @@ Agent-facing notes for local development.
 
 ## Structure
 
-- `skills/last30days/SKILL.md`: installable Agent Skill entrypoint.
-- `skills/last30days/scripts/`: self-contained runtime payload for Agent Skills installs.
-- `scripts/`: root development copy kept for compatibility.
+- `SKILL.md`: root development copy and source of truth for the skill instructions.
+- `scripts/`: root development copy and source of truth for the runtime.
+- `skills/last30days/`: generated installable Agent Skill payload.
 - `scripts/lib/render.py`: Markdown, JSON context, and HTML report rendering.
 - `tests/`: focused regression tests.
+
+Only edit the root `SKILL.md` and `scripts/` tree. Regenerate the installable
+payload before committing:
+
+```bash
+python scripts/build_payload.py
+python scripts/build_payload.py --check
+```
 
 ## Commands
 
@@ -25,7 +33,7 @@ python scripts/last30days.py --diagnose
 When validating on this Windows workspace, prefer:
 
 ```bash
-py -m pytest
+python -m pytest tests -q
 ```
 
 The `python` command may resolve to the Windows Store shim on some machines.
@@ -33,4 +41,3 @@ The `python` command may resolve to the Windows Store shim on some machines.
 ## Release Notes
 
 For v3.0.0, the skill payload is self-contained under `skills/last30days`, and the new HTML renderer emits a Guizang-inspired Swiss/IKB report.
-

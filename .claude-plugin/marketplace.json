@@ -10,7 +10,7 @@
     {
       "name": "last30days-cn",
       "description": "中国互联网平台深度研究技能，搜索微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条等平台近30天热门内容，生成有据可查的研究报告。",
-      "version": "2.1.0",
+      "version": "3.1.0",
       "author": {
         "name": "Jesse",
         "url": "https://github.com/Jesseovo"

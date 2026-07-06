@@ -5,6 +5,8 @@
 """
 
 import os
+import subprocess
+import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SKILL_ENTRY = os.path.join(REPO_ROOT, "skills", "last30days", "SKILL.md")
@@ -20,3 +22,14 @@ def test_skill_entry_has_frontmatter():
         content = f.read()
     assert content.strip(), "SKILL.md 不应为空"
     assert "name:" in content, "SKILL.md 应包含 Agent Skill frontmatter"
+
+
+def test_payload_matches_root_sources():
+    result = subprocess.run(
+        [sys.executable, os.path.join(REPO_ROOT, "scripts", "build_payload.py"), "--check"],
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

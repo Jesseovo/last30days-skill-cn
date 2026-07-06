@@ -5,12 +5,17 @@ Author: Jesse (https://github.com/Jesseovo)
 
 import json
 import os
+import random
 import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Dict, Optional
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from .version import VERSION
 
 DEFAULT_TIMEOUT = 30
 DEBUG = os.environ.get("LAST30DAYS_DEBUG", "").lower() in ("1", "true", "yes")
@@ -24,7 +29,10 @@ def log(msg: str):
 MAX_RETRIES = 5
 RETRY_DELAY = 2.0
 RETRY_BACKOFF = 2.0
-USER_AGENT = "last30days-cn/2.1.0 (Research Skill)"
+USER_AGENT = f"last30days-cn/{VERSION} (Research Skill)"
+RETRY_CAP = 30.0
+RETRY_AFTER_CAP = 60.0
+SECRET_QUERY_KEYS = ("key", "token", "secret", "password", "auth")
 
 
 class HTTPError(Exception):
@@ -33,6 +41,48 @@ class HTTPError(Exception):
         super().__init__(message)
         self.status_code = status_code
         self.body = body
+
+
+def _redact_url(url: str) -> str:
+    """Redact credentials from URLs before debug logging."""
+    try:
+        parts = urlsplit(url)
+        query = []
+        for key, value in parse_qsl(parts.query, keep_blank_values=True):
+            if any(marker in key.lower() for marker in SECRET_QUERY_KEYS):
+                query.append((key, "***"))
+            else:
+                query.append((key, value))
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+    except Exception:
+        return url
+
+
+def _compute_delay(attempt: int, *, base: float = RETRY_BACKOFF, cap: float = RETRY_CAP) -> float:
+    """Compute capped exponential backoff with a small jitter."""
+    exponential = base * (2 ** attempt)
+    jitter = random.uniform(0, min(base, 1.0))
+    return min(cap, exponential + jitter)
+
+
+def _parse_retry_after(value: Optional[str]) -> Optional[float]:
+    """Parse Retry-After seconds or HTTP-date values, capped for CLI use."""
+    if not value:
+        return None
+    try:
+        seconds = float(value)
+        return max(0.0, min(RETRY_AFTER_CAP, seconds))
+    except (TypeError, ValueError):
+        pass
+
+    try:
+        retry_at = parsedate_to_datetime(value)
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+        return max(0.0, min(RETRY_AFTER_CAP, seconds))
+    except (TypeError, ValueError, IndexError, OverflowError):
+        return None
 
 
 def request(
@@ -73,10 +123,11 @@ def request(
 
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
 
-    log(f"{method} {url}")
+    log(f"{method} {_redact_url(url)}")
 
     last_error = None
-    for attempt in range(retries):
+    attempts = max(1, retries)
+    for attempt in range(attempts):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 body = response.read().decode('utf-8')
@@ -100,26 +151,19 @@ def request(
             if 400 <= e.code < 500 and e.code != 429:
                 raise last_error
 
-            if attempt < retries - 1:
+            if attempt < attempts - 1:
+                retry_after = e.headers.get("Retry-After") if hasattr(e, 'headers') else None
+                delay = _parse_retry_after(retry_after) if e.code == 429 else None
+                if delay is None:
+                    delay = _compute_delay(attempt, base=backoff)
                 if e.code == 429:
-                    # Respect Retry-After header, fall back to exponential backoff
-                    retry_after = e.headers.get("Retry-After") if hasattr(e, 'headers') else None
-                    if retry_after:
-                        try:
-                            delay = float(retry_after)
-                        except ValueError:
-                            delay = RETRY_DELAY * (2 ** attempt) + 1
-                    else:
-                        delay = RETRY_DELAY * (2 ** attempt) + 1  # 2s, 5s, 9s...
-                    log(f"Rate limited (429). Waiting {delay:.1f}s before retry {attempt + 2}/{retries}")
-                else:
-                    delay = RETRY_DELAY * (2 ** attempt)
+                    log(f"Rate limited (429). Waiting {delay:.1f}s before retry {attempt + 2}/{attempts}")
                 time.sleep(delay)
         except urllib.error.URLError as e:
             log(f"URL Error: {e.reason}")
             last_error = HTTPError(f"URL Error: {e.reason}")
-            if attempt < retries - 1:
-                time.sleep(RETRY_DELAY * (attempt + 1))
+            if attempt < attempts - 1:
+                time.sleep(_compute_delay(attempt, base=backoff))
         except json.JSONDecodeError as e:
             log(f"JSON decode error: {e}")
             last_error = HTTPError(f"Invalid JSON response: {e}")
@@ -128,8 +172,8 @@ def request(
             # Handle socket-level errors (connection reset, timeout, etc.)
             log(f"Connection error: {type(e).__name__}: {e}")
             last_error = HTTPError(f"Connection error: {type(e).__name__}: {e}")
-            if attempt < retries - 1:
-                time.sleep(RETRY_DELAY * (attempt + 1))
+            if attempt < attempts - 1:
+                time.sleep(_compute_delay(attempt, base=backoff))
 
     if last_error:
         raise last_error

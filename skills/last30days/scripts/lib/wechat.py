@@ -12,7 +12,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from . import relevance
+from . import dates, relevance
 
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
@@ -112,11 +112,7 @@ def _search_via_sogou(topic: str, limit: int) -> List[Dict[str, Any]]:
 
             date_str = None
             if idx < len(dates_found):
-                try:
-                    from datetime import datetime
-                    date_str = datetime.fromtimestamp(int(dates_found[idx])).strftime("%Y-%m-%d")
-                except Exception:
-                    pass
+                date_str = dates.timestamp_to_date(int(dates_found[idx]))
 
             items.append({
                 "title": title,

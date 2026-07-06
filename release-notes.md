@@ -1,5 +1,17 @@
 # Release Notes
 
+## v3.1.0
+
+面向可靠性、可维护性和 Agent Skills 发布流程的优化版本。
+
+- 日期解析全面按北京时间（CST）归档，修复非北京时间环境下的跨日边界偏移。
+- HTTP 请求统一指数退避、抖动、封顶和 Retry-After 解析，并对 debug URL 中的 key/token/secret 脱敏。
+- 新增可选 `jieba` 的 CJK 分词模块；未安装时自动使用字符 bigram 回退，保持零硬依赖运行。
+- 根目录 `SKILL.md` + `scripts/` 成为唯一事实源，新增 `scripts/build_payload.py --check` 防止 payload 漂移。
+- 版本统一到 `3.1.0` / `3.1.0-cn`，并新增版本一致性测试。
+- 缓存正式接线，支持 `--no-cache`、`--refresh`、`--cache-ttl`。
+- 新增 GitHub Actions CI，覆盖 Windows/Linux、Python 3.9/3.12、无依赖/jieba 两种环境。
+
 ## v3.0.0
 
 中文分支 v3 维护升级。
@@ -51,4 +63,3 @@ py -m pytest tests/test_html_render.py tests/test_render_wechat.py
 ## v1.0.0
 
 - 首次完成 `mvanhorn/last30days-skill` 的中文平台本土化。
-

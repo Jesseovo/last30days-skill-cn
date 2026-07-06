@@ -11,11 +11,7 @@ The score is intentionally query-centric:
 import re
 from typing import List, Optional, Set
 
-_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
-
-
-def _has_cjk(s: str) -> bool:
-    return bool(_CJK_RE.search(s))
+from . import cjk
 
 
 # Stopwords for relevance computation (common English + Chinese)
@@ -27,7 +23,7 @@ STOPWORDS = frozenset({
     'all', 'just', 'get', 'has', 'have', 'was', 'will',
     '的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '上', '也', '到',
     '说', '要', '去', '你', '会', '着', '没有', '看', '好', '自己', '这', '他', '她', '很', '么',
-})
+}) | cjk.CHINESE_STOPWORDS
 
 # Synonym groups for relevance scoring (bidirectional expansion)
 SYNONYMS = {
@@ -72,7 +68,7 @@ LOW_SIGNAL_QUERY_TOKENS = frozenset({
 def _keep_token(w: str) -> bool:
     if not w or w in STOPWORDS:
         return False
-    if _has_cjk(w):
+    if cjk.has_cjk(w):
         return True
     return len(w) > 1
 
@@ -92,26 +88,7 @@ def tokenize(text: str) -> Set[str]:
     Expands tokens with synonyms for better cross-domain matching.
     """
     lower = text.lower()
-    has_chinese = bool(re.search(r'[\u4e00-\u9fff]', lower))
-
-    if has_chinese:
-        try:
-            import jieba
-            words = list(jieba.cut(lower))
-            tokens = {w for w in words if _keep_token(w)}
-            return _expand_synonyms(tokens)
-        except ImportError:
-            tokens = set()
-            for w in re.sub(r'[^\w\s]', ' ', lower).split():
-                if re.search(r'[\u4e00-\u9fff]', w):
-                    for ch in w:
-                        if _keep_token(ch):
-                            tokens.add(ch)
-                elif _keep_token(w):
-                    tokens.add(w)
-            return _expand_synonyms(tokens)
-
-    words = re.sub(r'[^\w\s]', ' ', lower).split()
+    words = cjk.segment(lower)
     tokens = {w for w in words if _keep_token(w)}
     return _expand_synonyms(tokens)
 
@@ -181,6 +158,11 @@ def token_overlap_relevance(
     normalized_text = _normalize_phrase(combined)
     if normalized_query and normalized_query in normalized_text:
         phrase_bonus = 0.12 if len(normalized_query.split()) > 1 else 0.16
+    elif cjk.has_cjk(query):
+        compact_query = re.sub(r"\s+", "", normalized_query)
+        compact_text = re.sub(r"\s+", "", normalized_text)
+        if compact_query and compact_query in compact_text:
+            phrase_bonus = 0.16
 
     base = (
         0.55 * (coverage ** 1.35) +

@@ -1,6 +1,6 @@
 {
   "name": "last30days-cn",
-  "version": "2.1.0",
+  "version": "3.1.0",
   "description": "中国平台深度研究引擎 - 覆盖微博、小红书、B站、知乎、抖音、微信公众号、百度搜索、今日头条等8大平台。v2.1 修复反爬问题，XHR拦截+Bing兜底。",
   "author": {
     "name": "Jesse",

@@ -1,6 +1,6 @@
 ---
 name: last30days-cn
-version: "3.0.0-cn"
+version: "3.1.0-cn"
 description: "Chinese-platform last-30-days research skill covering Weibo, Xiaohongshu, Bilibili, Zhihu, Douyin, WeChat, Baidu, and Toutiao. Includes Markdown, JSON, compact context, and Guizang-inspired Swiss/IKB HTML report output."
 argument-hint: 'last30 AI 编程助手, last30 最近 30 天中文平台舆情, last30 具身智能 --html'
 allowed-tools: Bash, Read, Write, WebSearch
@@ -123,4 +123,3 @@ When presenting the final answer:
 ## Compliance
 
 This skill is for learning, research, and personal knowledge work. Use low frequency, respect platform terms and robots.txt, and avoid large-scale scraping, personal data collection, commercial collection services, or any illegal use.
-

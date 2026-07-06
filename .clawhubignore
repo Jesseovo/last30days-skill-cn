@@ -2,6 +2,7 @@
 fixtures/
 tests/
 agents/
+skills/
 release-notes.md
 SPEC.md
 TASKS.md

@@ -1,6 +1,6 @@
 {
   "name": "last30days-cn",
-  "version": "3.0.0-cn",
+  "version": "3.1.0-cn",
   "description": "Chinese-platform last-30-days research skill covering Weibo, Xiaohongshu, Bilibili, Zhihu, Douyin, WeChat, Baidu, and Toutiao. Includes compact Markdown, full Markdown, JSON, and Guizang-inspired Swiss/IKB HTML report output.",
   "settings": [
     {

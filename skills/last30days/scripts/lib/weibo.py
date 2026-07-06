@@ -16,7 +16,7 @@ import urllib.request
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from . import http, relevance
+from . import dates, http, relevance
 
 _UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
 
@@ -182,11 +182,11 @@ def _parse_weibo_date(date_str: str) -> Optional[str]:
     try:
         # "Tue Jan 01 00:00:00 +0800 2026"
         dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
-        return dt.strftime("%Y-%m-%d")
+        return dt.astimezone(dates.CST).strftime("%Y-%m-%d")
     except ValueError:
         pass
     # 相对时间: "x分钟前", "x小时前", "昨天 HH:MM"
-    now = datetime.now()
+    now = datetime.now(dates.CST)
     if "分钟前" in date_str:
         try:
             mins = int(re.search(r"(\d+)", date_str).group(1))

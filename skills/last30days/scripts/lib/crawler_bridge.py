@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
+from . import dates
+
 COOKIE_DIR = Path.home() / ".config" / "last30days-cn" / "browser_cookies"
 _playwright_available: Optional[bool] = None
 
@@ -626,11 +628,11 @@ def _parse_relative_date(date_str: str) -> Optional[str]:
         return None
 
     from datetime import timedelta
-    now = datetime.now()
+    now = datetime.now(dates.CST)
 
     try:
         dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
-        return dt.strftime("%Y-%m-%d")
+        return dt.astimezone(dates.CST).strftime("%Y-%m-%d")
     except ValueError:
         pass
 

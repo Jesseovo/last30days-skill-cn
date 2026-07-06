@@ -112,17 +112,19 @@ git clone https://github.com/Jesseovo/last30days-skill-cn.git ~/.claude/skills/l
 
 ## ⚙️ Configuration
 
-### Step 1 — Install dependencies
+### Step 1 — Optional enhancements
 
 ```bash
-pip install jieba
+python -m pip install jieba
 ```
 
-### Step 2 — Install the crawler engine (recommended; enables 7/8 platforms without API keys)
+> `jieba` is optional. Without it, the skill automatically falls back to CJK bigram tokenization.
+
+### Step 2 — Install the crawler engine (optional, recommended; enables 7/8 platforms without API keys)
 
 ```bash
-pip install playwright
-playwright install chromium
+python -m pip install playwright
+python -m playwright install chromium
 ```
 
 > With Playwright installed, Weibo, Xiaohongshu, Douyin, Bilibili (backup), and Zhihu (backup) all work without API keys.

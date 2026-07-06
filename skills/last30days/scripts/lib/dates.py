@@ -41,10 +41,10 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
     if not date_str:
         return None
 
-    # 尝试 Unix 时间戳
+    # 尝试 Unix 时间戳。中文平台按北京时间日历归档。
     try:
         ts = float(date_str)
-        return datetime.fromtimestamp(ts, tz=timezone.utc)
+        return datetime.fromtimestamp(ts, tz=CST)
     except (ValueError, TypeError):
         pass
 
@@ -59,7 +59,10 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
 
     for fmt in formats:
         try:
-            return datetime.strptime(date_str, fmt).replace(tzinfo=timezone.utc)
+            dt = datetime.strptime(date_str, fmt)
+            if dt.tzinfo is not None:
+                return dt.astimezone(CST)
+            return dt.replace(tzinfo=CST)
         except ValueError:
             continue
 
@@ -71,7 +74,7 @@ def timestamp_to_date(ts: Optional[float]) -> Optional[str]:
     if ts is None:
         return None
     try:
-        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+        dt = datetime.fromtimestamp(ts, tz=CST)
         return dt.date().isoformat()
     except (ValueError, TypeError, OSError):
         return None

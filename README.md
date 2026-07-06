@@ -17,11 +17,18 @@
 
 🕷️ v2.0 集成 [MediaCrawler](https://github.com/NanmiCoder/MediaCrawler) 爬虫引擎思路，大幅减少 API Key 依赖。v2.1 修复百度/小红书反爬问题，XHR 拦截替代 DOM 解析，Bing 兜底搜索，已移除无效的 ScrapeCreators 小红书集成。
 
-当前版本：`v3.0.0`
+当前版本：`v3.1.0`
 
 👤 **作者 / Author:** Jesse ([@Jesseovo](https://github.com/Jesseovo))
 
 ---
+
+## ✨ v3.1.0 优化内容
+
+- 修复中文平台日期统一按北京时间（CST）归档，避免非北京时间机器上的窗口边界偏移。
+- 新增 CJK bigram 回退分词，`jieba` 变为可选增强，skill 可零硬依赖运行。
+- 统一 HTTP 重试退避、Retry-After 解析和 debug URL 脱敏。
+- 新增 payload 生成/漂移检查、版本单源、缓存接线和 GitHub Actions CI。
 
 ## ✨ v3.0.0 升级内容
 
@@ -167,17 +174,19 @@ git clone https://github.com/Jesseovo/last30days-skill-cn.git
 
 ## ⚙️ 配置指南
 
-### 📍 第一步：安装依赖
+### 📍 第一步：可选增强
 
 ```bash
-pip install jieba
+python -m pip install jieba
 ```
 
-### 📍 第二步：安装爬虫引擎（推荐，可获取 7/8 平台数据）
+> `jieba` 不是硬依赖；未安装时会自动使用 CJK bigram 回退分词，仍可运行。
+
+### 📍 第二步：安装爬虫引擎（可选，推荐，可获取 7/8 平台数据）
 
 ```bash
-pip install playwright
-playwright install chromium
+python -m pip install playwright
+python -m playwright install chromium
 ```
 
 > 安装 Playwright 后，微博、小红书、抖音、B站（备用）、知乎（备用）均可无需 API Key 使用。
