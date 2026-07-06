@@ -35,6 +35,11 @@ def _err(report: schema.Report, name: str):
     return getattr(report, name, None)
 
 
+def _engine_badge(report: schema.Report) -> str:
+    suffix = " · 缓存" if getattr(report, "from_cache", False) else ""
+    return f"🌐 last30days-cn v{DISPLAY_VERSION} · 数据截至 {report.range_to}{suffix}"
+
+
 def _xref_tag(item) -> str:
     """Return ' [同时见于: 微博, 知乎]' if item has cross_refs, else ''."""
     refs = getattr(item, "cross_refs", None)
@@ -212,6 +217,7 @@ def render_compact(report: schema.Report, limit: int = 15, missing_keys: str = "
     """Render compact output for the assistant to synthesize."""
     lines = []
 
+    lines.append(_engine_badge(report))
     lines.append(f"## 研究结果: {report.topic}")
     lines.append("")
     if getattr(report, "from_cache", False):
@@ -568,6 +574,8 @@ def render_context_snippet(report: schema.Report) -> str:
 def render_full_report(report: schema.Report) -> str:
     """Render full markdown report (Chinese sections)."""
     lines = [
+        _engine_badge(report),
+        "",
         f"# {report.topic} — 近 30 天研究报告",
         "",
         f"**生成时间:** {report.generated_at}",
@@ -798,7 +806,53 @@ def _collect_ranked_items(report: schema.Report, limit: int = 30):
         for item in _items(report, source):
             rows.append((source, item))
     rows.sort(key=lambda pair: (getattr(pair[1], "score", 0), _engagement_total(pair[1])), reverse=True)
-    return rows[:limit]
+    return _diversify_ranked(rows, limit)
+
+
+def _diversify_ranked(rows, limit: int, min_per_source: int = 2, relevance_floor: float = 0.25):
+    """Keep top-ranked items while reserving a small floor for relevant minor sources."""
+    if len(rows) <= limit:
+        return rows
+
+    selected = list(rows[:limit])
+    selected_ids = {id(item) for _, item in selected}
+    source_counts = {}
+    for source, _ in selected:
+        source_counts[source] = source_counts.get(source, 0) + 1
+
+    rank_index = {id(item): idx for idx, (_, item) in enumerate(rows)}
+
+    for source in SOURCE_META:
+        if source_counts.get(source, 0) >= min_per_source:
+            continue
+        eligible = [
+            (src, item) for src, item in rows
+            if src == source
+            and id(item) not in selected_ids
+            and getattr(item, "relevance", 0.0) >= relevance_floor
+        ]
+        for candidate in eligible:
+            if source_counts.get(source, 0) >= min_per_source:
+                break
+            replace_idx = None
+            for idx in range(len(selected) - 1, -1, -1):
+                replace_source, replace_item = selected[idx]
+                if replace_source == source:
+                    continue
+                if source_counts.get(replace_source, 0) > min_per_source:
+                    replace_idx = idx
+                    break
+            if replace_idx is None:
+                break
+            removed_source, removed_item = selected[replace_idx]
+            selected_ids.remove(id(removed_item))
+            source_counts[removed_source] -= 1
+            selected[replace_idx] = candidate
+            selected_ids.add(id(candidate[1]))
+            source_counts[source] = source_counts.get(source, 0) + 1
+
+    selected.sort(key=lambda pair: rank_index[id(pair[1])])
+    return selected[:limit]
 
 
 def render_html_report(report: schema.Report) -> str:

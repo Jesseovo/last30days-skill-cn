@@ -24,6 +24,13 @@ def test_skill_entry_has_frontmatter():
     assert "name:" in content, "SKILL.md 应包含 Agent Skill frontmatter"
 
 
+def test_skill_documents_output_contract_and_cache_flags():
+    with open(os.path.join(REPO_ROOT, "SKILL.md"), "r", encoding="utf-8") as f:
+        content = f.read()
+    for needle in ("输出契约", "--refresh", "--no-cache", "setup", "查询类型"):
+        assert needle in content
+
+
 def test_payload_matches_root_sources():
     result = subprocess.run(
         [sys.executable, os.path.join(REPO_ROOT, "scripts", "build_payload.py"), "--check"],

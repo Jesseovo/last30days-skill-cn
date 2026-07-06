@@ -401,6 +401,33 @@ _DEFAULT_TIEBREAKER = {
 }
 
 
+def item_author(item) -> str:
+    """Return a normalized author/publisher key, or empty string when unknown."""
+    for attr in ("author_name", "author_handle", "channel_name", "author", "source_name", "source_domain"):
+        value = getattr(item, attr, None)
+        if value:
+            return str(value).strip().lower()
+    return ""
+
+
+def apply_per_author_cap(items: List, max_per_author: int = 3) -> List:
+    """Limit dominance from one author while preserving existing rank order."""
+    if max_per_author <= 0:
+        return items
+    counts = {}
+    kept = []
+    for item in items:
+        author = item_author(item)
+        if not author:
+            kept.append(item)
+            continue
+        current = counts.get(author, 0)
+        if current < max_per_author:
+            kept.append(item)
+            counts[author] = current + 1
+    return kept
+
+
 def sort_items(
     items: List[
         Union[

@@ -109,5 +109,23 @@ class TestRelevanceFilter(unittest.TestCase):
         self.assertEqual(result, [])
 
 
+class TestPerAuthorCap(unittest.TestCase):
+    def test_caps_items_per_author_preserving_order(self):
+        items = [
+            schema.WeiboItem(id=f"W{i}", text=f"内容{i}", url="", author_handle="same", score=100 - i)
+            for i in range(5)
+        ]
+        result = score.apply_per_author_cap(items, max_per_author=3)
+        self.assertEqual([item.id for item in result], ["W0", "W1", "W2"])
+
+    def test_items_without_author_are_not_capped(self):
+        items = [
+            schema.BaiduItem(id=f"B{i}", title=f"标题{i}", snippet="", url="", source_domain="", score=100 - i)
+            for i in range(5)
+        ]
+        result = score.apply_per_author_cap(items, max_per_author=3)
+        self.assertEqual(len(result), 5)
+
+
 if __name__ == '__main__':
     unittest.main()

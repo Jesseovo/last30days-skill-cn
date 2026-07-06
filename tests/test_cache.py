@@ -1,6 +1,7 @@
 """Tests for cache module."""
 
 import sys
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -80,6 +81,21 @@ class TestCacheRoundTrip(unittest.TestCase):
         rebuilt = schema.Report.from_dict(loaded)
         self.assertEqual(rebuilt.topic, "中文平台")
         self.assertEqual(rebuilt.clusters[0]["representative_title"], "同一热点")
+
+    def test_env_cache_dir_override_applies_before_load(self):
+        old_env = os.environ.get("LAST30DAYS_CACHE_DIR")
+        os.environ["LAST30DAYS_CACHE_DIR"] = self.tmp.name
+        try:
+            cache.CACHE_DIR = Path("unused-cache-dir")
+            cache.save_cache("env", {"ok": True})
+            cache.CACHE_DIR = Path("another-unused-cache-dir")
+            self.assertEqual(cache.load_cache("env"), {"ok": True})
+            self.assertTrue((Path(self.tmp.name) / "env.json").exists())
+        finally:
+            if old_env is None:
+                os.environ.pop("LAST30DAYS_CACHE_DIR", None)
+            else:
+                os.environ["LAST30DAYS_CACHE_DIR"] = old_env
 
 
 class TestModelCache(unittest.TestCase):

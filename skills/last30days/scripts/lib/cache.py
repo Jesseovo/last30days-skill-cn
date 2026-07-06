@@ -41,6 +41,7 @@ def get_cache_key(topic: str, from_date: str, to_date: str, sources: str) -> str
 
 def get_cache_path(cache_key: str) -> Path:
     """Get path to cache file."""
+    ensure_cache_dir()
     return CACHE_DIR / f"{cache_key}.json"
 
 

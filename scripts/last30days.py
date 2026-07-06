@@ -148,6 +148,7 @@ from lib import (
     toutiao,
     dates,
     dedupe,
+    doctor,
     cluster,
     env,
     normalize,
@@ -384,25 +385,11 @@ def main():
     config = env.get_config()
 
     if args.diagnose:
-        crawler_status = crawler_bridge.get_crawler_status()
-        diag = {
-            "weibo": env.is_weibo_available(config),
-            "xiaohongshu": env.is_xiaohongshu_available(config),
-            "bilibili": env.probe_bilibili(),
-            "zhihu": env.probe_zhihu(),
-            "douyin": env.is_douyin_available(config),
-            "wechat": env.is_wechat_available(config),
-            "baidu_api": env.is_baidu_api_available(config),
-            "toutiao": env.probe_toutiao(),
-            "xiaohongshu_api_base": env.get_xiaohongshu_api_base(config),
-            "crawler_engine": {
-                "playwright_available": crawler_status["playwright_available"],
-                "cached_logins": crawler_status["cached_logins"],
-                "note": "安装 Playwright 后，微博/小红书/抖音/B站/知乎可无需 API Key 使用爬虫模式",
-            },
-            "note_douyin_toutiao": "抖音/头条原生接口需签名参数，常被风控；接口失败时改用公开搜索引擎兜底，仅能拿到公开链接，无真实互动数据与精确日期。",
-        }
-        print(json.dumps(diag, indent=2, ensure_ascii=False))
+        diag = doctor.build_report(config)
+        if args.emit == "json":
+            print(json.dumps(doctor.render_json(diag), indent=2, ensure_ascii=False))
+        else:
+            print(doctor.render_text(diag))
         sys.exit(0)
 
     if args.topic and args.topic.strip().lower() == "setup":
@@ -534,6 +521,15 @@ def main():
     deduped_wechat = score.relevance_filter(deduped_wechat, "WECHAT")
     deduped_baidu = score.relevance_filter(deduped_baidu, "BAIDU")
     deduped_toutiao = score.relevance_filter(deduped_toutiao, "TOUTIAO")
+
+    deduped_weibo = score.apply_per_author_cap(deduped_weibo)
+    deduped_xhs = score.apply_per_author_cap(deduped_xhs)
+    deduped_bili = score.apply_per_author_cap(deduped_bili)
+    deduped_zhihu = score.apply_per_author_cap(deduped_zhihu)
+    deduped_douyin = score.apply_per_author_cap(deduped_douyin)
+    deduped_wechat = score.apply_per_author_cap(deduped_wechat)
+    deduped_baidu = score.apply_per_author_cap(deduped_baidu)
+    deduped_toutiao = score.apply_per_author_cap(deduped_toutiao)
 
     dedupe.cross_source_link(
         deduped_weibo, deduped_xhs, deduped_bili, deduped_zhihu,

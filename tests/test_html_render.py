@@ -61,3 +61,35 @@ def test_write_outputs_creates_html_report(tmp_path):
             os.environ.pop("LAST30DAYS_OUTPUT_DIR", None)
         else:
             os.environ["LAST30DAYS_OUTPUT_DIR"] = old_env
+
+
+def test_collect_ranked_items_gives_relevant_small_sources_a_floor():
+    report = schema.create_report("AI 编程助手", "2026-05-01", "2026-05-31", "all")
+    report.weibo = [
+        schema.WeiboItem(id=f"WB{i}", text=f"微博{i}", url="", author_handle=f"a{i}", score=90, relevance=0.9)
+        for i in range(40)
+    ]
+    report.zhihu = [
+        schema.ZhihuItem(id=f"ZH{i}", title=f"知乎{i}", excerpt="", url="", author=f"z{i}", score=50, relevance=0.5)
+        for i in range(2)
+    ]
+
+    ranked = render._collect_ranked_items(report, limit=30)
+    ranked_ids = {item.id for _, item in ranked}
+    assert {"ZH0", "ZH1"} <= ranked_ids
+
+
+def test_collect_ranked_items_does_not_floor_low_relevance_sources():
+    report = schema.create_report("AI 编程助手", "2026-05-01", "2026-05-31", "all")
+    report.weibo = [
+        schema.WeiboItem(id=f"WB{i}", text=f"微博{i}", url="", author_handle=f"a{i}", score=90, relevance=0.9)
+        for i in range(40)
+    ]
+    report.zhihu = [
+        schema.ZhihuItem(id=f"ZH{i}", title=f"知乎{i}", excerpt="", url="", author=f"z{i}", score=50, relevance=0.05)
+        for i in range(2)
+    ]
+
+    ranked = render._collect_ranked_items(report, limit=30)
+    ranked_ids = {item.id for _, item in ranked}
+    assert "ZH0" not in ranked_ids
