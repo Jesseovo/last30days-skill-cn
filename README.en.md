@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.jpg" alt="last30days-cn — Chinese Platform Deep Research Engine" width="380">
+  <img src="assets/banner.png" alt="last30days-cn — Chinese Platform Deep Research Engine" width="900">
 </p>
 
 <p align="center">

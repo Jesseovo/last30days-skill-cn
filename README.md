@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.jpg" alt="last30days-cn — 中国平台深度研究引擎" width="380">
+  <img src="assets/banner.png" alt="last30days-cn — 中国平台深度研究引擎" width="900">
 </p>
 
 <p align="center">
