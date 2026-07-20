@@ -1,5 +1,11 @@
 # Release Notes
 
+## v3.2.0
+
+- 修复小红书新版搜索页将 `search/recommend` 联想词与笔记搜索混淆的问题，按笔记卡片 payload 动态识别结果并主动提交搜索框。
+- 增加 `LAST30DAYS_BROWSER_PATH`、`LAST30DAYS_BROWSER_CHANNEL` 和 `LAST30DAYS_DISABLE_BROWSER`，支持旧 macOS 使用兼容的系统浏览器或完全走公开搜索兜底。
+- `--diagnose` 增加浏览器模式与路径信息，版本统一到 `3.2.0` / `3.2.0-cn`。
+
 ## v3.1.0
 
 面向可靠性、可维护性和 Agent Skills 发布流程的优化版本。

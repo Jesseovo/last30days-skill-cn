@@ -38,6 +38,11 @@ def build_report(config: Dict[str, Any]) -> Dict[str, Any]:
     """Build a source-by-source diagnostic report."""
     crawler_status = crawler_bridge.get_crawler_status()
     has_playwright = bool(crawler_status.get("playwright_available"))
+    browser = crawler_status.get("browser", {})
+    browser_hint = (
+        "；旧 macOS 可设置 LAST30DAYS_BROWSER_PATH 指向系统 Chromium/Chrome"
+        if not browser.get("path_exists") else "；已配置外部浏览器路径"
+    )
 
     records: List[SourceRecord] = []
 
@@ -47,8 +52,8 @@ def build_report(config: Dict[str, Any]) -> Dict[str, Any]:
         "微博",
         "ok" if weibo_ok else "warn",
         weibo_ok,
-        "已配置 API token 或 Playwright 可用" if weibo_ok else "未配置微博 API，且 Playwright 不可用；仍会尝试移动端公开接口",
-        "安装 Playwright 或配置 WEIBO_ACCESS_TOKEN 可提高稳定性",
+        "已配置 API token 或 Playwright 可用" if weibo_ok else "未配置微博 API，且 Playwright 不可用；仍会尝试移动端公开接口" + browser_hint,
+        "安装 Playwright 或配置 WEIBO_ACCESS_TOKEN 可提高稳定性；旧 macOS 可改用系统浏览器",
         "python -m pip install playwright && python -m playwright install chromium",
     ))
 
@@ -58,8 +63,8 @@ def build_report(config: Dict[str, Any]) -> Dict[str, Any]:
         "小红书",
         "ok" if xhs_ok else "warn",
         xhs_ok,
-        "MCP/Playwright/公开搜索至少一条路径可尝试" if xhs_ok else "MCP 与 Playwright 均不可用，仅剩公开搜索兜底",
-        "推荐安装 Playwright 并登录小红书",
+        "MCP/Playwright/公开搜索至少一条路径可尝试" if xhs_ok else "MCP 与 Playwright 均不可用，仅剩公开搜索兜底" + browser_hint,
+        "推荐安装 Playwright 并登录小红书；旧 macOS 可设置 LAST30DAYS_BROWSER_PATH",
         "python -m pip install playwright && python -m playwright install chromium",
     ))
 
@@ -171,6 +176,8 @@ def render_text(report: Dict[str, Any]) -> str:
     lines.extend([
         "",
         f"Playwright: {'可用' if crawler.get('playwright_available') else '不可用'}",
+        f"浏览器模式: {(crawler.get('browser') or {}).get('mode', 'managed')}",
+        f"外部浏览器: {(crawler.get('browser') or {}).get('path') or (crawler.get('browser') or {}).get('channel') or '未指定'}",
         f"已缓存登录态: {', '.join(crawler.get('cached_logins') or []) or '无'}",
     ])
     if report.get("notes"):

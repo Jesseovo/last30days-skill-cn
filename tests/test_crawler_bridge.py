@@ -3,6 +3,7 @@
 import builtins
 import importlib
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -98,6 +99,7 @@ class TestGetCrawlerStatus(unittest.TestCase):
             self.assertIn("playwright_available", status)
             self.assertIn("cached_logins", status)
             self.assertIn("cookie_dir", status)
+            self.assertIn("browser", status)
             self.assertTrue(status["playwright_available"])
             self.assertEqual(status["cookie_dir"], str(cookie_dir))
             self.assertIn("weibo", status["cached_logins"])
@@ -111,6 +113,51 @@ class TestCleanHtml(unittest.TestCase):
         self.assertEqual(clean(""), "")
         self.assertEqual(clean("a <b>b</b> c"), "a b c")
         self.assertEqual(clean("  foo   bar  "), "foo bar")
+
+
+class TestXiaohongshuPayload(unittest.TestCase):
+    def test_recommendation_payload_is_not_a_note_result(self):
+        payload = {
+            "code": 0,
+            "success": True,
+            "data": {"sug_items": [{"text": "咖啡店", "search_type": "notes"}]},
+        }
+        self.assertEqual(crawler_bridge._extract_xhs_note_items(payload), [])
+
+    def test_note_card_payload_is_detected_and_normalized(self):
+        payload = {
+            "data": {
+                "items": [{
+                    "id": "abc123",
+                    "note_card": {
+                        "display_title": "咖啡店探店",
+                        "desc": "周末去哪里喝咖啡",
+                        "user": {"nickname": "小明", "user_id": "u1"},
+                        "interact_info": {"liked_count": "1.2万"},
+                    },
+                }]
+            }
+        }
+        records = crawler_bridge._extract_xhs_note_items(payload)
+        parsed = crawler_bridge._parse_crawler_xhs_note(records[0])
+        self.assertEqual(len(records), 1)
+        self.assertEqual(parsed["title"], "咖啡店探店")
+        self.assertEqual(parsed["engagement"]["likes"], 12000)
+        self.assertTrue(parsed["url"].endswith("/abc123"))
+
+    def test_external_browser_path_is_used(self):
+        with patch.dict(
+            "os.environ",
+            {"LAST30DAYS_BROWSER_PATH": "~/Applications/Chromium", "LAST30DAYS_BROWSER_CHANNEL": ""},
+            clear=False,
+        ):
+            kwargs = crawler_bridge._browser_launch_kwargs()
+            status = crawler_bridge._browser_status()
+        self.assertEqual(
+            os.path.normpath(kwargs["executable_path"]),
+            os.path.normpath(str(Path.home() / "Applications" / "Chromium")),
+        )
+        self.assertEqual(status["mode"], "external-path")
 
 
 class TestLoadCookiesMissingFile(unittest.TestCase):

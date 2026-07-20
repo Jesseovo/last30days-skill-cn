@@ -20,6 +20,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -29,6 +30,9 @@ from . import dates
 
 COOKIE_DIR = Path.home() / ".config" / "last30days-cn" / "browser_cookies"
 _playwright_available: Optional[bool] = None
+_BROWSER_PATH_ENV = "LAST30DAYS_BROWSER_PATH"
+_BROWSER_CHANNEL_ENV = "LAST30DAYS_BROWSER_CHANNEL"
+_DISABLE_BROWSER_ENV = "LAST30DAYS_DISABLE_BROWSER"
 
 _DESKTOP_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -45,12 +49,42 @@ def is_playwright_available() -> bool:
     global _playwright_available
     if _playwright_available is not None:
         return _playwright_available
+    if os.environ.get(_DISABLE_BROWSER_ENV, "").lower() in ("1", "true", "yes", "on"):
+        _playwright_available = False
+        return _playwright_available
     try:
         from playwright.sync_api import sync_playwright  # noqa: F401
         _playwright_available = True
-    except ImportError:
+    except (ImportError, OSError):
         _playwright_available = False
     return _playwright_available
+
+
+def _browser_launch_kwargs() -> Dict[str, Any]:
+    """Return optional Playwright launch overrides for old machines."""
+    kwargs: Dict[str, Any] = {}
+    browser_path = os.environ.get(_BROWSER_PATH_ENV, "").strip()
+    browser_channel = os.environ.get(_BROWSER_CHANNEL_ENV, "").strip()
+    if browser_path:
+        kwargs["executable_path"] = os.path.expanduser(browser_path)
+    elif browser_channel:
+        kwargs["channel"] = browser_channel
+    return kwargs
+
+
+def _browser_status() -> Dict[str, Any]:
+    """Describe the selected browser without starting it."""
+    browser_path = os.environ.get(_BROWSER_PATH_ENV, "").strip()
+    browser_channel = os.environ.get(_BROWSER_CHANNEL_ENV, "").strip()
+    disabled = os.environ.get(_DISABLE_BROWSER_ENV, "").lower() in ("1", "true", "yes", "on")
+    expanded_path = os.path.expanduser(browser_path) if browser_path else ""
+    return {
+        "mode": "disabled" if disabled else ("external-path" if browser_path else ("channel" if browser_channel else "managed")),
+        "path": expanded_path or None,
+        "path_exists": bool(expanded_path and Path(expanded_path).is_file()),
+        "channel": browser_channel or None,
+        "disable_env": _DISABLE_BROWSER_ENV,
+    }
 
 
 def _ensure_cookie_dir():
@@ -97,7 +131,7 @@ def _launch_browser_context(platform: str, mobile: bool = False, headless: bool 
     viewport = {"width": 390, "height": 844} if mobile else {"width": 1280, "height": 800}
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        browser = p.chromium.launch(headless=headless, **_browser_launch_kwargs())
         try:
             context = browser.new_context(
                 user_agent=ua,
@@ -210,8 +244,10 @@ def _parse_weibo_mblog(mblog: dict) -> Dict[str, Any]:
 def crawl_xiaohongshu(topic: str, limit: int = 20) -> List[Dict[str, Any]]:
     """通过浏览器自动化爬取小红书搜索结果。
 
-    v2.1：参考 MediaCrawler 思路，优先拦截 XHR `/api/sns/web/v1/search/notes`
-    避开 Virtual DOM。失败时回退到 DOM 选择器（命中率较低，仅作兜底）。
+    v3.2：不再绑定单一 endpoint。新版小红书曾将
+    `/api/sns/web/v1/search/notes` 替换为只返回 `sug_items` 的
+    `/api/sns/web/v1/search/recommend`；这里按响应 payload 中的笔记卡片识别
+    搜索结果，避免把联想词误当成笔记。失败时回退到 DOM/站内搜索。
     """
     if not is_playwright_available():
         return []
@@ -219,13 +255,21 @@ def crawl_xiaohongshu(topic: str, limit: int = 20) -> List[Dict[str, Any]]:
     items: List[Dict[str, Any]] = []
     try:
         with _launch_browser_context("xiaohongshu") as (browser, context, page):
-            captured: Dict[str, Any] = {"payload": None}
+            captured: Dict[str, Any] = {"items": [], "endpoint": ""}
 
             def _on_response(resp):
                 try:
                     url = resp.url
-                    if "/api/sns/web/v1/search/notes" in url and resp.status == 200:
-                        captured["payload"] = resp.json()
+                    lowered = url.lower()
+                    if resp.status != 200 or "xiaohongshu.com" not in lowered:
+                        return
+                    if "/api/" not in lowered or "search" not in lowered:
+                        return
+                    payload = resp.json()
+                    note_items = _extract_xhs_note_items(payload)
+                    if note_items and not captured["items"]:
+                        captured["items"] = note_items
+                        captured["endpoint"] = url.split("?", 1)[0]
                 except Exception:
                     pass
 
@@ -233,57 +277,36 @@ def crawl_xiaohongshu(topic: str, limit: int = 20) -> List[Dict[str, Any]]:
 
             search_url = (
                 f"https://www.xiaohongshu.com/search_result?"
-                f"keyword={topic}&source=web_search_result_notes"
+                f"keyword={urllib.parse.quote(topic, safe='')}&source=web_search_result_notes"
             )
             try:
                 page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
             except Exception as e:
                 sys.stderr.write(f"[爬虫-小红书] 页面加载失败: {e}\n")
 
-            for _ in range(5):
-                if captured["payload"]:
+            # Some current page builds only request note results after the search
+            # box is submitted; the recommendation request alone contains no notes.
+            if not captured["items"]:
+                _submit_xhs_search(page, topic)
+
+            for _ in range(8):
+                if captured["items"]:
                     break
                 try:
                     page.mouse.wheel(0, 2000)
                 except Exception:
                     pass
-                page.wait_for_timeout(1500)
+                page.wait_for_timeout(1000)
 
-            payload = captured["payload"]
-            if isinstance(payload, dict):
-                data = payload.get("data") or {}
-                raw_items = data.get("items") or []
-                for raw in raw_items[:limit]:
-                    note_card = raw.get("note_card") or {}
-                    if not note_card:
-                        continue
-                    note_id = raw.get("id") or note_card.get("note_id", "")
-                    user = note_card.get("user") or {}
-                    interact = note_card.get("interact_info") or {}
-                    items.append({
-                        "title": note_card.get("display_title") or note_card.get("title", ""),
-                        "desc": note_card.get("desc", ""),
-                        "url": f"https://www.xiaohongshu.com/explore/{note_id}" if note_id else "",
-                        "author_name": user.get("nickname") or user.get("nick_name", ""),
-                        "author_id": user.get("user_id") or user.get("userid", ""),
-                        "date": None,
-                        "engagement": {
-                            "likes": _parse_count(str(interact.get("liked_count", "0"))),
-                            "collects": _parse_count(str(interact.get("collected_count", "0"))),
-                            "comments": _parse_count(str(interact.get("comment_count", "0"))),
-                            "shares": _parse_count(str(interact.get("share_count", "0"))),
-                        },
-                        "hashtags": [],
-                        "images": [
-                            img.get("url_default") or img.get("url", "")
-                            for img in (note_card.get("image_list") or [])
-                            if isinstance(img, dict)
-                        ],
-                        "source": "crawler-xhr",
-                    })
-            elif not payload:
+            for raw in captured["items"][:limit]:
+                parsed = _parse_crawler_xhs_note(raw)
+                if parsed:
+                    items.append(parsed)
+
+            if not captured["items"]:
                 sys.stderr.write(
-                    "[爬虫-小红书] 未捕获搜索 XHR，可能需要重新登录、验证码通过，或平台接口已调整；"
+                    "[爬虫-小红书] 未捕获包含笔记卡片的搜索响应；search/recommend 仅返回联想词，"
+                    "可能需要重新登录、通过验证码，或平台接口已调整；"
                     "将继续尝试 DOM/站内搜索兜底。\n"
                 )
 
@@ -332,6 +355,92 @@ def crawl_xiaohongshu(topic: str, limit: int = 20) -> List[Dict[str, Any]]:
     except Exception as e:
         sys.stderr.write(f"[爬虫-小红书] 浏览器爬取失败: {e}\n")
     return items
+
+
+def _submit_xhs_search(page, topic: str) -> bool:
+    """Submit the search box when the page does not auto-run the query."""
+    selectors = (
+        "input[placeholder*='搜索']",
+        "input[placeholder*='搜']",
+        "input[type='search']",
+    )
+    for selector in selectors:
+        try:
+            for element in page.query_selector_all(selector):
+                if not element.is_visible():
+                    continue
+                element.fill(topic)
+                element.press("Enter")
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _extract_xhs_note_items(payload: Any) -> List[Dict[str, Any]]:
+    """Find note-card records in changing XHS search response envelopes."""
+    def is_note_record(value: Any) -> bool:
+        if not isinstance(value, dict):
+            return False
+        card = value.get("note_card")
+        if isinstance(card, dict):
+            return bool(
+                (card.get("note_id") or value.get("id"))
+                and (card.get("title") or card.get("display_title") or card.get("desc"))
+            )
+        return bool(
+            (value.get("note_id") or value.get("id"))
+            and (value.get("title") or value.get("display_title") or value.get("desc"))
+        )
+
+    def walk(value: Any) -> List[Dict[str, Any]]:
+        if isinstance(value, list):
+            records = [item for item in value if is_note_record(item)]
+            if records:
+                return records
+            for item in value:
+                records = walk(item)
+                if records:
+                    return records
+        elif isinstance(value, dict):
+            for child in value.values():
+                records = walk(child)
+                if records:
+                    return records
+        return []
+
+    return walk(payload)
+
+
+def _parse_crawler_xhs_note(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Normalize one XHS note-card record captured by Playwright."""
+    note_card = raw.get("note_card") if isinstance(raw.get("note_card"), dict) else raw
+    note_id = raw.get("id") or note_card.get("note_id") or raw.get("note_id", "")
+    if not note_id:
+        return None
+    user = note_card.get("user") or raw.get("user") or {}
+    interact = note_card.get("interact_info") or raw.get("interact_info") or {}
+    return {
+        "title": note_card.get("display_title") or note_card.get("title") or raw.get("title", ""),
+        "desc": note_card.get("desc") or note_card.get("description") or raw.get("desc", ""),
+        "url": f"https://www.xiaohongshu.com/explore/{note_id}",
+        "author_name": user.get("nickname") or user.get("nick_name") or user.get("name", ""),
+        "author_id": user.get("user_id") or user.get("userid") or user.get("id", ""),
+        "date": None,
+        "engagement": {
+            "likes": _parse_count(str(interact.get("liked_count", raw.get("liked_count", "0")))),
+            "collects": _parse_count(str(interact.get("collected_count", raw.get("collected_count", "0")))),
+            "comments": _parse_count(str(interact.get("comment_count", raw.get("comment_count", "0")))),
+            "shares": _parse_count(str(interact.get("share_count", raw.get("share_count", "0")))),
+        },
+        "hashtags": [],
+        "images": [
+            img.get("url_default") or img.get("url", "")
+            for img in (note_card.get("image_list") or raw.get("image_list") or [])
+            if isinstance(img, dict)
+        ],
+        "source": "crawler-xhr",
+    }
 
 
 def crawl_douyin(topic: str, limit: int = 20) -> List[Dict[str, Any]]:
@@ -667,4 +776,5 @@ def get_crawler_status() -> Dict[str, Any]:
         "playwright_available": pw_available,
         "cached_logins": cached_platforms,
         "cookie_dir": str(COOKIE_DIR),
+        "browser": _browser_status(),
     }

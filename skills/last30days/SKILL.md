@@ -1,6 +1,6 @@
 ---
 name: last30days-cn
-version: "3.1.0-cn"
+version: "3.2.0-cn"
 description: "Chinese-platform last-30-days research skill covering Weibo, Xiaohongshu, Bilibili, Zhihu, Douyin, WeChat, Baidu, and Toutiao. Includes Markdown, JSON, compact context, and Guizang-inspired Swiss/IKB HTML report output."
 argument-hint: 'last30 AI 编程助手, last30 最近 30 天中文平台舆情, last30 具身智能 --html'
 allowed-tools: Bash, Read, Write, WebSearch
@@ -126,6 +126,16 @@ Optional crawler mode:
 python -m pip install playwright
 python -m playwright install chromium
 ```
+
+For older macOS systems whose Playwright-managed browser cannot start, use a compatible system browser instead:
+
+```bash
+export LAST30DAYS_BROWSER_PATH="/Applications/Chromium.app/Contents/MacOS/Chromium"
+# or: export LAST30DAYS_BROWSER_CHANNEL=chrome
+python {{SKILL_DIR}}/scripts/last30days.py --diagnose
+```
+
+Set `LAST30DAYS_DISABLE_BROWSER=1` to force browserless public API/search fallbacks. The `--diagnose` output reports the selected browser mode and path.
 
 First-time setup helper:
 

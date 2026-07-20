@@ -17,11 +17,19 @@
 
 🕷️ v2.0 integrates the [MediaCrawler](https://github.com/NanmiCoder/MediaCrawler) crawler-engine approach to greatly reduce API-key dependency. v2.1 fixed Baidu/Xiaohongshu anti-bot issues (XHR interception over DOM parsing, Bing search fallback) and removed the ineffective ScrapeCreators Xiaohongshu integration.
 
-Current version: `v3.0.0`
+Current version: `v3.2.0`
 
 👤 **Author:** Jesse ([@Jesseovo](https://github.com/Jesseovo))
 
 ---
+
+## ✨ What's new in v3.2.0
+
+- Fixed the new Xiaohongshu search flow: `search/recommend` suggestions (`sug_items`) are no longer mistaken for note results, and the crawler can submit the search box when the page does not auto-run the query.
+- Xiaohongshu response parsing now recognizes note-card payloads instead of depending on one endpoint path.
+- Added an old-machine browser mode: use `LAST30DAYS_BROWSER_PATH` for a system-supported Chromium/Chrome, or set `LAST30DAYS_DISABLE_BROWSER=1` to force public API/search fallbacks.
+- `--diagnose` reports the browser mode and configured external browser path.
+- Version is now `v3.2.0`; the installable payload remains checked against the root sources.
 
 ## ✨ What's new in v3.0.0
 
@@ -35,13 +43,13 @@ Current version: `v3.0.0`
 - Synced several platform-agnostic capabilities from upstream [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill): `--as-of` historical lookback, cross-source cluster merging, `LAST30DAYS_DEFAULT_SEARCH`/`EXCLUDE_SOURCES` config knobs, honest `--diagnose` (live probes), and HTML report XSS hardening.
 - The repo-root `scripts/` is kept for local development and legacy paths; Agent Skills installs use the self-contained payload under `skills/last30days/scripts`.
 
-### ✅ Quality checks
+### ✅ Release checks
 
 Done before this release:
 
-- The published remote tag is unified as `v3.0.0`, with no extra v3-derived tags.
+- The published remote tag is unified as `v3.2.0`, with no extra v3-derived tags.
 - Both the repo root and the skill payload use the single `last30days.py` entry point — no extra entry files.
-- Full test suite passes: `py -m pytest`, `176 passed`.
+- Full test suite passes: `python -m pytest tests -q`, `214 passed`.
 - Both entry points verified: `py scripts/last30days.py --diagnose` and `py skills/last30days/scripts/last30days.py --diagnose` both print platform availability diagnostics.
 
 ---
@@ -128,6 +136,17 @@ python -m playwright install chromium
 ```
 
 > With Playwright installed, Weibo, Xiaohongshu, Douyin, Bilibili (backup), and Zhihu (backup) all work without API keys.
+
+### Older macOS / older computers
+
+If the Playwright-managed Chromium build no longer starts on an older system such as macOS Catalina, point Playwright at a browser that still supports that system:
+
+```bash
+export LAST30DAYS_BROWSER_PATH="/Applications/Chromium.app/Contents/MacOS/Chromium"
+python scripts/last30days.py --diagnose
+```
+
+Alternatively use an installed Chrome channel with `LAST30DAYS_BROWSER_CHANNEL=chrome`, or force browserless public fallbacks with `LAST30DAYS_DISABLE_BROWSER=1`. The configured browser must already be compatible with the operating system; this project does not download or upgrade it.
 
 ### Step 3 — Create a config file (optional)
 

@@ -17,11 +17,19 @@
 
 🕷️ v2.0 集成 [MediaCrawler](https://github.com/NanmiCoder/MediaCrawler) 爬虫引擎思路，大幅减少 API Key 依赖。v2.1 修复百度/小红书反爬问题，XHR 拦截替代 DOM 解析，Bing 兜底搜索，已移除无效的 ScrapeCreators 小红书集成。
 
-当前版本：`v3.1.0`
+当前版本：`v3.2.0`
 
 👤 **作者 / Author:** Jesse ([@Jesseovo](https://github.com/Jesseovo))
 
 ---
+
+## ✨ v3.2.0 优化内容
+
+- 修复小红书新版搜索页只触发 `search/recommend` 联想词的问题：不再把 `sug_items` 当成笔记，而是按响应中的笔记卡片识别结果，并在必要时主动提交搜索框。
+- Playwright 爬虫不再依赖固定的小红书 endpoint；平台改版时只要返回结构仍包含笔记卡片，仍可正常解析。
+- 增加旧电脑兼容模式：可通过 `LAST30DAYS_BROWSER_PATH` 使用本机仍受系统支持的 Chromium/Chrome，也可用 `LAST30DAYS_DISABLE_BROWSER=1` 完全关闭浏览器并使用公开 API/搜索兜底。
+- `--diagnose` 现在会显示浏览器模式、外部浏览器路径和路径是否存在，便于排查旧 macOS 的浏览器二进制兼容性。
+- 版本升级至 `v3.2.0`，根目录脚本与 Agent Skills 安装载荷继续由 payload 检查保持同步。
 
 ## ✨ v3.1.0 优化内容
 
@@ -42,13 +50,13 @@
 - 对照上游 [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) 同步若干平台无关能力：`--as-of` 历史回溯、跨平台聚合热点、`LAST30DAYS_DEFAULT_SEARCH`/`EXCLUDE_SOURCES` 配置开关、诚实 `--diagnose`（实时探测）、HTML 报告 XSS 加固。
 - 根目录 `scripts/` 继续保留，方便本地开发和旧路径调用；Agent Skills 安装使用 `skills/last30days/scripts` 下的自包含载荷。
 
-### ✅ 质量验证
+### ✅ 发布验证
 
 本次发布前已完成以下质检：
 
-- 远端发布 tag 统一为 `v3.0.0`，没有额外 v3 派生 tag。
+- 远端发布 tag 统一为 `v3.2.0`，没有额外 v3 派生 tag。
 - 根目录与 Skill 载荷均统一使用 `last30days.py` 单入口，没有额外入口文件。
-- 全量测试通过：`py -m pytest`，共 `176 passed`。
+- 全量测试通过：`python -m pytest tests -q`，共 `214 passed`。
 - 根目录入口和 Skill 载荷入口均已验证：`py scripts/last30days.py --diagnose` 与 `py skills/last30days/scripts/last30days.py --diagnose` 均可正常输出平台可用性诊断。
 
 ---
@@ -113,7 +121,7 @@
 | 平台 | 模块 | 数据获取方式 | 需要配置 |
 |:---:|:---:|:---:|:---:|
 | 🔴 微博 | `weibo.py` | API / 🕷️爬虫 / 公开接口 | ✅ 爬虫模式无需配置 |
-| 📕 小红书 | `xiaohongshu.py` | API / 🕷️爬虫 / 公开接口 | ✅ 爬虫模式无需配置 |
+| 📕 小红书 | `xiaohongshu.py` | API / 🕷️爬虫 / 公开接口 / Bing 兜底 | ✅ 爬虫模式无需配置 |
 | 📺 B站 | `bilibili.py` | 公开 API / 🕷️爬虫备用 | ✅ 无需配置 |
 | 💬 知乎 | `zhihu.py` | 公开搜索 / 🕷️爬虫备用 | ✅ 无需配置 |
 | 🎵 抖音 | `douyin.py` | API / 🕷️爬虫 / 公开接口 / 搜索兜底 | ✅ 爬虫模式无需配置 |
@@ -121,7 +129,7 @@
 | 🔵 百度 | `baidu.py` | 公开搜索 / API | ✅ 基础搜索无需配置 |
 | 📰 头条 | `toutiao.py` | 公开接口 / 搜索兜底 | ✅ 无需配置 |
 
-> 🕷️ = 需要安装 Playwright（`pip install playwright && playwright install chromium`）
+> 🕷️ = 可选的 Playwright 浏览器模式（`pip install playwright && playwright install chromium`）；旧系统可使用 `LAST30DAYS_BROWSER_PATH` 或直接走公开搜索兜底。
 
 ---
 
@@ -190,6 +198,33 @@ python -m playwright install chromium
 ```
 
 > 安装 Playwright 后，微博、小红书、抖音、B站（备用）、知乎（备用）均可无需 API Key 使用。
+
+### 旧 macOS / 旧电脑兼容模式
+
+Playwright 管理的 Chromium 会随版本提高系统要求。macOS Catalina 等旧系统无法启动新版浏览器时，不需要放弃整个 skill：
+
+1. 继续使用公开 API 和 Bing 站内搜索兜底（不安装 Playwright），或安装一份仍支持当前系统的 Chromium/Chrome。
+2. 将 Playwright 指向本机浏览器可执行文件：
+
+```bash
+export LAST30DAYS_BROWSER_PATH="/Applications/Chromium.app/Contents/MacOS/Chromium"
+python scripts/last30days.py --diagnose
+```
+
+也可以使用已安装的 Chrome channel：
+
+```bash
+export LAST30DAYS_BROWSER_CHANNEL=chrome
+```
+
+若希望强制跳过所有浏览器调用：
+
+```bash
+export LAST30DAYS_DISABLE_BROWSER=1
+python scripts/last30days.py "AI 工具" --search weibo,xiaohongshu,bilibili,zhihu,douyin,baidu,toutiao
+```
+
+`LAST30DAYS_BROWSER_PATH` 必须指向旧系统实际能够启动的浏览器；skill 不会下载或升级系统浏览器。浏览器爬虫仍受平台登录态、验证码和接口改版影响，小红书的 `search/recommend` 联想词不会被计入搜索结果。
 
 ### 📍 第三步：创建配置文件（可选）
 
@@ -338,7 +373,7 @@ v2.0 采用三级自动降级策略，确保最大可用性：
 | 平台 | API 模式 | 爬虫模式 | 公开接口 | 搜索兜底 |
 |:---:|:---:|:---:|:---:|:---:|
 | 微博 | `WEIBO_ACCESS_TOKEN` | ✅ Playwright | ✅ m.weibo.cn | - |
-| 小红书 | MCP HTTP API(可选) | ✅ Playwright (XHR拦截) | ⚠️ 命中率低 | ✅ Bing |
+| 小红书 | MCP HTTP API(可选) | ✅ Playwright (笔记 payload 识别) | ⚠️ 命中率低 | ✅ Bing |
 | B站 | - | ✅ Playwright(备用) | ✅ 公开 API | - |
 | 知乎 | `ZHIHU_COOKIE`(增强) | ✅ Playwright(备用) | ✅ 公开搜索 | ✅ Bing |
 | 抖音 | `TIKHUB_API_KEY` | ✅ Playwright | ⚠️ 需签名 | ✅ Bing |
