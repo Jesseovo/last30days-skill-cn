@@ -83,11 +83,10 @@ class TestRequestRetries(unittest.TestCase):
             urllib.error.URLError("temporary dns failure"),
             FakeResponse(b'{"ok": true}'),
         ])
-        with (
-            patch("lib.http.urllib.request.urlopen", opener),
-            patch("lib.http._compute_delay", return_value=4.0) as compute_delay,
-            patch("lib.http.time.sleep") as sleep,
-        ):
+        # Nested (not parenthesized) context managers keep Python 3.8 support.
+        with patch("lib.http.urllib.request.urlopen", opener), \
+                patch("lib.http._compute_delay", return_value=4.0) as compute_delay, \
+                patch("lib.http.time.sleep") as sleep:
             result = http.get("https://example.test/transient", retries=2, backoff=3.0)
         self.assertEqual(result, {"ok": True})
         compute_delay.assert_called_once_with(0, base=3.0)
