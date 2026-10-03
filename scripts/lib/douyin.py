@@ -2,22 +2,33 @@
 
 Author: Jesse (https://github.com/Jesseovo)
 
-支持三种模式（按优先级自动切换）：
-1. TikHub API（需要 TIKHUB_API_KEY）
-2. MediaCrawler 浏览器爬虫（需要 Playwright，无需 API Key）
-3. 抖音公开搜索接口
+v4 数据路径（按优先级自动切换）：
+1. TikHub API（``TIKHUB_API_KEY``）。
+2. Playwright 浏览器（复用 ``login douyin`` 的登录态，拦截搜索 XHR）。
+3. 抖音热榜中与主题相关的热点（匿名可用）。
+4. ``site:douyin.com`` 公开搜索兜底（仅接受视频/图文链接，带相关性校验）。
+
+v4 移除了 ``/aweme/v1/web/general/search/single/`` 匿名直连：该接口强制
+``a_bogus`` 签名，匿名请求恒返回空 ``data``，只会白白消耗数秒。
 """
 
-import json
 import re
 import sys
 import urllib.parse
-import urllib.request
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from . import dates, relevance
+from . import dates, http, relevance, websearch
 
-_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+HOT_LIST_URL = (
+    "https://www.douyin.com/aweme/v1/web/hot/search/list/"
+    "?device_platform=webapp&aid=6383&channel=channel_pc_web&detail_list=1"
+)
+VIDEO_URL_PATTERN = r"douyin\.com/(?:video|note)/\d+"
+LOGIN_HINT = (
+    "抖音网页搜索需要签名或登录：配置 TIKHUB_API_KEY，或运行 "
+    "`python scripts/last30days.py login douyin`（需 Playwright）保存登录态"
+)
 
 
 def search_douyin(
@@ -43,15 +54,18 @@ def search_douyin(
     limit = limit_map.get(depth, 20)
 
     items: List[Dict[str, Any]] = []
+    attempted: List[str] = []
 
     if token:
+        attempted.append("TikHub")
         items = _search_via_tikhub(topic, limit, token)
 
     if not items:
         try:
             from . import crawler_bridge
             if crawler_bridge.is_playwright_available():
-                sys.stderr.write("[抖音] 尝试 MediaCrawler 爬虫模式...\n")
+                attempted.append("Playwright")
+                sys.stderr.write("[抖音] 尝试浏览器爬虫模式...\n")
                 items = crawler_bridge.crawl_douyin(topic, limit)
                 if items:
                     sys.stderr.write(f"[抖音] 爬虫模式获取 {len(items)} 条结果\n")
@@ -59,22 +73,35 @@ def search_douyin(
             sys.stderr.write(f"[抖音] 爬虫模式失败: {e}\n")
 
     if not items:
-        items = _search_via_public(topic, limit)
+        attempted.append("热榜/公开搜索")
+        hot = _search_hot_related(topic)
+        site = _search_via_site_search(topic, limit)
+        items = hot + site
+        if items:
+            sys.stderr.write(
+                f"[抖音] 平台搜索不可用，已用热榜/公开搜索兜底获取 {len(items)} 条"
+                f"（热榜 {len(hot)}，公开链接 {len(site)}）。\n"
+            )
 
     if not items:
-        items = _search_via_site_search(topic, limit)
+        raise http.HTTPError(
+            "未获取到抖音结果；已尝试：" + " / ".join(attempted) + "。" + LOGIN_HINT + "。"
+            + websearch.describe_failure("抖音")
+        )
 
     scored = []
-    for i, item in enumerate(items):
+    for item in items:
         text = item.get("text", "")
-        rel = relevance.token_overlap_relevance(topic, text)
-        item["id"] = f"DY{i+1}"
-        item["relevance"] = rel
-        item["why_relevant"] = f"抖音视频：{text[:50]}"
+        if "relevance" not in item:
+            item["relevance"] = relevance.token_overlap_relevance(topic, text, hashtags=item.get("hashtags"))
+        item.setdefault("why_relevant", f"抖音视频：{text[:50]}")
         scored.append(item)
 
     scored.sort(key=lambda x: x.get("relevance", 0), reverse=True)
-    return scored[:limit]
+    scored = scored[:limit]
+    for i, item in enumerate(scored):
+        item["id"] = f"DY{i+1}"
+    return scored
 
 
 def _search_via_tikhub(topic: str, limit: int, token: str) -> List[Dict[str, Any]]:
@@ -83,124 +110,123 @@ def _search_via_tikhub(topic: str, limit: int, token: str) -> List[Dict[str, Any
     try:
         encoded = urllib.parse.quote(topic)
         url = f"https://api.tikhub.io/api/v1/douyin/web/fetch_general_search?keyword={encoded}&count={limit}&sort_type=0"
-        req = urllib.request.Request(url)
-        req.add_header("Authorization", f"Bearer {token}")
-        req.add_header("User-Agent", _UA)
-        with urllib.request.urlopen(req, timeout=20) as response:
-            data = json.loads(response.read().decode("utf-8"))
-
-        for v in data.get("data", {}).get("data", []):
-            aweme = v.get("aweme_info", v)
-            items.append(_parse_aweme(aweme))
+        data = http.get(
+            url,
+            headers={"Authorization": f"Bearer {token}", "User-Agent": http.USER_AGENT},
+            timeout=25,
+            retries=2,
+        )
+        for v in ((data.get("data") or {}).get("data") or []):
+            aweme = v.get("aweme_info", v) if isinstance(v, dict) else None
+            if isinstance(aweme, dict):
+                items.append(parse_aweme(aweme, source="tikhub"))
     except Exception as e:
         sys.stderr.write(f"[抖音] TikHub 搜索失败: {e}\n")
     return items
 
 
-def _search_via_public(topic: str, limit: int) -> List[Dict[str, Any]]:
-    """通过抖音公开搜索接口（备用方案）。"""
-    items = []
+def fetch_hot(limit: int = 50) -> List[Dict[str, Any]]:
+    """抖音热榜（匿名可用）。"""
+    data = http.get(
+        HOT_LIST_URL,
+        headers=http.browser_headers(referer="https://www.douyin.com/", accept="json"),
+        timeout=10,
+        retries=1,
+    )
+    out = []
+    for idx, entry in enumerate(((data or {}).get("data") or {}).get("word_list") or [], start=1):
+        word = entry.get("word") or ""
+        if not word:
+            continue
+        sentence_id = entry.get("sentence_id")
+        url = (
+            f"https://www.douyin.com/hot/{sentence_id}"
+            if sentence_id
+            else f"https://www.douyin.com/search/{urllib.parse.quote(word)}"
+        )
+        out.append({
+            "rank": entry.get("position") or idx,
+            "title": word,
+            "url": url,
+            "hot_value": entry.get("hot_value"),
+            "label": "",
+            "event_time": entry.get("event_time"),
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _search_hot_related(topic: str) -> List[Dict[str, Any]]:
     try:
-        encoded = urllib.parse.quote(topic)
-        url = f"https://www.douyin.com/aweme/v1/web/general/search/single/?keyword={encoded}&count={min(limit, 20)}&search_channel=aweme_general&sort_type=0&publish_time=0"
-        headers = {"User-Agent": _UA, "Referer": "https://www.douyin.com/"}
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as response:
-            data = json.loads(response.read().decode("utf-8"))
-
-        for v in data.get("data", []):
-            aweme = v.get("aweme_info", v)
-            items.append(_parse_aweme(aweme))
-    except Exception as e:
-        sys.stderr.write(f"[抖音] 公开接口搜索失败: {e}\n")
+        hot = fetch_hot(50)
+    except Exception as exc:
+        http.log(f"[抖音] 热榜获取失败: {exc}")
+        return []
+    items = []
+    for entry in hot:
+        rel = relevance.token_overlap_relevance(topic, entry["title"])
+        if rel < 0.35:
+            continue
+        event_date = dates.timestamp_to_date(entry["event_time"]) if entry.get("event_time") else None
+        items.append({
+            "text": entry["title"],
+            "url": entry["url"],
+            "author_name": "抖音热榜",
+            "author_id": "",
+            "date": event_date or datetime.now(dates.CST).strftime("%Y-%m-%d"),
+            "engagement": None,
+            "hashtags": [],
+            "duration": None,
+            "relevance": rel,
+            "why_relevant": f"抖音热榜第 {entry['rank']} 位，热度 {entry.get('hot_value') or '未知'}",
+            "source": "hot-list",
+        })
     return items
-
-
-def _fetch_html(url: str, timeout: int = 8) -> str:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        "Accept-Encoding": "identity",
-        "Referer": "https://cn.bing.com/",
-    }
-    req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as response:
-        return response.read().decode("utf-8", errors="replace")
-
-
-def _clean_text(text: str) -> str:
-    text = re.sub(r"<[^>]+>", "", text or "")
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def _search_via_site_search(topic: str, limit: int) -> List[Dict[str, Any]]:
     """官方接口/爬虫无结果时，用公开搜索引擎兜底获取抖音公开链接。"""
     items: List[Dict[str, Any]] = []
-    try:
-        query = f"site:douyin.com/video {topic}"
-        encoded = urllib.parse.quote(query)
-        url = f"https://cn.bing.com/search?q={encoded}&setmkt=zh-CN&ensearch=0"
-        html = _fetch_html(url)
-        blocks = re.findall(r'<li class="b_algo"[^>]*>([\s\S]*?)</li>', html)
-        seen = set()
-        for block in blocks:
-            title_match = re.search(
-                r'<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>\s*</h2>',
-                block,
-                re.S,
-            )
-            if not title_match:
-                continue
-            href = title_match.group(1)
-            if "douyin.com" not in href or href in seen:
-                continue
-            seen.add(href)
-            title = _clean_text(title_match.group(2))
-            snip_match = re.search(r"<p[^>]*>([\s\S]*?)</p>", block, re.S)
-            snippet = _clean_text(snip_match.group(1)) if snip_match else ""
-            text = f"{title} {snippet}".strip() if snippet else title
-            items.append({
-                "text": text,
-                "url": href,
-                "author_name": "",
-                "author_id": "",
-                "date": None,
-                "engagement": {"views": 0, "likes": 0, "comments": 0, "shares": 0},
-                "hashtags": re.findall(r"#([^#\s]+)#?", text),
-                "duration": 0,
-                "source": "site-search-fallback",
-            })
-            if len(items) >= limit:
-                break
-    except Exception as e:
-        sys.stderr.write(f"[抖音] 站内搜索兜底失败: {e}\n")
-    if items:
-        sys.stderr.write(f"[抖音] 官方接口/爬虫无结果，已用公开搜索兜底获取 {len(items)} 条公开链接。\n")
+    for result in websearch.site_search(
+        "douyin.com", topic, limit=min(limit, 10), url_pattern=VIDEO_URL_PATTERN, label="抖音"
+    ):
+        text = f"{result.title} {result.snippet}".strip()
+        items.append({
+            "text": text,
+            "url": result.url,
+            "author_name": "",
+            "author_id": "",
+            "date": result.date,
+            "engagement": None,
+            "hashtags": re.findall(r"#([^#\s]+)#?", text)[:10],
+            "duration": None,
+            "source": f"site-search:{result.engine}",
+        })
     return items
 
 
-def _parse_aweme(aweme: dict) -> Dict[str, Any]:
-    """解析抖音视频数据。"""
-    desc = aweme.get("desc", "")
-    author = aweme.get("author", {})
-    stats = aweme.get("statistics", {})
+def parse_aweme(aweme: dict, source: str = "api") -> Dict[str, Any]:
+    """解析抖音视频数据（TikHub / 网页 XHR 共用）。"""
+    desc = aweme.get("desc", "") or ""
+    author = aweme.get("author", {}) or {}
+    stats = aweme.get("statistics", {}) or {}
     create_time = aweme.get("create_time", 0)
-    date_str = None
-    if create_time:
-        date_str = dates.timestamp_to_date(create_time)
-
+    date_str = dates.timestamp_to_date(create_time) if create_time else None
     aweme_id = aweme.get("aweme_id", "")
-    hashtags = []
-    for tag in aweme.get("text_extra", []):
-        if tag.get("hashtag_name"):
-            hashtags.append(tag["hashtag_name"])
-
+    hashtags = [tag["hashtag_name"] for tag in (aweme.get("text_extra") or []) if isinstance(tag, dict) and tag.get("hashtag_name")]
+    duration = aweme.get("duration") or (aweme.get("video") or {}).get("duration") or 0
+    try:
+        duration = int(duration)
+    except (TypeError, ValueError):
+        duration = 0
+    if duration > 1000:  # milliseconds
+        duration //= 1000
     return {
         "text": desc,
         "url": f"https://www.douyin.com/video/{aweme_id}" if aweme_id else "",
         "author_name": author.get("nickname", ""),
-        "author_id": author.get("uid", ""),
+        "author_id": str(author.get("uid", "") or author.get("sec_uid", "")),
         "date": date_str,
         "engagement": {
             "views": stats.get("play_count", 0),
@@ -209,5 +235,10 @@ def _parse_aweme(aweme: dict) -> Dict[str, Any]:
             "shares": stats.get("share_count", 0),
         },
         "hashtags": hashtags,
-        "duration": aweme.get("duration", 0),
+        "duration": duration or None,
+        "source": source,
     }
+
+
+# Backward-compatible alias (v3 name).
+_parse_aweme = parse_aweme
