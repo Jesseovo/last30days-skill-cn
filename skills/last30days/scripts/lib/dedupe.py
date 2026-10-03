@@ -4,7 +4,7 @@ Author: Jesse (https://github.com/Jesseovo)
 """
 
 import re
-from typing import List, Set, Tuple, Union
+from typing import List, Optional, Set, Tuple, Union
 
 from . import cjk, schema
 
@@ -56,7 +56,15 @@ AnyItem = Union[
     schema.WechatItem,
     schema.BaiduItem,
     schema.ToutiaoItem,
+    schema.GlobalItem,
 ]
+
+
+def source_key(item) -> str:
+    """Identity of the platform an item came from (overseas items by platform)."""
+    if isinstance(item, schema.GlobalItem):
+        return f"global:{item.platform}"
+    return type(item).__name__
 
 
 def get_item_text(item: AnyItem) -> str:
@@ -77,6 +85,8 @@ def get_item_text(item: AnyItem) -> str:
         return f"{item.title} {item.snippet}"
     if isinstance(item, schema.ToutiaoItem):
         return f"{item.title} {item.abstract}"
+    if isinstance(item, schema.GlobalItem):
+        return f"{item.title} {item.text}"
     return ""
 
 
@@ -95,6 +105,8 @@ def _get_cross_source_text(item: AnyItem) -> str:
         return item.title
     if isinstance(item, schema.ZhihuItem):
         return item.title
+    if isinstance(item, schema.GlobalItem):
+        return item.title or item.text[:100]
     return get_item_text(item)
 
 
@@ -120,6 +132,36 @@ def _hybrid_similarity(text_a: str, text_b: str) -> float:
     trigram_sim = jaccard_similarity(get_ngrams(text_a), get_ngrams(text_b))
     token_sim = _token_jaccard(text_a, text_b)
     return max(trigram_sim, token_sim)
+
+
+def strip_query_terms(text: str, query: Optional[str]) -> str:
+    """Remove the research query (and its tokens) from ``text``.
+
+    Every result mentions the query by construction, so it carries no
+    evidence that two posts discuss the same *event*; v3 clustered unrelated
+    items that merely both contained "AI编程助手".
+    """
+    if not query or not text:
+        return text
+    lowered = text.lower()
+    for phrase in sorted({query.lower(), query.lower().replace(" ", "")}, key=len, reverse=True):
+        if phrase:
+            lowered = lowered.replace(phrase, " ")
+    query_tokens = {t for t in cjk.segment(query.lower()) if t}
+    if not query_tokens:
+        return lowered
+    kept = [tok for tok in cjk.segment(lowered) if tok not in query_tokens]
+    return " ".join(kept)
+
+
+def event_similarity(text_a: str, text_b: str, query: Optional[str] = None, min_tokens: int = 2) -> float:
+    """Cross-source similarity after removing the query's own terms."""
+    if query:
+        text_a = strip_query_terms(text_a, query)
+        text_b = strip_query_terms(text_b, query)
+        if len(_tokenize_for_xref(text_a)) < min_tokens or len(_tokenize_for_xref(text_b)) < min_tokens:
+            return 0.0
+    return _hybrid_similarity(text_a, text_b)
 
 
 def find_duplicates(
@@ -213,8 +255,9 @@ def dedupe_toutiao(
 def cross_source_link(
     *source_lists: List[AnyItem],
     threshold: float = 0.40,
+    query: Optional[str] = None,
 ) -> None:
-    """Annotate items with cross-source references (hybrid similarity)."""
+    """Annotate items with cross-source references (query-insensitive hybrid similarity)."""
     all_items = []
     for source_list in source_lists:
         all_items.extend(source_list)
@@ -223,12 +266,13 @@ def cross_source_link(
         return
 
     texts = [_get_cross_source_text(item) for item in all_items]
+    keys = [source_key(item) for item in all_items]
 
     for i in range(len(all_items)):
         for j in range(i + 1, len(all_items)):
-            if type(all_items[i]) is type(all_items[j]):
+            if keys[i] == keys[j]:
                 continue
-            similarity = _hybrid_similarity(texts[i], texts[j])
+            similarity = event_similarity(texts[i], texts[j], query)
             if similarity >= threshold:
                 if all_items[j].id not in all_items[i].cross_refs:
                     all_items[i].cross_refs.append(all_items[j].id)
