@@ -135,6 +135,8 @@ def format_engagement(source_id: str, eng) -> str:
             continue
         if label == "★":
             parts.append(f"★{_fmt_number(value)}")
+        elif label.isascii():
+            parts.append(f"{_fmt_number(value)} {label}")
         else:
             parts.append(f"{_fmt_number(value)}{label}")
     return f" [{', '.join(parts)}]" if parts else ""
@@ -210,7 +212,7 @@ def _who(source_id: str, item) -> str:
         container = getattr(item, "container", "")
         author = getattr(item, "author", "")
         bits = [platform]
-        if container:
+        if container and container.lower() != platform.lower():
             bits.append(container)
         if author:
             bits.append(f"@{author}")
@@ -638,7 +640,8 @@ def render_html_report(report: schema.Report) -> str:
         state = "ERROR" if (err and not count) else ("ACTIVE" if count else "EMPTY")
         note = ""
         if err and not count:
-            note = f'<div class="source-note">{escape(str(err)[:140])}</div>'
+            short = str(err) if len(str(err)) <= 60 else str(err)[:58] + "…"
+            note = f'<div class="source-note" title="{escape(str(err), quote=True)}">{escape(short)}</div>'
         elif status.get("via"):
             note = f'<div class="source-note">{escape(", ".join(status["via"].keys()))}</div>'
         source_cards.append(
