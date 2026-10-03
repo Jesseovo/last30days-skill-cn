@@ -221,10 +221,13 @@ def fetch_hot(limit: int = 50) -> List[Dict[str, Any]]:
         title = entry.get("Title") or ""
         if not title:
             continue
+        url = entry.get("Url") or ""
+        if "toutiao.com/trending/" in url:
+            url = url.split("?", 1)[0]  # drop the long log_pb tracking query
         out.append({
             "rank": idx,
             "title": title,
-            "url": entry.get("Url") or "",
+            "url": url,
             "hot_value": _to_int(entry.get("HotValue")) or None,
             "label": entry.get("Label") or "",
             "abstract": entry.get("Abstract") or "",

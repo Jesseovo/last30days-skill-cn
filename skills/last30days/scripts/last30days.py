@@ -6,6 +6,7 @@ Author: Jesse (https://github.com/Jesseovo)
 
 Usage:
     python3 last30days.py <topic> [options]          # 主题研究
+    python3 last30days.py --hot [关键词]               # 全网热榜（无需主题）
     python3 last30days.py login <platform> [--cookie "..."]   # 保存平台登录态
     python3 last30days.py --diagnose [--probe-browser] # 数据源诊断
     python3 last30days.py setup                         # 首次配置
@@ -47,6 +48,7 @@ from lib import (  # noqa: E402
     schema,
     setup_wizard,
     sources,
+    trending,
 )
 from lib import query_type as qt  # noqa: E402
 from lib.version import DISPLAY_VERSION  # noqa: E402
@@ -58,6 +60,7 @@ ALL_SOURCE_IDS = set(sources.CN_SOURCE_IDS)
 GLOBAL_SOURCE_IDS = set(sources.GLOBAL_SOURCE_IDS)
 VALID_SEARCH_SOURCES = set(sources.valid_tokens())
 
+HOT_WORDS = {"hot", "trending", "热榜", "热点", "热搜", "今日热点"}
 LOGIN_WORDS = {"login", "登录"}
 
 
@@ -218,6 +221,37 @@ def run_research(
 # Modes
 # ---------------------------------------------------------------------------
 
+def _run_hot(args, filter_topic: str) -> int:
+    try:
+        source_ids = trending.parse_sources(args.hot_sources)
+    except trending.UnknownHotSource as exc:
+        print(f"错误: 未知热榜来源 '{exc}'。可用: {trending.describe_sources()}", file=sys.stderr)
+        return 1
+    sys.stderr.write(f"正在获取全网热榜: {', '.join(source_ids)}\n")
+    data = trending.build(source_ids, limit=args.hot_limit, topic=filter_topic or None)
+    render.ensure_output_dir()
+    paths = trending.write_outputs(data, render.OUTPUT_DIR, title=args.hot_title)
+    if not any(board.get("items") for board in data["boards"].values()):
+        sys.stderr.write("所有热榜均获取失败，请检查网络或稍后重试。\n")
+    if args.emit in ("compact", "md"):
+        print(trending.render_markdown(data, per_board=min(args.hot_limit, 15)))
+    elif args.emit == "json":
+        print(json.dumps(trending.to_json(data), ensure_ascii=False, indent=2))
+    elif args.emit == "html":
+        print(trending.render_html(data, site_title=args.hot_title))
+    elif args.emit == "html-path":
+        print(paths["html"])
+    elif args.emit in ("path", "context"):
+        print(paths["md"])
+    if args.save_dir:
+        save_dir = Path(args.save_dir).expanduser()
+        save_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(dates.CST).strftime("%Y-%m-%d-%H%M")
+        (save_dir / f"hot-{stamp}.md").write_text(trending.render_markdown(data), encoding="utf-8")
+        print(f"已保存: {save_dir / f'hot-{stamp}.md'}", file=sys.stderr)
+    return 0
+
+
 def _run_login(platform: str, cookie: str, timeout: int) -> int:
     try:
         platform = sources.resolve_token(platform)[0] if platform else ""
@@ -248,9 +282,9 @@ def main():
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser(
-        description="研究过去 N 天内中国平台（及可选海外平台）上的真实讨论",
+        description="研究过去 N 天内中国平台（及可选海外平台）上的真实讨论；--hot 查看全网热榜",
     )
-    parser.add_argument("topic", nargs="*", help="研究主题；或 login <平台> / setup")
+    parser.add_argument("topic", nargs="*", help="研究主题；或 hot / login <平台> / setup")
     parser.add_argument("--emit", choices=["compact", "json", "md", "html", "context", "path", "html-path"], default="compact", help="输出模式")
     parser.add_argument("--quick", action="store_true", help="快速搜索（按查询类型选择平台）")
     parser.add_argument("--deep", action="store_true", help="深度搜索")
@@ -268,6 +302,10 @@ def main():
     parser.add_argument("--no-cache", action="store_true", help="跳过缓存读取与写入")
     parser.add_argument("--refresh", action="store_true", help="忽略缓存并刷新结果")
     parser.add_argument("--cache-ttl", type=int, default=cache.DEFAULT_TTL_HOURS, metavar="HOURS", help="缓存有效期小时数")
+    parser.add_argument("--hot", action="store_true", help="全网热榜模式（可附关键词过滤）")
+    parser.add_argument("--hot-sources", type=str, default=None, metavar="IDS", help="热榜来源，如 weibo,baidu,douyin 或 boards/news/global/all")
+    parser.add_argument("--hot-limit", type=int, default=20, metavar="N", help="每个热榜条数（默认 20）")
+    parser.add_argument("--hot-title", type=str, default="全网热榜", metavar="TITLE", help="热榜 HTML 页面标题")
     parser.add_argument("--cookie", type=str, default=None, help="login 时直接导入浏览器复制的 Cookie")
     parser.add_argument("--login-timeout", type=int, default=240, metavar="SECS", help="login 等待扫码的秒数")
     parser.add_argument("--version", action="version", version=f"last30days-cn {DISPLAY_VERSION}")
@@ -309,8 +347,14 @@ def main():
         print(setup_wizard.get_setup_status_text(results))
         sys.exit(0)
 
+    # --- hot board -------------------------------------------------------------
+    if args.hot or (words and words[0].lower() in HOT_WORDS):
+        filter_topic = " ".join(words[1:] if (words and words[0].lower() in HOT_WORDS) else words)
+        _install_global_timeout(args.timeout or 90)
+        sys.exit(_run_hot(args, filter_topic))
+
     if not args.topic:
-        print("错误: 请提供研究主题。", file=sys.stderr)
+        print("错误: 请提供研究主题（或使用 --hot 查看全网热榜）。", file=sys.stderr)
         print("用法: python3 last30days.py <topic> [options]", file=sys.stderr)
         sys.exit(1)
 
