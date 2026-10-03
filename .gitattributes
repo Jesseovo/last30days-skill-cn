@@ -1,0 +1,18 @@
+# Normalize text files to LF in the repository and in checkouts.
+# Shell hooks must keep LF even on Windows, otherwise bash fails with "\r" errors
+# after a Windows clone (core.autocrlf=true) is copied to macOS/Linux.
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary

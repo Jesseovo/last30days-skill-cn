@@ -47,17 +47,27 @@ def search_bilibili(
             page_items = _search_page(topic, page_num)
             items.extend(page_items)
         except Exception as e:
-            sys.stderr.write(f"[B站] 搜索第 {page_num} 页失败: {e}\n")
+            status = getattr(e, "code", None)
+            if status == 412:
+                sys.stderr.write(
+                    f"[B站] 搜索第 {page_num} 页被风控拦截: HTTP 412\n"
+                )
+            else:
+                sys.stderr.write(f"[B站] 搜索第 {page_num} 页失败: {e}\n")
             break
 
     if not items:
         try:
             from . import crawler_bridge
             if crawler_bridge.is_playwright_available():
-                sys.stderr.write("[B站] API 无结果，尝试 MediaCrawler 爬虫模式...\n")
+                sys.stderr.write("[B站] 公开 API 无结果或被拦截，尝试浏览器爬虫...\n")
                 items = crawler_bridge.crawl_bilibili(topic, limit)
                 if items:
                     sys.stderr.write(f"[B站] 爬虫模式获取 {len(items)} 条结果\n")
+                else:
+                    sys.stderr.write("[B站] 爬虫模式未返回结果\n")
+            else:
+                sys.stderr.write("[B站] 公开 API 无结果，且 Playwright 不可用，无法回退浏览器爬虫\n")
         except Exception as e:
             sys.stderr.write(f"[B站] 爬虫模式失败: {e}\n")
 
