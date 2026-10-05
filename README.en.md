@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="last30days-cn — last-30-days research engine for the Chinese internet" width="900">
+  <img src="assets/banner.png" alt="last30days-cn — last-30-days research for the Chinese internet" width="900">
 </p>
 
 <p align="center">
@@ -7,166 +7,224 @@
   <b>English</b>
 </p>
 
-# 📰 last30days-cn — last-30-days research for the Chinese internet
+# last30days-cn
 
-> An AI-agent skill that searches what real users said in the **last 30 days** on Weibo, Xiaohongshu (RED), Bilibili, Zhihu, Douyin, WeChat public accounts, Baidu and Toutiao. It ranks results by engagement and recency, clusters the same event across platforms, and writes cited reports. It can also show a **cross-platform hot-search board** in one command.
-
-🔗 A deeply localized fork of [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill).
-
-Current version: **`v4.0.0`** · 👤 Author: Jesse ([@Jesseovo](https://github.com/Jesseovo))
+**Last-30-days research for the Chinese internet.** Your AI agent checks what people actually said recently on Weibo, Xiaohongshu (RED), Bilibili, Zhihu, Douyin, WeChat public accounts, Baidu and Toutiao. Results are ranked by engagement and recency and merged across platforms into a report where every claim has a source. One command also shows the cross-platform hot-search board.
 
 ```bash
 npx skills add Jesseovo/last30days-skill-cn -g
 ```
 
----
+Then ask your agent:
 
-## ✨ What's new in v4.0.0
-
-v4 is a major upgrade. Every platform integration was re-verified against live responses in October 2026, with a focus on two old failure modes: silently returning 0 results, and reporting junk links as evidence.
-
-| Area | v3.2 | v4.0 |
-|---|---|---|
-| Default research run | Often stalled in per-platform timeouts (minutes) | About 10 s measured (browserless, 8 platforms in parallel, each with its own deadline) |
-| Bilibili | Truncated UA answered with HTTP 412 by the WAF (#17) | WBI-signed search, buvid3 visitor cookie, complete UA, restricted to the research window |
-| Toutiao | Dead endpoint, always 0 results | Parses the cards `so.toutiao.com` renders server-side: titles, source, dates, read/comment/like counts |
-| WeChat | Reported Sogou nav links ("图片/知乎/医疗") as articles | Parses only `news-list` result cards, with account name and date |
-| Baidu | Called a non-existent API; web results lacked real URLs and dates | Official Qianfan AI Search API; web parser extracts real URL, site, abstract and date, and skips Baidu's own cards and ads |
-| Xiaohongshu / Weibo / Zhihu / Douyin | Anonymous requests hit login walls, and users had no way to log in (#8 #11) | New `login <platform>` (QR code once, or `--cookie`). Without a login: hot-list matching plus validated web-search fallback, with the reason and fix command |
-| Web-search fallback | Bing only; some regions were redirected to the homepage or got unrelated decoy results | cn.bing → DuckDuckGo → www.bing. Every hit must match the platform's URL pattern and the topic |
-| Diagnostics | Platforms reported `true` even when every path was dead | Shows the path each platform will really use, plus login state, browser health and fallback engines |
-| Trending | — | `--hot` cross-platform hot board, with an optional daily GitHub Pages site (#16) |
-| Overseas sources | — | Opt-in Hacker News / GitHub / Reddit, plus a bridge to upstream last30days for X/YouTube/TikTok (#9) |
-| Old computers | Manual browser-path setting only | A failed browser launch switches the run to browserless mode automatically; Python 3.8 (macOS Catalina) support (#13) |
-
-### How each open issue was handled
-
-| Issue | Status | What changed |
-|---|---|---|
-| [#17](https://github.com/Jesseovo/last30days-skill-cn/issues/17) Bilibili WAF returns 412 for truncated UA | ✅ fixed | Complete browser UAs everywhere (override: `LAST30DAYS_USER_AGENT`); WBI signing + buvid3; on 412 a fresh session retries the legacy endpoint |
-| [#16](https://github.com/Jesseovo/last30days-skill-cn/issues/16) A site that only shows today's hot topics | ✅ shipped | `--hot` plus `.github/workflows/daily-hot.yml`, which publishes to GitHub Pages three times a day once enabled. Custom RSS (e.g. RSSHub) covers VC/tech news and X lists |
-| [#13](https://github.com/Jesseovo/last30days-skill-cn/issues/13) 2012 MacBook Pro (Catalina) | ✅ improved | Browserless mode is first-class; automatic circuit breaker; Python 3.8 support; `--diagnose --probe-browser` tests a real launch |
-| [#11](https://github.com/Jesseovo/last30days-skill-cn/issues/11) XHS XHR now only returns suggestions | ✅ fixed | Three parsers (XHR note cards → `__INITIAL_STATE__` → DOM), a login entry point, the correct xiaohongshu-mcp contract (`POST /api/v1/feeds/search`), and `xsec_token` in note links |
-| [#10](https://github.com/Jesseovo/last30days-skill-cn/issues/10) `npx` install: File name too long | ✅ fixed in v3.0 | No symlinks remain (regression test); `.gitattributes` now pins LF endings |
-| [#9](https://github.com/Jesseovo/last30days-skill-cn/issues/9) Keep the overseas platforms | ✅ opt-in | Off by default. `--global` enables key-free HN / GitHub / Reddit; X/YouTube/TikTok come from an installed upstream last30days instead of duplicating its adapters here |
-| [#8](https://github.com/Jesseovo/last30days-skill-cn/issues/8) XHS Playwright returns nothing | ✅ improved | Root cause: no login session. `login xiaohongshu` fixes it, `--diagnose` reports login state honestly, and Zhihu/Douyin/Toutiao from the comments are handled too |
-
-Full changelog: [release-notes.md](release-notes.md).
+> Use last30days to research the last 30 days of discussion about the EV price war in China
+>
+> What's trending on the Chinese internet today?
 
 ---
 
-## 🚀 Quick start
+## What it does
+
+- **Topic research**: searches 8 platforms in parallel and scores items by relevance, recency and engagement. The same event seen on several platforms becomes one cross-platform cluster. Output comes as compact evidence for the agent, a full Markdown report, JSON, or an offline HTML report.
+- **Hot board**: no topic needed. Collects the Weibo, Baidu, Douyin, Toutiao, Bilibili and Zhihu hot lists and merges cross-platform topics. You can add tech-news RSS and Hacker News, or publish it as a daily web page.
+- **Honest coverage**: the report footer lists, per platform, how many items came back and through which data path. A failed platform states the reason and the fix, so missing data never reads as "nobody is talking about it".
+- **Reusable logins**: scan a QR code once for platforms that require a login, or import a cookie on machines without a display.
+- **Overseas view (optional)**: Hacker News, GitHub, Reddit, plus X, YouTube and TikTok through the original [last30days](https://github.com/mvanhorn/last30days-skill).
+- **Lightweight**: Python 3.8+ standard library only; a browser and Chinese word segmentation are optional extras, so it runs on old machines too.
+
+---
+
+## Quick start
+
+**As an agent skill** (Claude Code, Codex, Cursor, Gemini CLI and other Agent Skills hosts):
 
 ```bash
 npx skills add Jesseovo/last30days-skill-cn -g
-# then ask your agent: "use last30days to research AI coding assistants" / "what's trending in China today?"
 ```
 
-Or run the CLI directly (Python 3.8+, **no required dependencies**):
+**From the command line:**
 
 ```bash
-git clone https://github.com/Jesseovo/last30days-skill-cn.git && cd last30days-skill-cn
-python scripts/last30days.py "AI编程助手"                  # topic research
-python scripts/last30days.py "AI编程助手" --emit html-path # offline HTML report
-python scripts/last30days.py --hot                         # cross-platform hot board
-python scripts/last30days.py --diagnose                    # what works and how to fix the rest
+git clone https://github.com/Jesseovo/last30days-skill-cn.git
+cd last30days-skill-cn
+python scripts/last30days.py "AI编程助手"      # research a topic
+python scripts/last30days.py --hot              # hot board
+python scripts/last30days.py --diagnose         # what works and how to fix the rest
 ```
 
-Optional extras: `pip install jieba` (better Chinese segmentation), and `pip install playwright && python -m playwright install chromium` (needed for logged-in platforms).
+**Optional extras:**
+
+```bash
+python -m pip install jieba                                                  # better Chinese segmentation
+python -m pip install playwright && python -m playwright install chromium    # needed for logged-in platforms
+```
 
 ---
 
-## 🔥 Hot board and a daily "just the trends" site (#16)
+## Usage
+
+### Research a topic
 
 ```bash
-python scripts/last30days.py --hot                                  # Weibo/Baidu/Douyin/Toutiao/Bilibili/Zhihu (~3 s)
-python scripts/last30days.py --hot AI                               # only hot items about AI
-python scripts/last30days.py --hot --hot-sources boards,news,global # + tech-news RSS and Hacker News
-python scripts/last30days.py --hot --emit html-path                 # dashboard page
+python scripts/last30days.py "AI编程助手"                       # default: 8 platforms, last 30 days
+python scripts/last30days.py "AI编程助手" --emit html-path      # build the HTML report and print its path
+python scripts/last30days.py "AI编程助手" --deep                # fetch more per platform
+python scripts/last30days.py "AI编程助手" --quick               # only the platforms that best fit the question type
+python scripts/last30days.py "AI编程助手" --search bili,zhihu,xhs
+python scripts/last30days.py "AI编程助手" --days 7
+python scripts/last30days.py "AI编程助手" --as-of 2026-05-01    # look back from a past date
 ```
 
-- **Cross-platform topics**: platforms phrase the same event differently, so items are merged by IDF-weighted salient terms and ranked by how many boards they appear on. Pinned editorial items are excluded.
-- **Custom feeds**: `LAST30DAYS_HOT_FEEDS="Name|https://rsshub.example/...,..."`, e.g. a self-hosted RSSHub route for 36Kr newsflashes or an X list.
-- **Publish it**: the bundled `.github/workflows/daily-hot.yml` is off by default. To turn it on:
-  1. Set Pages → Source to **GitHub Actions**.
-  2. Add the repository variable `HOT_PAGES=true`.
-  3. Optionally set `HOT_SOURCES`, `HOT_FEEDS` and `HOT_TITLE`.
-  4. Run **Daily Hot Board**.
+Reports are written to `~/.local/share/last30days/out/` (`report.md`, `report.json`, `report.html`, `last30days.context.md`).
 
-  It then updates at 08:00/12:00/20:00 Beijing time.
-
-## 🔐 Logged-in platforms
-
-Since 2025, Xiaohongshu, Weibo, Zhihu and Douyin search largely require a login.
-
-- `python scripts/last30days.py login xiaohongshu` (also `weibo|zhihu|douyin|bilibili`) opens a browser; scan the QR code once. The session is saved with 0600 permissions and reused by headless runs.
-- On machines without a display, import your own browser cookie: `login zhihu --cookie "z_c0=..."`.
-- Alternatively set `WEIBO_COOKIE` / `ZHIHU_COOKIE` / `BILIBILI_COOKIE` in `.env`.
-
-## 🌏 Overseas sources (opt-in, #9)
+### Hot board
 
 ```bash
-python scripts/last30days.py "Claude Code 评测" --global
-python scripts/last30days.py "AI编程助手" --global --global-query "AI coding assistant"   # Chinese topic → English query
-python scripts/last30days.py "Claude Code" --search x,youtube                            # via the upstream bridge
+python scripts/last30days.py --hot                                   # Weibo / Baidu / Douyin / Toutiao / Bilibili / Zhihu
+python scripts/last30days.py --hot AI                                # only hot items about a theme
+python scripts/last30days.py --hot --hot-sources boards,news,global  # + tech-news RSS and Hacker News
+python scripts/last30days.py --hot --emit html-path                  # dashboard page
 ```
 
-- Hacker News (Algolia), GitHub (optional `GITHUB_TOKEN`) and Reddit (often 403 from cloud IPs, reported clearly) need no keys.
-- X/YouTube/TikTok/Instagram run through an installed `mvanhorn/last30days` (Python 3.12+; `LAST30DAYS_UPSTREAM`, `LAST30DAYS_UPSTREAM_PYTHON`).
+Platforms phrase the same event differently, so items are merged by shared key terms and ranked by how many boards they appear on. The page has a keyword filter, dark mode and a phone layout. To add your own feeds, set `LAST30DAYS_HOT_FEEDS="Name|RSS URL,Name|RSS URL"`, e.g. a self-hosted [RSSHub](https://docs.rsshub.app/) route.
 
-## 💻 Old computers / browserless mode (#13)
+### Daily hot-board site
 
-- Bilibili, Toutiao, WeChat, Baidu and all hot boards work without a browser. Login-gated platforms fall back to hot-list matching and web search.
-- One failed browser launch disables browser paths for the rest of the run, with fix advice.
-- Use a system browser with `LAST30DAYS_BROWSER_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` or `LAST30DAYS_BROWSER_CHANNEL=chrome`, then verify with `--diagnose --probe-browser`.
-- Skip the browser entirely with `--no-browser` / `LAST30DAYS_DISABLE_BROWSER=1`. Limit parallel browsers with `LAST30DAYS_BROWSER_CONCURRENCY=1`.
-- Python 3.8 is supported and tested in CI.
+The bundled workflow [`.github/workflows/daily-hot.yml`](.github/workflows/daily-hot.yml) can publish the board as a web page every day. It is **off by default**. To enable it in your repository or fork:
+
+1. Settings → Pages → Source: **GitHub Actions**.
+2. Settings → Secrets and variables → Actions → Variables: add `HOT_PAGES` = `true`.
+3. Optionally set `HOT_SOURCES` (default `boards,news,global`), `HOT_FEEDS` and `HOT_TITLE`.
+4. Actions → **Daily Hot Board** → Run workflow.
+
+It then updates at 08:00, 12:00 and 20:00 Beijing time at `https://<user>.github.io/<repo>/`.
+
+### Platforms that need a login
+
+Search on Xiaohongshu, Weibo, Zhihu and Douyin mostly requires a login. Scan a QR code once (requires Playwright):
+
+```bash
+python scripts/last30days.py login xiaohongshu   # also: weibo / zhihu / douyin / bilibili
+```
+
+- Sessions are stored in `~/.config/last30days-cn/browser_cookies/`, readable only by you, and reused automatically. You'll be asked to log in again when they expire.
+- Without a display (servers, SSH), import a cookie copied from your own browser: `login zhihu --cookie "z_c0=...; _xsrf=..."`.
+- You can also set `WEIBO_COOKIE`, `ZHIHU_COOKIE` or `BILIBILI_COOKIE` in the config file.
+- Without a login these platforms still return hot-list matches and public web-search results, labelled as "links only, no reliable engagement data".
+
+### Overseas sources (optional)
+
+```bash
+python scripts/last30days.py "Claude Code 评测" --global                                # + Hacker News / GitHub / Reddit
+python scripts/last30days.py "AI编程助手" --global --global-query "AI coding assistant"  # Chinese topics need English keywords
+python scripts/last30days.py "Claude Code" --search x,youtube                            # via upstream last30days
+```
+
+- Hacker News, GitHub and Reddit need no keys. `GITHUB_TOKEN` raises GitHub limits; Reddit blocks some cloud IPs and says so clearly.
+- X, YouTube, TikTok and Instagram come from a locally installed upstream skill (`npx skills add mvanhorn/last30days-skill -g`, Python 3.12+).
+- Off by default. Set `INCLUDE_SOURCES=global` in the config to always include them.
+
+### Old computers and browserless mode
+
+- Bilibili, Toutiao, WeChat, Baidu and the hot board never need a browser.
+- If the browser fails to start, the run switches to browserless mode and prints the fix instead of stalling on every platform.
+- On old systems (e.g. macOS Catalina) where the bundled Chromium won't start, use an installed browser:
+
+  ```bash
+  export LAST30DAYS_BROWSER_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  python scripts/last30days.py --diagnose --probe-browser    # launch it once to confirm
+  ```
+
+- To skip the browser entirely, pass `--no-browser` or set `LAST30DAYS_DISABLE_BROWSER=1`. `LAST30DAYS_BROWSER_CONCURRENCY=1` opens one browser at a time.
+- Python 3.8 (the `python3` that ships with macOS Catalina) is supported.
 
 ---
 
-## 📋 Platforms and data paths
+## Platforms and data paths
 
-| Platform | Primary paths (in order) | Without login/key | Optional config |
+| Platform | Data paths (in order) | Without login / config | Optional config |
 |---|---|---|---|
-| Weibo | Open API → login-cookie search → logged-in browser | Hot-search match + web-search fallback | `WEIBO_COOKIE`, `login weibo`, `WEIBO_ACCESS_TOKEN` |
-| Xiaohongshu | xiaohongshu-mcp → logged-in browser (XHR / page state / DOM) | Web-search fallback (note links only) | `login xiaohongshu`, `XIAOHONGSHU_API_BASE` |
-| Bilibili | WBI search in the window → legacy endpoint → browser | ✅ fully works | `BILIBILI_COOKIE` |
-| Zhihu | Cookie search → logged-in browser | Hot-list match + web-search fallback | `ZHIHU_COOKIE`, `login zhihu` |
-| Douyin | TikHub → logged-in browser (page signs its own requests) | Hot-list match + web-search fallback | `TIKHUB_API_KEY`, `login douyin` |
-| WeChat | jisuapi → Sogou WeChat | ✅ Sogou works | `WECHAT_API_KEY` |
-| Baidu | Qianfan AI Search API → web search | Web search (may hit captcha) + multi-engine fallback | `BAIDU_API_KEY` |
-| Toutiao | so.toutiao.com search + hot board | ✅ fully works | — |
-| Overseas (opt-in) | Hacker News / GitHub / Reddit; upstream bridge for X/YouTube/TikTok | — | `--global`, `GITHUB_TOKEN`, `LAST30DAYS_UPSTREAM` |
+| Weibo | Open API → login-cookie search → logged-in browser | Hot-search match + public web search | `login weibo`, `WEIBO_COOKIE`, `WEIBO_ACCESS_TOKEN` |
+| Xiaohongshu | xiaohongshu-mcp → logged-in browser | Public web search (note links only) | `login xiaohongshu`, `XIAOHONGSHU_API_BASE` |
+| Bilibili | WBI-signed search → fallback endpoint → browser | ✅ fully works | `BILIBILI_COOKIE` |
+| Zhihu | Cookie search → logged-in browser | Hot-list match + public web search | `login zhihu`, `ZHIHU_COOKIE` |
+| Douyin | TikHub API → logged-in browser | Hot-list match + public web search | `login douyin`, `TIKHUB_API_KEY` |
+| WeChat | jisuapi → Sogou WeChat search | ✅ Sogou works | `WECHAT_API_KEY` |
+| Baidu | Qianfan AI Search API → web search | Web search + public web search | `BAIDU_API_KEY` |
+| Toutiao | News search + hot board | ✅ fully works | — |
+| Overseas (optional) | Hacker News / GitHub / Reddit; upstream bridge for X / YouTube / TikTok | — | `--global`, `GITHUB_TOKEN` |
 
-> Web-search fallback items are public links **without reliable engagement or exact dates**. Reports label them, and the agent is told not to quote engagement for them.
+"Public web search" finds a platform's public pages through search engines. It yields links and snippets only, **without reliable engagement numbers or exact dates**, and the report marks such results.
 
-## ⚙️ Configuration
+---
 
-Everything is optional. `python scripts/last30days.py setup` writes a commented template at `~/.config/last30days-cn/.env` (per project: `.claude/last30days-cn.env`). Runtime switches such as `LAST30DAYS_DISABLE_BROWSER`, `INCLUDE_SOURCES` and `EXCLUDE_SOURCES` now work from that file too.
+## Configuration
 
-## 🧭 CLI
+Everything is optional. `python scripts/last30days.py setup` writes a commented template to `~/.config/last30days-cn/.env` (per-project: `.claude/last30days-cn.env`):
+
+```ini
+WEIBO_COOKIE=              # or: login weibo
+ZHIHU_COOKIE=              # or: login zhihu
+BILIBILI_COOKIE=
+TIKHUB_API_KEY=            # Douyin
+WECHAT_API_KEY=            # WeChat public accounts (jisuapi)
+BAIDU_API_KEY=             # Baidu Qianfan AI Search
+WEIBO_ACCESS_TOKEN=
+XIAOHONGSHU_API_BASE=      # self-hosted xiaohongshu-mcp, auto-detected on 127.0.0.1:18060
+GITHUB_TOKEN=
+LAST30DAYS_DISABLE_BROWSER=1
+INCLUDE_SOURCES=global
+EXCLUDE_SOURCES=douyin
+LAST30DAYS_HOT_FEEDS=
+```
+
+Precedence: process environment > project config > global config.
+
+---
+
+## Command reference
 
 | Flag | Meaning |
 |---|---|
 | `--emit` | `compact` (default, for agents) / `md` / `json` / `html` / `html-path` / `context` / `path` |
-| `--quick` / `--deep` | Faster (query-type tiered platforms) / more pages per platform |
-| `--days N` / `--as-of YYYY-MM-DD` | Window length (1–30) / historical end date |
-| `--search SOURCES` | Ids, aliases or groups: `weibo,xhs,bili,zhihu,douyin,wechat,baidu,toutiao`, `cn`, `global`, `all`, `hn`, `github`, `reddit`, `x`, `youtube`… |
+| `--quick` / `--deep` | Faster (platforms chosen by question type) / more results per platform |
+| `--days N` / `--as-of YYYY-MM-DD` | Window length (1–30, default 30) / end date for a historical window |
+| `--search SOURCES` | Platforms or groups: `weibo`, `xhs`, `bili`, `zhihu`, `douyin`, `wechat`, `baidu`, `toutiao`, `cn`, `global`, `all`, `hn`, `github`, `reddit`, `x`, `youtube`… |
 | `--global` / `--global-query Q` | Enable overseas sources / their English query |
-| `--hot [keyword]`, `--hot-sources`, `--hot-limit`, `--hot-title` | Hot board |
+| `--hot [keyword]` | Hot board; with `--hot-sources`, `--hot-limit`, `--hot-title` |
 | `login <platform> [--cookie "..."]` | Save a platform session |
-| `--diagnose [--probe-browser] [--emit json]` | Diagnostics |
-| `--no-browser`, `--refresh`, `--no-cache`, `--cache-ttl`, `--save-dir`, `--timeout`, `--debug` | Misc |
+| `--diagnose [--probe-browser]` | Diagnostics; `--emit json` for machine-readable output |
+| `setup` | First-time setup and config template |
+| `--no-browser` | Don't use a browser for this run |
+| `--refresh` / `--no-cache` / `--cache-ttl H` | Cache control (24 h by default) |
+| `--save-dir DIR` / `--timeout SECS` / `--debug` | Save output / global timeout / debug logs |
 
-Outputs go to `~/.local/share/last30days/out/` (`report.md/json/html`, `last30days.context.md`, `hot.md/json/html`); override with `LAST30DAYS_OUTPUT_DIR`.
+---
 
-## 📊 Ranking
+## How it works
 
-Score (0–100) = **relevance 45% + recency 25% + engagement 30%**; web-style sources (Baidu, WeChat) use relevance and recency only. Dated items outside the window are dropped. Near-duplicates and pure noise are removed, with at most 3 items per author. Cross-platform clustering ignores the query's own words, since every result contains them.
+1. **Retrieve**: platforms run in parallel, each with its own timeout, so one stuck platform doesn't hold up the rest. Each tries API → login session → public endpoint → public web search, in that order.
+2. **Clean**: normalize fields, drop items outside the window, dedupe within a platform, drop off-topic items, keep at most 3 items per author.
+3. **Score** (0–100): relevance 45% + recency 25% + engagement 30%. Web-style sources (Baidu, WeChat) use relevance and recency only.
+4. **Merge**: the topic's own words are removed before comparing platforms. Otherwise every result would look related just because it mentions the topic.
+5. **Output**: compact evidence for the agent to synthesize, plus full report files.
 
-## 🏗️ Layout
+---
 
-`SKILL.md` and `scripts/` are the sources of truth; `skills/last30days/` is the generated installable payload (`python scripts/build_payload.py`). Key modules: `sources.py` (registry), `pipeline.py`, `http.py`, `websearch.py`, `crawler_bridge.py`, the platform adapters, `trending.py`, `render.py`, `doctor.py`. See [SPEC.md](SPEC.md).
+## Layout
+
+```
+last30days-skill-cn/
+├── SKILL.md                 # instructions the agent reads
+├── scripts/
+│   ├── last30days.py        # CLI entry
+│   └── lib/                 # platform adapters, pipeline, hot board, rendering, diagnostics
+├── skills/last30days/       # generated installable skill (don't edit by hand)
+├── tests/                   # regression tests (no network)
+└── .github/workflows/       # CI and the daily hot-board site
+```
+
+Contributors: start with [AGENTS.md](AGENTS.md); technical details are in [SPEC.md](SPEC.md); version history is in [release-notes.md](release-notes.md).
 
 ---
 
@@ -174,19 +232,24 @@ Score (0–100) = **relevance 45% + recency 25% + engagement 30%**; web-style so
 
 > **Please read carefully. By using this project you agree to all of the terms below.**
 
-1. **This project is for learning and research only.** Commercial use is strictly prohibited.
-2. Users must comply with all applicable laws and regulations, including PRC laws on cybersecurity, data security, personal-information protection and unfair competition.
-3. Users must respect each platform's **Terms of Service** and **robots.txt**.
-4. **Do NOT** use this project for large-scale or high-frequency scraping; collecting, storing or disseminating personal data; disrupting platform operations; reselling data; or providing automated data-collection services.
-5. The developer assumes **no liability** for any consequences of using this project; users bear all legal risk.
+1. **For learning and research only.** Commercial use is strictly prohibited.
+2. Comply with all applicable laws, including PRC laws on cybersecurity, data security, personal-information protection and unfair competition.
+3. Respect each platform's **Terms of Service** and **robots.txt**.
+4. **Do NOT** use this project for large-scale or high-frequency scraping; collecting, storing or disseminating personal data; disrupting platform operations; reselling data; or offering automated data-collection services.
+5. The developer assumes **no liability**; users bear all legal risk.
 6. For infringement concerns, contact the author and it will be addressed promptly.
 
-Browser mode drives a real browser with **your own** logged-in session; pages issue their own requests. Nothing reverse-engineers encryption or bypasses security mechanisms. Platform interfaces change; keep request frequency low (e.g. ≥ 5 s between searches).
+Browser mode drives a real browser with **your own** logged-in session, and pages issue their own requests. Nothing reverse-engineers encryption or bypasses security mechanisms. Platform interfaces change, and nothing here is guaranteed to keep working. Keep request frequency low (≥ 5 s between searches is a good rule).
 
-## 🙏 Acknowledgements
+---
 
-[mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) · [NanmiCoder/MediaCrawler](https://github.com/NanmiCoder/MediaCrawler) · [xpzouying/xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp) · [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill)
+## Acknowledgements
 
-## 📜 License
+- [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill): the original project, and the target of the overseas bridge
+- [NanmiCoder/MediaCrawler](https://github.com/NanmiCoder/MediaCrawler): inspiration for reusing browser sessions
+- [xpzouying/xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp): optional Xiaohongshu data service
+- [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill): visual style of the HTML report
 
-[MIT](LICENSE) · Original project by Matt Van Horn · Chinese localization by Jesse ([@Jesseovo](https://github.com/Jesseovo))
+## License
+
+[MIT](LICENSE). Original project by Matt Van Horn ([mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill)); Chinese localization by Jesse ([@Jesseovo](https://github.com/Jesseovo)).
