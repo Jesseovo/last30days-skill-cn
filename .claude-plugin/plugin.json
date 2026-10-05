@@ -1,13 +1,13 @@
 {
   "name": "last30days-cn",
-  "version": "3.2.0",
-  "description": "中国平台深度研究引擎 - 覆盖微博、小红书、B站、知乎、抖音、微信公众号、百度搜索、今日头条等8大平台。v2.1 修复反爬问题，XHR拦截+Bing兜底。",
+  "version": "4.0.0",
+  "description": "中文互联网近 30 天研究引擎：微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条 8 大平台按互动与时效排序、跨平台聚类，生成有据可查的报告；内置全网热榜（--hot）与可选海外源（Hacker News / GitHub / Reddit / 上游 last30days）。",
   "author": {
     "name": "Jesse",
     "url": "https://github.com/Jesseovo"
   },
   "license": "MIT",
-  "keywords": ["research", "weibo", "xiaohongshu", "bilibili", "zhihu", "douyin", "wechat", "baidu", "toutiao", "chinese-platforms"],
+  "keywords": ["research", "trending", "weibo", "xiaohongshu", "bilibili", "zhihu", "douyin", "wechat", "baidu", "toutiao", "hot-search", "chinese-platforms"],
   "skills": ["./"],
   "hooks": {}
 }
