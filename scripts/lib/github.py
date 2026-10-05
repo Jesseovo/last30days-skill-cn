@@ -105,7 +105,7 @@ def parse_repo(repo: Dict[str, Any], to_date: str = "") -> Dict[str, Any]:
 def parse_issue(issue: Dict[str, Any]) -> Dict[str, Any]:
     repo_url = issue.get("repository_url") or ""
     repo = "/".join(repo_url.rstrip("/").split("/")[-2:]) if repo_url else ""
-    kind = "PR" if issue.get("pull_request") else "Issue"
+    kind = "PR" if "pull_request" in issue else "Issue"  # the key's presence marks a PR
     reactions = (issue.get("reactions") or {}).get("total_count") or 0
     created = (issue.get("created_at") or "")[:10] or None
     body = (issue.get("body") or "")[:300]
