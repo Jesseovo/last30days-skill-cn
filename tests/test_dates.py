@@ -118,9 +118,15 @@ class TestGetDateConfidence(unittest.TestCase):
         self.assertEqual(result, "low")
 
 
+def _beijing_today():
+    # dates.* works on the Beijing (CST) calendar. Using the UTC date here made
+    # these tests fail every day between 00:00 and 08:00 Beijing time.
+    return datetime.now(dates.CST).date()
+
+
 class TestDaysAgo(unittest.TestCase):
     def test_today(self):
-        today = datetime.now(timezone.utc).date().isoformat()
+        today = _beijing_today().isoformat()
         result = dates.days_ago(today)
         self.assertEqual(result, 0)
 
@@ -131,17 +137,17 @@ class TestDaysAgo(unittest.TestCase):
 
 class TestRecencyScore(unittest.TestCase):
     def test_today_is_100(self):
-        today = datetime.now(timezone.utc).date().isoformat()
+        today = _beijing_today().isoformat()
         result = dates.recency_score(today)
         self.assertEqual(result, 100)
 
     def test_30_days_ago_is_0(self):
-        old_date = (datetime.now(timezone.utc).date() - timedelta(days=30)).isoformat()
+        old_date = (_beijing_today() - timedelta(days=30)).isoformat()
         result = dates.recency_score(old_date)
         self.assertEqual(result, 0)
 
     def test_15_days_ago_is_50(self):
-        mid_date = (datetime.now(timezone.utc).date() - timedelta(days=15)).isoformat()
+        mid_date = (_beijing_today() - timedelta(days=15)).isoformat()
         result = dates.recency_score(mid_date)
         self.assertEqual(result, 50)
 

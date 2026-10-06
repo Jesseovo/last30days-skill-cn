@@ -1,16 +1,30 @@
-"""Environment and API key management for last30days-cn (Chinese platforms).
+"""Environment and API key management for last30days-cn.
 
 Author: Jesse (https://github.com/Jesseovo)
+
+Priority: process environment > project ``.claude/last30days-cn.env`` >
+global ``~/.config/last30days-cn/.env``.
+
+v4:
+- Runtime switches written in the .env files (``LAST30DAYS_DISABLE_BROWSER``,
+  ``LAST30DAYS_BROWSER_PATH``, ``EXCLUDE_SOURCES``, ``INCLUDE_SOURCES`` ...)
+  are now honoured; v3 only read them from the real process environment.
+- New optional keys: ``WEIBO_COOKIE``, ``BILIBILI_COOKIE``, ``GITHUB_TOKEN``.
+- xiaohongshu-mcp is used when ``XIAOHONGSHU_API_BASE`` is set, or when a
+  local server answers on 127.0.0.1:18060 (v3 always tried
+  host.docker.internal and reported it as "configured").
+- Python 3.8 compatible (v3 used ``tuple[...]`` at runtime and crashed on 3.8).
 """
 
 import json
 import logging
 import os
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +42,52 @@ else:
     CONFIG_DIR = Path.home() / ".config" / "last30days-cn"
     CONFIG_FILE = CONFIG_DIR / ".env"
 
+CONFIG_KEYS = (
+    "WEIBO_ACCESS_TOKEN",
+    "WEIBO_COOKIE",
+    "SCRAPECREATORS_API_KEY",
+    "ZHIHU_COOKIE",
+    "BILIBILI_COOKIE",
+    "TIKHUB_API_KEY",
+    "DOUYIN_API_KEY",
+    "WECHAT_API_KEY",
+    "BAIDU_API_KEY",
+    "BAIDU_SECRET_KEY",
+    "TOUTIAO_API_KEY",
+    "XIAOHONGSHU_API_BASE",
+    "GITHUB_TOKEN",
+    "SETUP_COMPLETE",
+)
+
+# Non-secret runtime switches that may live in the .env files.
+RUNTIME_SETTINGS = (
+    "LAST30DAYS_DEFAULT_SEARCH",
+    "EXCLUDE_SOURCES",
+    "INCLUDE_SOURCES",
+    "LAST30DAYS_DISABLE_BROWSER",
+    "LAST30DAYS_BROWSER_PATH",
+    "LAST30DAYS_BROWSER_CHANNEL",
+    "LAST30DAYS_BROWSER_CONCURRENCY",
+    "LAST30DAYS_WEBSEARCH_ENGINES",
+    "LAST30DAYS_USER_AGENT",
+    "LAST30DAYS_OUTPUT_DIR",
+    "LAST30DAYS_CACHE_DIR",
+    "LAST30DAYS_UPSTREAM",
+    "LAST30DAYS_UPSTREAM_PYTHON",
+    "LAST30DAYS_UPSTREAM_SEARCH",
+    "LAST30DAYS_HOT_SOURCES",
+    "LAST30DAYS_HOT_FEEDS",
+)
+
+DEFAULT_XHS_MCP_CANDIDATES = ("http://127.0.0.1:18060",)
+
 
 def _check_file_permissions(path: Path) -> None:
+    if os.name == "nt":
+        return
     try:
         mode = path.stat().st_mode
         if mode & 0o044:
-            import sys
             sys.stderr.write(
                 f"[last30days-cn] WARNING: {path} is readable by other users. "
                 f"Run: chmod 600 {path}\n"
@@ -50,16 +104,18 @@ def load_env_file(path: Path) -> Dict[str, str]:
         return env
     _check_file_permissions(path)
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8-sig") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
+            if line.startswith("export "):
+                line = line[len("export "):].strip()
             if "=" in line:
                 key, _, value = line.partition("=")
                 key = key.strip()
                 value = value.strip()
-                if value and value[0] in ('"', "'") and value[-1] == value[0]:
+                if value and value[0] in ('"', "'") and value[-1] == value[0] and len(value) >= 2:
                     value = value[1:-1]
                 if key and value:
                     env[key] = value
@@ -78,33 +134,30 @@ def _find_project_env() -> Optional[Path]:
     return None
 
 
-def get_config() -> Dict[str, Any]:
-    """Load configuration: os.environ overrides project .env overrides global .env.
+def apply_runtime_settings(file_env: Dict[str, str]) -> List[str]:
+    """Export non-secret runtime switches from .env files into os.environ.
 
-    Only Chinese-platform keys are populated.
+    The real process environment always wins. Returns the keys applied.
     """
+    applied = []
+    for key in RUNTIME_SETTINGS:
+        if key in file_env and not os.environ.get(key):
+            os.environ[key] = file_env[key]
+            applied.append(key)
+    return applied
+
+
+def get_config() -> Dict[str, Any]:
+    """Load configuration: os.environ overrides project .env overrides global .env."""
     file_env = load_env_file(CONFIG_FILE) if CONFIG_FILE else {}
     project_env_path = _find_project_env()
     project_env = load_env_file(project_env_path) if project_env_path else {}
     merged_env = {**file_env, **project_env}
-
-    keys = [
-        ("WEIBO_ACCESS_TOKEN", None),
-        ("SCRAPECREATORS_API_KEY", None),
-        ("ZHIHU_COOKIE", None),
-        ("TIKHUB_API_KEY", None),
-        ("DOUYIN_API_KEY", None),
-        ("WECHAT_API_KEY", None),
-        ("BAIDU_API_KEY", None),
-        ("BAIDU_SECRET_KEY", None),
-        ("TOUTIAO_API_KEY", None),
-        ("XIAOHONGSHU_API_BASE", None),
-        ("SETUP_COMPLETE", None),
-    ]
+    apply_runtime_settings(merged_env)
 
     config: Dict[str, Any] = {}
-    for key, default in keys:
-        config[key] = os.environ.get(key) or merged_env.get(key, default)
+    for key in CONFIG_KEYS:
+        config[key] = os.environ.get(key) or merged_env.get(key)
 
     if project_env_path:
         config["_CONFIG_SOURCE"] = f"project:{project_env_path}"
@@ -125,47 +178,72 @@ def config_exists() -> bool:
     return False
 
 
-def get_xiaohongshu_api_base(config: Dict[str, Any]) -> str:
-    """Xiaohongshu HTTP API base URL (trailing slash stripped)."""
-    return (config.get("XIAOHONGSHU_API_BASE") or "http://host.docker.internal:18060").rstrip("/")
+def get_xiaohongshu_api_base(config: Dict[str, Any]) -> Optional[str]:
+    """Configured xiaohongshu-mcp base URL (trailing slash stripped), or None."""
+    base = (config.get("XIAOHONGSHU_API_BASE") or "").strip()
+    return base.rstrip("/") or None
+
+
+_xhs_mcp_probe: Dict[str, Optional[str]] = {}
+
+
+def discover_xiaohongshu_mcp(config: Dict[str, Any], timeout: float = 1.5) -> Optional[str]:
+    """Configured MCP base, else a local xiaohongshu-mcp that answers /health."""
+    configured = get_xiaohongshu_api_base(config)
+    if configured:
+        return configured
+    if "result" in _xhs_mcp_probe:
+        return _xhs_mcp_probe["result"]
+    found = None
+    for base in DEFAULT_XHS_MCP_CANDIDATES:
+        try:
+            with urllib.request.urlopen(f"{base}/health", timeout=timeout) as resp:
+                payload = json.loads(resp.read().decode("utf-8", "replace") or "{}")
+            if isinstance(payload, dict) and (payload.get("success") or payload.get("status") == "ok"):
+                found = base
+                break
+        except Exception:
+            continue
+    _xhs_mcp_probe["result"] = found
+    return found
 
 
 def is_weibo_available(config: Dict[str, Any]) -> bool:
-    if config.get("WEIBO_ACCESS_TOKEN"):
+    """True when a credentialed Weibo search path exists (token / cookie / browser login)."""
+    if config.get("WEIBO_ACCESS_TOKEN") or config.get("WEIBO_COOKIE"):
         return True
     try:
         from . import crawler_bridge
-        return crawler_bridge.is_playwright_available()
+        return crawler_bridge.is_playwright_available() and crawler_bridge.has_login("weibo")
     except Exception:
         return False
 
 
 def is_xiaohongshu_available(config: Dict[str, Any]) -> bool:
-    from . import http
+    """Xiaohongshu can always be *attempted* (public-search fallback exists)."""
+    return True
 
-    base = get_xiaohongshu_api_base(config)
-    try:
-        health = http.get(f"{base}/health", timeout=3, retries=2)
-        if not isinstance(health, dict) or not health.get("success"):
-            return False
-        login = http.get(f"{base}/api/v1/login/status", timeout=8, retries=2)
-        is_logged_in = (
-            login.get("data", {}).get("is_logged_in")
-            if isinstance(login, dict) else False
-        )
-        return bool(is_logged_in)
-    except Exception:
-        pass
 
+def xiaohongshu_paths(config: Dict[str, Any]) -> Dict[str, bool]:
+    """Which XHS paths are usable right now (for --diagnose)."""
+    mcp_ok = False
+    base = discover_xiaohongshu_mcp(config)
+    if base:
+        from . import http
+        try:
+            login = http.get(f"{base}/api/v1/login/status", timeout=4, retries=1)
+            mcp_ok = bool(isinstance(login, dict) and (login.get("data") or {}).get("is_logged_in"))
+        except Exception:
+            mcp_ok = False
+    browser = False
+    logged_in = False
     try:
         from . import crawler_bridge
-        if crawler_bridge.is_playwright_available():
-            return True
+        browser = crawler_bridge.is_playwright_available()
+        logged_in = crawler_bridge.has_login("xiaohongshu")
     except Exception:
         pass
-
-    # A public site-search fallback exists for blocked API/Playwright paths.
-    return True
+    return {"mcp": mcp_ok, "browser": browser, "browser_logged_in": logged_in, "site_search": True}
 
 
 def is_bilibili_available() -> bool:
@@ -191,7 +269,8 @@ def is_wechat_available(config: Dict[str, Any]) -> bool:
 
 
 def is_baidu_api_available(config: Dict[str, Any]) -> bool:
-    return bool(config.get("BAIDU_API_KEY") and config.get("BAIDU_SECRET_KEY"))
+    """千帆 AI 搜索只需要 BAIDU_API_KEY（BAIDU_SECRET_KEY 已不再需要）。"""
+    return bool(config.get("BAIDU_API_KEY"))
 
 
 def is_toutiao_available() -> bool:
@@ -207,81 +286,64 @@ def is_toutiao_available() -> bool:
 #   - 仅连接超时/网络异常 → fail-open 返回 True（瞬时故障不武断判死）
 # ---------------------------------------------------------------------------
 
-_PROBE_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
-
-def _probe_json(url: str, headers: Dict[str, str], timeout: int = 5) -> Optional[dict]:
-    """发一个短超时 GET 并解析 JSON。
-
-    返回 dict 表示拿到可解析响应；返回 None 表示明确失败（HTTP 错误/非 JSON）；
-    抛出异常表示瞬时网络问题，由调用方 fail-open 处理。
-    """
-    req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        raw = resp.read(50000)
+def _probe(fn) -> bool:
+    from . import http
     try:
-        return json.loads(raw.decode("utf-8", "replace"))
-    except (ValueError, TypeError):
-        return None
-
-
-def probe_bilibili(timeout: int = 5) -> bool:
-    """探测 B站公开搜索 API 是否仍返回结果（对齐 bilibili._search_page 端点）。"""
-    kw = urllib.parse.quote("AI")
-    url = (
-        f"https://api.bilibili.com/x/web-interface/search/type"
-        f"?search_type=video&keyword={kw}&page=1&page_size=5&order=totalrank"
-    )
-    headers = {"User-Agent": _PROBE_UA, "Referer": "https://search.bilibili.com/"}
-    try:
-        data = _probe_json(url, headers, timeout)
-        if not data or data.get("code") != 0:
-            return False
-        return bool(data.get("data", {}).get("result"))
+        return bool(fn())
+    except http.HTTPError as exc:
+        if exc.status_code is None:
+            return True  # network hiccup: fail open
+        return False
     except urllib.error.HTTPError:
         return False
     except Exception:
         return True
+
+
+def probe_bilibili(timeout: int = 8) -> bool:
+    """探测 B站 WBI 搜索是否返回结果（与 bilibili.search_bilibili 同一路径）。"""
+    from . import bilibili
+
+    def run():
+        return bilibili._search_page("AI", 1)
+
+    return _probe(run)
 
 
 def probe_zhihu(timeout: int = 5) -> bool:
-    """探测知乎公开搜索 API 是否仍返回结果（对齐 zhihu._search_general 端点）。"""
-    kw = urllib.parse.quote("AI")
-    url = f"https://www.zhihu.com/api/v4/search_v3?t=general&q={kw}&offset=0&limit=1"
-    headers = {"User-Agent": _PROBE_UA, "Referer": "https://www.zhihu.com/"}
-    try:
-        data = _probe_json(url, headers, timeout)
-        if not data:
-            return False
-        return bool(data.get("data"))
-    except urllib.error.HTTPError:
-        return False
-    except Exception:
-        return True
+    """知乎匿名搜索接口探测（v4：匿名请求恒失败，仅在配置 Cookie 时有意义）。"""
+    from . import http, zhihu
+    cookie = os.environ.get("ZHIHU_COOKIE")
+
+    def run():
+        headers = http.browser_headers(referer="https://www.zhihu.com/search", accept="json")
+        if cookie:
+            headers["Cookie"] = cookie
+        data = http.get(f"{zhihu.SEARCH_URL}?t=general&q=AI&offset=0&limit=1", headers=headers, timeout=timeout, retries=1)
+        return bool((data or {}).get("data"))
+
+    return _probe(run)
 
 
-def probe_toutiao(timeout: int = 5) -> bool:
-    """探测今日头条原生搜索接口是否仍返回结果（对齐 toutiao._search_content 端点）。
+def probe_toutiao(timeout: int = 10) -> bool:
+    """探测头条资讯搜索（so.toutiao.com 服务端渲染页）是否返回结果卡片。"""
+    from . import toutiao
 
-    该接口现已普遍需要 _signature，通常返回空 data；此时如实返回 False，
-    提示用户头条实际依赖公开搜索引擎兜底（见 note_douyin_toutiao）。
-    """
-    kw = urllib.parse.quote("AI")
-    url = f"https://www.toutiao.com/api/search/content/?keyword={kw}&count=1&offset=0"
-    headers = {
-        "User-Agent": _PROBE_UA,
-        "Referer": "https://www.toutiao.com/",
-        "Cookie": "tt_webid=1",
-    }
-    try:
-        data = _probe_json(url, headers, timeout)
-        if not data:
-            return False
-        return bool(data.get("data"))
-    except urllib.error.HTTPError:
-        return False
-    except Exception:
-        return True
+    def run():
+        return toutiao._search_via_so("AI", 0)
+
+    return _probe(run)
+
+
+def probe_weibo_hot(timeout: int = 6) -> bool:
+    from . import weibo
+    return _probe(lambda: weibo.fetch_hot(5))
+
+
+def probe_wechat(timeout: int = 10) -> bool:
+    from . import wechat
+    return _probe(lambda: wechat._search_via_sogou("AI", 1))
 
 
 def _all_source_ids() -> List[str]:
@@ -320,34 +382,26 @@ def get_available_sources(config: Dict[str, Any]) -> str:
 
 
 def get_missing_keys(config: Dict[str, Any]) -> str:
-    """What is still missing for optional (non–public) sources.
-
-    Returns ``'none'`` when at least one extension credential is set. Otherwise returns a
-    Chinese summary of unset env keys (not equal to ``'none'``, so legacy English NUX in
-    ``ui.show_promo`` does not fire for the CN build).
-    """
+    """What is still missing for optional (non-public) sources."""
     if (
         is_weibo_available(config)
         or is_douyin_available(config)
         or is_wechat_available(config)
         or is_baidu_api_available(config)
-        or bool(config.get("SCRAPECREATORS_API_KEY"))
         or bool(config.get("ZHIHU_COOKIE"))
     ):
         return "none"
     lines: List[str] = []
-    if not config.get("WEIBO_ACCESS_TOKEN"):
-        lines.append("WEIBO_ACCESS_TOKEN（微博）")
-    if not config.get("SCRAPECREATORS_API_KEY"):
-        lines.append("SCRAPECREATORS_API_KEY")
+    if not (config.get("WEIBO_ACCESS_TOKEN") or config.get("WEIBO_COOKIE")):
+        lines.append("WEIBO_COOKIE（微博）")
     if not config.get("ZHIHU_COOKIE"):
         lines.append("ZHIHU_COOKIE")
     if not (config.get("TIKHUB_API_KEY") or config.get("DOUYIN_API_KEY")):
         lines.append("TIKHUB_API_KEY 或 DOUYIN_API_KEY")
     if not config.get("WECHAT_API_KEY"):
         lines.append("WECHAT_API_KEY")
-    if not (config.get("BAIDU_API_KEY") and config.get("BAIDU_SECRET_KEY")):
-        lines.append("BAIDU_API_KEY + BAIDU_SECRET_KEY")
+    if not config.get("BAIDU_API_KEY"):
+        lines.append("BAIDU_API_KEY")
     return "未配置：" + "；".join(lines)
 
 
@@ -361,14 +415,8 @@ def validate_sources(
     requested: str,
     available: str,
     include_web: bool = False,
-) -> tuple[str, Optional[str]]:
+) -> Tuple[str, Optional[str]]:
     """Validate requested sources against ``get_available_sources`` output.
-
-    * ``requested`` — ``'auto'``, ``'all'``, or comma-separated source ids
-      (e.g. ``weibo,bilibili``).
-    * ``available`` — comma-separated ids from :func:`get_available_sources`.
-    * ``include_web`` — when True and ``baidu`` is available, ensures ``baidu``
-      is included for ``auto`` / ``all``.
 
     Returns:
         ``(effective_csv, error_message)`` — ``error_message`` is None on success.
@@ -377,15 +425,8 @@ def validate_sources(
     if not avail:
         return "none", "没有可用的数据源。"
 
-    legacy_auto = {"auto", "all"}
     req = requested.strip().lower()
-    if req in legacy_auto or req == "":
-        chosen = set(avail)
-        if include_web and "baidu" in avail:
-            chosen.add("baidu")
-        return ",".join(sorted(chosen)), None
-
-    if req == "all":
+    if req in ("auto", "all", ""):
         chosen = set(avail)
         if include_web and "baidu" in avail:
             chosen.add("baidu")

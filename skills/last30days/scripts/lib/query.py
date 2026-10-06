@@ -130,6 +130,75 @@ def extract_core_subject(
     return (result or topic.lower().strip())
 
 
+_KEYWORD_TOKEN_RE = re.compile(rf"[{cjk._CJK_CHARS}]+|[A-Za-z0-9][A-Za-z0-9.+#'\-]*")
+_TRAILING_PUNCT = "?!.？！。,，;；:："
+
+
+def search_keyword(topic: str) -> str:
+    """Keyword sent to the Chinese platforms' own search boxes (v4).
+
+    Unlike :func:`extract_core_subject` (lower-cased, space-joined tokens kept
+    for backward compatibility), this keeps the user's casing and the
+    adjacency of CJK/Latin text: ``"AI编程助手"`` stays ``"AI编程助手"`` instead
+    of becoming ``"ai 编程 助手"``, which some platforms treat as a looser AND
+    query. Only leading question/meta phrases and standalone noise words are
+    removed.
+    """
+    text = (topic or "").strip()
+    if not text:
+        return text
+    lowered = text.lower()
+    for prefix in sorted(PREFIXES, key=len, reverse=True):
+        if cjk.has_cjk(prefix):
+            if lowered.startswith(prefix):
+                text = text[len(prefix):].strip()
+                break
+        elif lowered.startswith(prefix + " "):
+            text = text[len(prefix):].strip()
+            break
+
+    spans = [
+        (m.start(), m.end())
+        for m in _KEYWORD_TOKEN_RE.finditer(text)
+        if m.group().lower() not in NOISE_WORDS
+    ]
+    if not spans:
+        return text.rstrip(_TRAILING_PUNCT).strip() or topic.strip()
+    out = text[spans[0][0]:spans[0][1]]
+    for (_s0, e0), (s1, e1) in zip(spans, spans[1:]):
+        out += ("" if e0 == s1 else " ") + text[s1:e1]
+    return out.strip()
+
+
+_LATIN_WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9.+#\-]*")
+_GENERIC_LATIN = frozenset({"ai", "app", "apps", "new", "the", "vs", "and", "or", "pro", "max", "plus"})
+
+
+def overseas_query(topic: str, override: Optional[str] = None) -> Optional[str]:
+    """Query for English-language sources (Hacker News / GitHub / Reddit).
+
+    Those engines AND every term, so a CJK word in the query usually means zero
+    hits. Prefer an explicit ``--global-query``; otherwise keep the Latin words
+    of the topic when they are specific enough ("Claude Code 评测" -> "Claude
+    Code"); return None for purely Chinese / too-generic topics so the caller
+    can explain that an English query is needed.
+    """
+    if override and override.strip():
+        return override.strip()
+    text = (topic or "").strip()
+    if not text:
+        return None
+    if not cjk.has_cjk(text):
+        return search_keyword(text) or text
+    words = _LATIN_WORD_RE.findall(text)
+    if not words:
+        return None
+    specific = [w for w in words if w.lower() not in _GENERIC_LATIN]
+    if len(words) >= 2 or (specific and len(specific[0]) >= 3):
+        return " ".join(words)
+    return None
+
+
 def extract_compound_terms(topic: str) -> List[str]:
     """Detect multi-word terms that should be quoted in search queries.
 

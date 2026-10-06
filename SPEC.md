@@ -1,106 +1,124 @@
-# last30days-cn 技术规格说明
+# last30days-cn 技术规格说明（v4）
 
 > Author: Jesse (https://github.com/Jesseovo)
 
 ## 概述
 
-**last30days-cn** 是一套面向中文互联网的 **多源研究流水线**：用户给定主题后，编排器在可配置的时间窗口（默认 30 天）内并行请求多个平台适配层，将原始条目归一到统一 schema，再经相关性、互动与时间衰减等规则打分，跨源去重与轻量关联，最终生成 **终端输出**（`compact` / `json` / `md` / `context` / `path`）并落盘 **`report.md`、`report.json`、`last30days.context.md`**。
+**last30days-cn** 是一条面向中文互联网的多源研究流水线。给定主题后：
 
-与英文版 last30days 不同，本分支 **不包含** Reddit / X / YouTube 等英文源，而由上述 8 个中文平台模块与中文 NLP（**jieba** 分词，用于 `query` / `relevance`）支撑检索与排序质量。
+1. `lib/pipeline.py` 在研究时间窗（默认 30 天，按北京时间计）内并行调用各平台适配器（守护线程，每个源有独立截止时间）。
+2. 原始条目经 `normalize` 归一为统一 schema，再经时间窗过滤、打分（相关性/时效/互动）、排序、同源去重、相关性门槛、单作者上限处理。
+3. 去掉主题词后做跨源关联（`cross_refs`）与跨平台聚类（`clusters`）。
+4. 输出 `compact` / `md` / `json` / `html` / `context`，并写入 `report.md`、`report.json`、`report.html`、`last30days.context.md`。
 
----
+另有两个独立模式：
 
-## 平台模块（8 个）
+- **全网热榜** `--hot`（`lib/trending.py`）：抓取各平台热榜，按显著词合并跨平台热点。
+- **登录** `login <平台>`（`lib/crawler_bridge.py`）：保存浏览器登录态。
 
-| 文件 | 平台 |
-|------|------|
-| `weibo.py` | 微博 |
-| `xiaohongshu.py` | 小红书 |
-| `bilibili.py` | B 站（哔哩哔哩） |
-| `zhihu.py` | 知乎 |
-| `douyin.py` | 抖音 |
-| `wechat.py` | 微信公众号 |
-| `baidu.py` | 百度搜索 |
-| `toutiao.py` | 今日头条 |
-
-各模块负责该平台下的搜索/抓取入口，并与 `normalize.py`、`score.py`、`dedupe.py` 对接。
+运行时只依赖 Python 3.8+ 标准库；`jieba`（分词）与 `playwright`（浏览器）为可选增强。
 
 ---
 
-## 核心通用模块
+## 数据源注册表（`lib/sources.py`）
 
-| 模块 | 职责摘要 |
-|------|-----------|
-| `env.py` | 加载 `~/.config/last30days-cn/.env`、项目级 `.claude/last30days-cn.env` 及环境变量，汇总各平台 API Key / Cookie 可用性判断 |
-| `dates.py` | 日期范围计算、与时间窗口相关的辅助逻辑 |
-| `cache.py` | 可选工具模块：基于 TTL 的缓存（供扩展或脚本复用；主 CLI 流水线不依赖） |
-| `http.py` | 带重试的 HTTP 客户端（stdlib 为主） |
-| `normalize.py` | 将各平台原始条目转为统一内部结构，并按日期窗口过滤 |
-| `score.py` | 互动、时间、查询类型等维度的打分与排序 |
-| `dedupe.py` | 近重复检测与跨源 `cross_refs` 关联 |
-| `render.py` | 生成 compact / 全文 MD / context 片段，并写入输出目录 |
-| `schema.py` | 报告与条目的数据模型、`to_dict` 等 |
-| `query.py` | 查询解析、扩展（含 jieba 中文分词路径） |
-| `relevance.py` | 文本相关性（含中文 jieba 分词分支） |
-| `entity_extract.py` | 可选工具模块：实体或短语级抽取（供测试与扩展；主 CLI 流水线不依赖） |
-| `query_type.py` | 查询类型检测，影响部分源的排序权重 |
+| id | 标签 | ID 前缀 | 分组 | 别名 |
+|---|---|---|---|---|
+| weibo | 微博 | WB | cn | wb |
+| xiaohongshu | 小红书 | XHS | cn | xhs, rednote, red |
+| bilibili | B站 | BL | cn | bili, b站 |
+| zhihu | 知乎 | ZH | cn | zh |
+| douyin | 抖音 | DY | cn | dy |
+| wechat | 微信公众号 | WX | cn | weixin, wx, mp |
+| baidu | 百度 | BD | cn | bd |
+| toutiao | 今日头条 | TT | cn | tt |
+| hackernews | Hacker News | HN | global（默认关） | hn |
+| github | GitHub | GH | global（默认关） | gh |
+| reddit | Reddit | RD | global（默认关） | rd |
+| upstream | 海外平台（上游桥接） | UP | global（默认关） | x, twitter, youtube, tiktok, instagram, last30days |
 
-**辅助模块**（与 CLI / 运维相关）：`ui.py`、`setup_wizard.py` 等，详见 `scripts/lib/` 目录列表。
+分组：`cn`（8 个中文平台）、`global`（hackernews/github/reddit）、`all`（两者合计）。
+
+默认选源：
+- 未指定 `--search` 时运行全部中文平台；`--quick` 时按查询类型分层（`query_type.SOURCE_TIERS`）。
+- 之后并上 `INCLUDE_SOURCES` / `--global`，再减去 `EXCLUDE_SOURCES`。
 
 ---
 
-## CLI 参考：`scripts/last30days.py`
+## 平台适配器
+
+| 模块 | 数据路径（按顺序） | 备注 |
+|---|---|---|
+| `weibo.py` | 开放平台 API → `WEIBO_COOKIE` 移动端搜索 → 登录态浏览器 → 访客 Cookie → 热搜榜匹配 + 公开搜索 | 匿名搜索返回 `ok=-100` 时抛出 `WeiboLoginRequired` |
+| `xiaohongshu.py` | xiaohongshu-mcp `POST /api/v1/feeds/search` → 浏览器（XHR / `__INITIAL_STATE__` / DOM）→ 公开搜索（`/explore/<24位ID>`） | 笔记链接带 `xsec_token` |
+| `bilibili.py` | WBI 签名 `/x/web-interface/wbi/search/type`（buvid3、时间窗）→ 旧版接口 → 浏览器 | 412/-412/-352 视为风控 |
+| `zhihu.py` | search_v3（仅在有 Cookie 时）→ 浏览器拦截 search_v3 → 热榜匹配 → 公开搜索 | |
+| `douyin.py` | TikHub → 浏览器拦截搜索 XHR → 热榜匹配 → 公开搜索 | |
+| `wechat.py` | 极速数据 API → 搜狗微信 `news-list` → `site:mp.weixin.qq.com` | |
+| `baidu.py` | 千帆 AI 搜索 `web_search` → 百度网页（`mu`、站点、日期）→ 多引擎搜索 | 跳过 `result-op` 卡片与广告 |
+| `toutiao.py` | `so.toutiao.com` 服务端渲染的 JSON 卡片 → 热榜匹配 → 公开搜索 | 遇到空页面壳会重试 |
+| `hackernews.py` | Algolia 搜索（时间窗） | 需要英文检索词 |
+| `github.py` | 仓库（`pushed:` 时间窗）+ Issue/PR（`created:` 时间窗） | 可选 `GITHUB_TOKEN` |
+| `reddit.py` | 公开 `search.json` | 数据中心 IP 常被 403 |
+| `upstream_bridge.py` | 子进程运行上游 `last30days.py --emit json --json-profile raw` | 映射 `items_by_source` |
+
+每个适配器都返回带 `source` 字段（数据路径）的 dict 列表，失败时抛出 `http.HTTPError` 并附带可读原因与修复建议。
+
+---
+
+## 公共模块
+
+| 模块 | 职责 |
+|---|---|
+| `http.py` | 完整浏览器 UA / client hints（`browser_headers`）、gzip/deflate + 字符集解码、`Session`（Cookie）、`fetch()`（返回最终 URL）、重试与 Retry-After、412 快速失败、调试日志脱敏 |
+| `websearch.py` | 多引擎公开搜索（cn.bing / DuckDuckGo / www.bing）、跳转链接解析、节流、引擎拦截记忆、URL 规则 + 相关性校验 |
+| `crawler_bridge.py` | Playwright 启动（外部浏览器路径/channel、并发信号量、熔断）、登录（`interactive_login`、`import_cookie_header`、`has_login`、`login_status`）、各平台浏览器爬取 |
+| `pipeline.py` | `RunContext`、`select_sources`、`run_sources`（守护线程 + 截止时间）、`process_results`、`build_report` |
+| `trending.py` | 热榜抓取、RSS/Atom 解析、IDF 显著词跨平台合并、Markdown/JSON/HTML 渲染 |
+| `schema.py` | 各平台条目 dataclass、`GlobalItem`、`Report`（`source_status`、通用 `from_dict`） |
+| `normalize.py` / `score.py` / `dedupe.py` / `cluster.py` | 归一化、打分排序、去重、去掉主题词后的跨源关联与聚类 |
+| `render.py` | 由注册表驱动的 compact / md / context / HTML 渲染；来源状态页脚 |
+| `doctor.py` | `--diagnose`：每个平台实际会走的路径、登录态、浏览器健康、兜底引擎、海外源 |
+| `env.py` | 配置加载（进程环境 > 项目 .env > 全局 .env）、运行开关导出、可用性探测 |
+| `query.py` / `query_type.py` / `relevance.py` / `cjk.py` | 检索词（`search_keyword`、`overseas_query`）、查询类型、相关性、CJK 分词 |
+
+---
+
+## CLI（`scripts/last30days.py`）
 
 ```text
-python3 scripts/last30days.py <topic> [选项]
-
-位置参数:
-  topic                 研究主题（多个词以空格分隔）；特殊值 setup 进入配置向导
-
-选项:
-  --emit MODE           输出模式: compact | json | md | context | path（默认: compact）
-  --quick               快速模式：更短超时、更少深度
-  --deep                深度模式：更长超时、更深抓取
-  --debug               调试日志（设置 LAST30DAYS_DEBUG）
-  --days N              回溯天数，1–30（默认: 30）
-  --diagnose            打印各数据源可用性 JSON 后退出（不执行完整研究）
-  --timeout SECS        全局超时秒数（覆盖当前 depth 档位的默认值）
-  --search SOURCES      逗号分隔平台子集，例如 weibo,xhs,bilibili,zhihu,douyin,wechat,baidu,toutiao
-                        （小红书可写 xiaohongshu 或别名 xhs）
-  --save-dir DIR        将 compact + 源状态额外写入指定目录下的 Markdown 文件
+python3 scripts/last30days.py <topic> [--emit MODE] [--quick|--deep] [--days N] [--as-of DATE]
+                              [--search SOURCES] [--global] [--global-query Q] [--no-browser]
+                              [--refresh|--no-cache] [--cache-ttl H] [--save-dir DIR] [--timeout S] [--debug]
+python3 scripts/last30days.py --hot [关键词] [--hot-sources IDS] [--hot-limit N] [--hot-title T] [--emit MODE]
+python3 scripts/last30days.py login <weibo|xiaohongshu|zhihu|douyin|bilibili> [--cookie "..."] [--login-timeout S]
+python3 scripts/last30days.py --diagnose [--probe-browser] [--emit json]
+python3 scripts/last30days.py setup
+python3 scripts/last30days.py --version
 ```
 
-**说明：**
-
-- Windows 下脚本会对 stdout/stderr 做 UTF-8 配置，避免中文乱码。  
-- `--search` 未指定时，默认尝试全部 8 源（具体是否返回数据取决于密钥与网络）。  
-- `topic` 为 `setup`（不区分大小写）时走 `setup_wizard`，不写研究报告。
+超时档位见 `pipeline.TIMEOUT_PROFILES`。启用 `upstream` 时，全局超时会自动延长。
 
 ---
 
-## 输出目录
+## 输出
 
-默认目录：
+默认目录 `~/.local/share/last30days/out/`（可用 `LAST30DAYS_OUTPUT_DIR` 覆盖；无写权限时回退到系统临时目录）：
 
-```text
-~/.local/share/last30days/out/
-```
+- 研究：`report.md`、`report.json`、`report.html`、`last30days.context.md`
+- 热榜：`hot.md`、`hot.json`、`hot.html`
 
-主要文件：
+`report.json` 的 `source_status[<source>]` 包含 `state`（ok/empty/error/timeout）、`count`、`raw_count`、`elapsed`、`via`（数据路径计数），出错时还有 `error`。
 
-- `report.md` — 完整 Markdown 报告  
-- `report.json` — 归一化后的结构化报告  
-- `last30days.context.md` — 供其他 Skill / 提示词引用的精简上下文  
-
-可通过环境变量 **`LAST30DAYS_OUTPUT_DIR`** 覆盖目录；若主目录无写权限，`render.py` 可能回退到临时目录下的 `last30days/out`（见实现）。
+缓存：`~/.cache/last30days-cn/`（`LAST30DAYS_CACHE_DIR`），默认 24 小时；只有至少一个平台有结果时才写缓存。
 
 ---
 
-## 配置路径（摘要）
+## 配置（摘要）
 
-- 全局：`~/.config/last30days-cn/.env`  
-- 可选项目级：向上查找 `.claude/last30days-cn.env`  
-- 目录覆盖：`LAST30DAYS_CN_CONFIG_DIR` / `LAST30DAYS_CONFIG_DIR`  
+- 全局 `~/.config/last30days-cn/.env`，项目级 `.claude/last30days-cn.env`，目录可用 `LAST30DAYS_CN_CONFIG_DIR` 覆盖。
+- 密钥类：`WEIBO_COOKIE`、`ZHIHU_COOKIE`、`BILIBILI_COOKIE`、`TIKHUB_API_KEY`/`DOUYIN_API_KEY`、`WECHAT_API_KEY`、`BAIDU_API_KEY`、`WEIBO_ACCESS_TOKEN`、`XIAOHONGSHU_API_BASE`、`GITHUB_TOKEN`（只读入配置，不写入进程环境）。
+- 运行开关（写在 .env 中也会生效）：`LAST30DAYS_DEFAULT_SEARCH`、`INCLUDE_SOURCES`、`EXCLUDE_SOURCES`、`LAST30DAYS_DISABLE_BROWSER`、`LAST30DAYS_BROWSER_PATH`、`LAST30DAYS_BROWSER_CHANNEL`、`LAST30DAYS_BROWSER_CONCURRENCY`、`LAST30DAYS_WEBSEARCH_ENGINES`、`LAST30DAYS_USER_AGENT`、`LAST30DAYS_OUTPUT_DIR`、`LAST30DAYS_CACHE_DIR`、`LAST30DAYS_UPSTREAM`、`LAST30DAYS_UPSTREAM_PYTHON`、`LAST30DAYS_UPSTREAM_SEARCH`、`LAST30DAYS_HOT_SOURCES`、`LAST30DAYS_HOT_FEEDS`。
+- 浏览器登录态保存在 `~/.config/last30days-cn/browser_cookies/`（`<平台>_cookies.json` 与 `<平台>_login.json`，权限 0600）。
 
-完整键名以 `scripts/lib/env.py` 中 `get_config()` 为准。
-
+完整键名以 `scripts/lib/env.py` 为准。

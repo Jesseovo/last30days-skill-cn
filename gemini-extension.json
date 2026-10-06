@@ -1,7 +1,7 @@
 {
   "name": "last30days-cn",
-  "version": "3.2.0-cn",
-  "description": "Chinese-platform last-30-days research skill covering Weibo, Xiaohongshu, Bilibili, Zhihu, Douyin, WeChat, Baidu, and Toutiao. Includes compact Markdown, full Markdown, JSON, and Guizang-inspired Swiss/IKB HTML report output.",
+  "version": "4.0.0-cn",
+  "description": "Last-30-days research across Chinese platforms (Weibo, Xiaohongshu, Bilibili, Zhihu, Douyin, WeChat, Baidu, Toutiao) with engagement-weighted ranking, cross-platform clustering and Swiss/IKB HTML reports; a cross-platform hot-search board (--hot); optional Hacker News / GitHub / Reddit and an upstream last30days bridge.",
   "settings": [
     {
       "name": "Extension Directory",
@@ -10,21 +10,21 @@
       "sensitive": false
     },
     {
-      "name": "Weibo Access Token",
-      "description": "Optional Weibo API access token.",
-      "envVar": "WEIBO_ACCESS_TOKEN",
-      "sensitive": true
-    },
-    {
-      "name": "ScrapeCreators API Key",
-      "description": "Optional API key kept for compatibility with existing configuration.",
-      "envVar": "SCRAPECREATORS_API_KEY",
+      "name": "Weibo Cookie",
+      "description": "Optional logged-in m.weibo.cn cookie; Weibo search requires login since 2025.",
+      "envVar": "WEIBO_COOKIE",
       "sensitive": true
     },
     {
       "name": "Zhihu Cookie",
-      "description": "Optional Zhihu login cookie for higher-quality search.",
+      "description": "Optional Zhihu login cookie (z_c0) for search.",
       "envVar": "ZHIHU_COOKIE",
+      "sensitive": true
+    },
+    {
+      "name": "Bilibili Cookie",
+      "description": "Optional Bilibili cookie (SESSDATA) to reduce risk-control blocks.",
+      "envVar": "BILIBILI_COOKIE",
       "sensitive": true
     },
     {
@@ -35,20 +35,32 @@
     },
     {
       "name": "WeChat API Key",
-      "description": "Optional WeChat public-account search API key.",
+      "description": "Optional WeChat public-account search API key (jisuapi).",
       "envVar": "WECHAT_API_KEY",
       "sensitive": true
     },
     {
       "name": "Baidu API Key",
-      "description": "Optional Baidu search API key.",
+      "description": "Optional Baidu Qianfan AI Search (web_search) Bearer key.",
       "envVar": "BAIDU_API_KEY",
       "sensitive": true
     },
     {
-      "name": "Baidu Secret Key",
-      "description": "Optional Baidu secret key paired with BAIDU_API_KEY.",
-      "envVar": "BAIDU_SECRET_KEY",
+      "name": "Weibo Access Token",
+      "description": "Optional Weibo open-platform access token.",
+      "envVar": "WEIBO_ACCESS_TOKEN",
+      "sensitive": true
+    },
+    {
+      "name": "Xiaohongshu MCP Base URL",
+      "description": "Optional self-hosted xiaohongshu-mcp base URL, e.g. http://127.0.0.1:18060.",
+      "envVar": "XIAOHONGSHU_API_BASE",
+      "sensitive": false
+    },
+    {
+      "name": "GitHub Token",
+      "description": "Optional token to raise GitHub search limits for the overseas GitHub source.",
+      "envVar": "GITHUB_TOKEN",
       "sensitive": true
     }
   ]

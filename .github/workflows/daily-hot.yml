@@ -1,0 +1,70 @@
+# 每天自动生成「全网热榜」静态页面并发布到 GitHub Pages（issue #16）。
+#
+# 默认不运行。启用方法（在你自己的仓库或 fork 中）：
+#   1. Settings → Pages → Build and deployment → Source 选择 "GitHub Actions"
+#   2. Settings → Secrets and variables → Actions → Variables 新建 HOT_PAGES = true
+#   3. 可选变量：
+#        HOT_SOURCES  热榜来源，默认 boards,news,global（全部国内热榜 + 科技资讯 + Hacker News）
+#        HOT_FEEDS    自定义 RSS，格式 "名称|https://url,名称|https://url"（例如自建 RSSHub 的 36 氪快讯）
+#        HOT_TITLE    页面标题，默认「全网热榜」
+#   4. Actions → Daily Hot Board → Run workflow 立即生成一次
+#
+# 说明：Runner 位于海外，个别平台（如知乎热榜）可能偶尔不可用，页面会如实标注。
+name: Daily Hot Board
+
+on:
+  schedule:
+    - cron: "0 0,4,12 * * *" # 北京时间 08:00 / 12:00 / 20:00
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-hot-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: vars.HOT_PAGES == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build hot board
+        env:
+          LAST30DAYS_OUTPUT_DIR: ${{ runner.temp }}/hot-out
+          LAST30DAYS_DISABLE_BROWSER: "1"
+          LAST30DAYS_HOT_FEEDS: ${{ vars.HOT_FEEDS }}
+          HOT_SOURCES: ${{ vars.HOT_SOURCES || 'boards,news,global' }}
+          HOT_TITLE: ${{ vars.HOT_TITLE || '全网热榜' }}
+        run: |
+          python scripts/last30days.py --hot --hot-sources "$HOT_SOURCES" --hot-limit 30 --hot-title "$HOT_TITLE" --emit html-path
+          mkdir -p site
+          cp "$LAST30DAYS_OUTPUT_DIR/hot.html" site/index.html
+          cp "$LAST30DAYS_OUTPUT_DIR/hot.json" site/hot.json
+          cp "$LAST30DAYS_OUTPUT_DIR/hot.md" site/hot.md
+          touch site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

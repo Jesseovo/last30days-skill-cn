@@ -1,15 +1,20 @@
-"""Data schemas for last30days skill (Chinese platforms).
+"""Data schemas for last30days skill (Chinese platforms + opt-in overseas sources).
 
 Author: Jesse (https://github.com/Jesseovo)
+
+v4: adds ``GlobalItem`` (Hacker News / GitHub / Reddit / upstream bridge),
+``Engagement.stars``, per-source run status on ``Report`` and a generic
+``Report.from_dict`` (the JSON written by ``to_dict`` is unchanged for the
+eight Chinese platforms).
 """
 
-from dataclasses import dataclass, field, fields
-from typing import Any, Dict, List, Optional
+from dataclasses import MISSING, dataclass, field, fields
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 
 def _engagement_from_dict(d: Optional[Dict[str, Any]]) -> Optional["Engagement"]:
-    if not d:
+    if not d or not isinstance(d, dict):
         return None
     valid = {f.name for f in fields(Engagement)}
     filtered = {k: v for k, v in d.items() if k in valid}
@@ -34,40 +39,18 @@ class Engagement:
     reads: Optional[int] = None
     hot_value: Optional[float] = None
     favorites: Optional[int] = None
+    stars: Optional[int] = None
 
     def to_dict(self) -> Optional[Dict[str, Any]]:
         d: Dict[str, Any] = {}
-        if self.score is not None:
-            d['score'] = self.score
-        if self.num_comments is not None:
-            d['num_comments'] = self.num_comments
-        if self.upvote_ratio is not None:
-            d['upvote_ratio'] = self.upvote_ratio
-        if self.likes is not None:
-            d['likes'] = self.likes
-        if self.reposts is not None:
-            d['reposts'] = self.reposts
-        if self.replies is not None:
-            d['replies'] = self.replies
-        if self.quotes is not None:
-            d['quotes'] = self.quotes
-        if self.views is not None:
-            d['views'] = self.views
-        if self.shares is not None:
-            d['shares'] = self.shares
-        if self.collects is not None:
-            d['collects'] = self.collects
-        if self.danmaku is not None:
-            d['danmaku'] = self.danmaku
-        if self.voteups is not None:
-            d['voteups'] = self.voteups
-        if self.reads is not None:
-            d['reads'] = self.reads
-        if self.hot_value is not None:
-            d['hot_value'] = self.hot_value
-        if self.favorites is not None:
-            d['favorites'] = self.favorites
+        for f in fields(self):
+            value = getattr(self, f.name)
+            if value is not None:
+                d[f.name] = value
         return d if d else None
+
+    def is_empty(self) -> bool:
+        return all(getattr(self, f.name) is None for f in fields(self))
 
 
 @dataclass
@@ -104,6 +87,12 @@ class SubScores:
         }
 
 
+def _common_tail(item, d: Dict[str, Any]) -> Dict[str, Any]:
+    if item.cross_refs:
+        d['cross_refs'] = item.cross_refs
+    return d
+
+
 @dataclass
 class WeiboItem:
     """Normalized Weibo (微博) item."""
@@ -122,7 +111,7 @@ class WeiboItem:
     cross_refs: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+        return _common_tail(self, {
             'id': self.id,
             'text': self.text,
             'url': self.url,
@@ -135,10 +124,7 @@ class WeiboItem:
             'why_relevant': self.why_relevant,
             'subs': self.subs.to_dict(),
             'score': self.score,
-        }
-        if self.cross_refs:
-            d['cross_refs'] = self.cross_refs
-        return d
+        })
 
 
 @dataclass
@@ -161,7 +147,7 @@ class XiaohongshuItem:
     cross_refs: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+        return _common_tail(self, {
             'id': self.id,
             'title': self.title,
             'desc': self.desc,
@@ -176,10 +162,7 @@ class XiaohongshuItem:
             'why_relevant': self.why_relevant,
             'subs': self.subs.to_dict(),
             'score': self.score,
-        }
-        if self.cross_refs:
-            d['cross_refs'] = self.cross_refs
-        return d
+        })
 
 
 @dataclass
@@ -203,7 +186,7 @@ class BilibiliItem:
     cross_refs: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+        return _common_tail(self, {
             'id': self.id,
             'title': self.title,
             'url': self.url,
@@ -219,10 +202,7 @@ class BilibiliItem:
             'why_relevant': self.why_relevant,
             'subs': self.subs.to_dict(),
             'score': self.score,
-        }
-        if self.cross_refs:
-            d['cross_refs'] = self.cross_refs
-        return d
+        })
 
 
 @dataclass
@@ -244,7 +224,7 @@ class ZhihuItem:
     cross_refs: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+        return _common_tail(self, {
             'id': self.id,
             'title': self.title,
             'excerpt': self.excerpt,
@@ -258,10 +238,7 @@ class ZhihuItem:
             'why_relevant': self.why_relevant,
             'subs': self.subs.to_dict(),
             'score': self.score,
-        }
-        if self.cross_refs:
-            d['cross_refs'] = self.cross_refs
-        return d
+        })
 
 
 @dataclass
@@ -284,7 +261,7 @@ class DouyinItem:
     cross_refs: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+        return _common_tail(self, {
             'id': self.id,
             'text': self.text,
             'url': self.url,
@@ -299,10 +276,7 @@ class DouyinItem:
             'why_relevant': self.why_relevant,
             'subs': self.subs.to_dict(),
             'score': self.score,
-        }
-        if self.cross_refs:
-            d['cross_refs'] = self.cross_refs
-        return d
+        })
 
 
 @dataclass
@@ -323,7 +297,7 @@ class WechatItem:
     cross_refs: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+        return _common_tail(self, {
             'id': self.id,
             'title': self.title,
             'snippet': self.snippet,
@@ -336,10 +310,7 @@ class WechatItem:
             'why_relevant': self.why_relevant,
             'subs': self.subs.to_dict(),
             'score': self.score,
-        }
-        if self.cross_refs:
-            d['cross_refs'] = self.cross_refs
-        return d
+        })
 
 
 @dataclass
@@ -359,7 +330,7 @@ class BaiduItem:
     cross_refs: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+        return _common_tail(self, {
             'id': self.id,
             'title': self.title,
             'snippet': self.snippet,
@@ -371,10 +342,7 @@ class BaiduItem:
             'why_relevant': self.why_relevant,
             'subs': self.subs.to_dict(),
             'score': self.score,
-        }
-        if self.cross_refs:
-            d['cross_refs'] = self.cross_refs
-        return d
+        })
 
 
 @dataclass
@@ -395,9 +363,10 @@ class ToutiaoItem:
     subs: SubScores = field(default_factory=SubScores)
     score: int = 0
     cross_refs: List[str] = field(default_factory=list)
+    original_url: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+        d = {
             'id': self.id,
             'title': self.title,
             'abstract': self.abstract,
@@ -413,9 +382,85 @@ class ToutiaoItem:
             'subs': self.subs.to_dict(),
             'score': self.score,
         }
-        if self.cross_refs:
-            d['cross_refs'] = self.cross_refs
-        return d
+        if self.original_url and self.original_url != self.url:
+            d['original_url'] = self.original_url
+        return _common_tail(self, d)
+
+
+@dataclass
+class GlobalItem:
+    """Normalized overseas item (Hacker News / GitHub / Reddit / upstream bridge)."""
+    id: str
+    platform: str
+    title: str
+    url: str
+    text: str = ""
+    author: str = ""
+    container: str = ""
+    date: Optional[str] = None
+    date_confidence: str = "low"
+    engagement: Optional[Engagement] = None
+    relevance: float = 0.5
+    why_relevant: str = ""
+    subs: SubScores = field(default_factory=SubScores)
+    score: int = 0
+    cross_refs: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return _common_tail(self, {
+            'id': self.id,
+            'platform': self.platform,
+            'title': self.title,
+            'url': self.url,
+            'text': self.text,
+            'author': self.author,
+            'container': self.container,
+            'date': self.date,
+            'date_confidence': self.date_confidence,
+            'engagement': self.engagement.to_dict() if self.engagement else None,
+            'relevance': self.relevance,
+            'why_relevant': self.why_relevant,
+            'subs': self.subs.to_dict(),
+            'score': self.score,
+        })
+
+
+# Report attribute name (== source id) -> item class.
+ITEM_CLASSES: Dict[str, type] = {
+    'weibo': WeiboItem,
+    'xiaohongshu': XiaohongshuItem,
+    'bilibili': BilibiliItem,
+    'zhihu': ZhihuItem,
+    'douyin': DouyinItem,
+    'wechat': WechatItem,
+    'baidu': BaiduItem,
+    'toutiao': ToutiaoItem,
+    'hackernews': GlobalItem,
+    'github': GlobalItem,
+    'reddit': GlobalItem,
+    'upstream': GlobalItem,
+}
+CN_REPORT_KEYS = ('weibo', 'xiaohongshu', 'bilibili', 'zhihu', 'douyin', 'wechat', 'baidu', 'toutiao')
+GLOBAL_REPORT_KEYS = ('hackernews', 'github', 'reddit', 'upstream')
+
+
+def item_from_dict(cls: type, data: Dict[str, Any]):
+    """Rebuild any item dataclass from its ``to_dict`` output (lenient)."""
+    kwargs: Dict[str, Any] = {}
+    for f in fields(cls):
+        if f.name not in data:
+            if f.default is MISSING and f.default_factory is MISSING:  # type: ignore[misc]
+                kwargs[f.name] = ""
+            continue
+        value = data[f.name]
+        if f.name == 'engagement':
+            value = _engagement_from_dict(value)
+        elif f.name == 'subs':
+            value = SubScores(**{k: v for k, v in (value or {}).items() if k in ('relevance', 'recency', 'engagement')})
+        elif f.name in ('cross_refs', 'hashtags') and value is None:
+            value = []
+        kwargs[f.name] = value
+    return cls(**kwargs)
 
 
 @dataclass
@@ -434,6 +479,10 @@ class Report:
     wechat: List[WechatItem] = field(default_factory=list)
     baidu: List[BaiduItem] = field(default_factory=list)
     toutiao: List[ToutiaoItem] = field(default_factory=list)
+    hackernews: List[GlobalItem] = field(default_factory=list)
+    github: List[GlobalItem] = field(default_factory=list)
+    reddit: List[GlobalItem] = field(default_factory=list)
+    upstream: List[GlobalItem] = field(default_factory=list)
     best_practices: List[str] = field(default_factory=list)
     prompt_pack: List[str] = field(default_factory=list)
     context_snippet_md: str = ""
@@ -446,8 +495,31 @@ class Report:
     wechat_error: Optional[str] = None
     baidu_error: Optional[str] = None
     toutiao_error: Optional[str] = None
+    hackernews_error: Optional[str] = None
+    github_error: Optional[str] = None
+    reddit_error: Optional[str] = None
+    upstream_error: Optional[str] = None
     from_cache: bool = False
     cache_age_hours: Optional[float] = None
+    # v4 run metadata
+    search_topic: str = ""
+    query_type: str = ""
+    depth: str = ""
+    source_status: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+
+    def items(self, source_id: str) -> List[Any]:
+        return getattr(self, source_id, None) or []
+
+    def error(self, source_id: str) -> Optional[str]:
+        return getattr(self, f"{source_id}_error", None)
+
+    def active_sources(self) -> List[str]:
+        """Sources that ran (status recorded) or carry items/errors."""
+        out = []
+        for key in CN_REPORT_KEYS + GLOBAL_REPORT_KEYS:
+            if key in self.source_status or self.items(key) or self.error(key):
+                out.append(key)
+        return out
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
@@ -458,239 +530,60 @@ class Report:
             },
             'generated_at': self.generated_at,
             'mode': self.mode,
-            'weibo': [w.to_dict() for w in self.weibo],
-            'xiaohongshu': [x.to_dict() for x in self.xiaohongshu],
-            'bilibili': [b.to_dict() for b in self.bilibili],
-            'zhihu': [z.to_dict() for z in self.zhihu],
-            'douyin': [d_item.to_dict() for d_item in self.douyin],
-            'wechat': [wc.to_dict() for wc in self.wechat],
-            'baidu': [bd.to_dict() for bd in self.baidu],
-            'toutiao': [t.to_dict() for t in self.toutiao],
-            'best_practices': self.best_practices,
-            'prompt_pack': self.prompt_pack,
-            'context_snippet_md': self.context_snippet_md,
         }
-        if self.weibo_error:
-            d['weibo_error'] = self.weibo_error
-        if self.xiaohongshu_error:
-            d['xiaohongshu_error'] = self.xiaohongshu_error
-        if self.bilibili_error:
-            d['bilibili_error'] = self.bilibili_error
-        if self.zhihu_error:
-            d['zhihu_error'] = self.zhihu_error
-        if self.douyin_error:
-            d['douyin_error'] = self.douyin_error
-        if self.wechat_error:
-            d['wechat_error'] = self.wechat_error
-        if self.baidu_error:
-            d['baidu_error'] = self.baidu_error
-        if self.toutiao_error:
-            d['toutiao_error'] = self.toutiao_error
+        for key in CN_REPORT_KEYS:
+            d[key] = [item.to_dict() for item in self.items(key)]
+        for key in GLOBAL_REPORT_KEYS:
+            if self.items(key) or key in self.source_status or self.error(key):
+                d[key] = [item.to_dict() for item in self.items(key)]
+        d['best_practices'] = self.best_practices
+        d['prompt_pack'] = self.prompt_pack
+        d['context_snippet_md'] = self.context_snippet_md
+        for key in CN_REPORT_KEYS + GLOBAL_REPORT_KEYS:
+            err = self.error(key)
+            if err:
+                d[f'{key}_error'] = err
         if self.from_cache:
             d['from_cache'] = self.from_cache
         if self.cache_age_hours is not None:
             d['cache_age_hours'] = self.cache_age_hours
         if self.clusters:
             d['clusters'] = self.clusters
+        if self.search_topic:
+            d['search_topic'] = self.search_topic
+        if self.query_type:
+            d['query_type'] = self.query_type
+        if self.depth:
+            d['depth'] = self.depth
+        if self.source_status:
+            d['source_status'] = self.source_status
         return d
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Report":
         """Create Report from serialized dict (handles cache format)."""
-        range_data = data.get('range', {})
-        range_from = range_data.get('from', data.get('range_from', ''))
-        range_to = range_data.get('to', data.get('range_to', ''))
-
-        weibo_items: List[WeiboItem] = []
-        for w in data.get('weibo', []):
-            subs = SubScores(**w.get('subs', {})) if w.get('subs') else SubScores()
-            weibo_items.append(WeiboItem(
-                id=w['id'],
-                text=w.get('text', ''),
-                url=w['url'],
-                author_handle=w.get('author_handle', ''),
-                author_id=w.get('author_id'),
-                date=w.get('date'),
-                date_confidence=w.get('date_confidence', 'low'),
-                engagement=_engagement_from_dict(w.get('engagement')),
-                relevance=w.get('relevance', 0.5),
-                why_relevant=w.get('why_relevant', ''),
-                subs=subs,
-                score=w.get('score', 0),
-                cross_refs=w.get('cross_refs', []),
-            ))
-
-        xhs_items: List[XiaohongshuItem] = []
-        for x in data.get('xiaohongshu', []):
-            subs = SubScores(**x.get('subs', {})) if x.get('subs') else SubScores()
-            xhs_items.append(XiaohongshuItem(
-                id=x['id'],
-                title=x.get('title', ''),
-                desc=x.get('desc', ''),
-                url=x['url'],
-                author_name=x.get('author_name', ''),
-                author_id=x.get('author_id'),
-                date=x.get('date'),
-                date_confidence=x.get('date_confidence', 'low'),
-                engagement=_engagement_from_dict(x.get('engagement')),
-                hashtags=x.get('hashtags', []),
-                relevance=x.get('relevance', 0.5),
-                why_relevant=x.get('why_relevant', ''),
-                subs=subs,
-                score=x.get('score', 0),
-                cross_refs=x.get('cross_refs', []),
-            ))
-
-        bilibili_items: List[BilibiliItem] = []
-        for b in data.get('bilibili', []):
-            subs = SubScores(**b.get('subs', {})) if b.get('subs') else SubScores()
-            bilibili_items.append(BilibiliItem(
-                id=b['id'],
-                title=b.get('title', ''),
-                url=b['url'],
-                bvid=b.get('bvid', ''),
-                channel_name=b.get('channel_name', ''),
-                author_mid=b.get('author_mid'),
-                date=b.get('date'),
-                date_confidence=b.get('date_confidence', 'high'),
-                engagement=_engagement_from_dict(b.get('engagement')),
-                description=b.get('description', ''),
-                duration=b.get('duration'),
-                relevance=b.get('relevance', 0.7),
-                why_relevant=b.get('why_relevant', ''),
-                subs=subs,
-                score=b.get('score', 0),
-                cross_refs=b.get('cross_refs', []),
-            ))
-
-        zhihu_items: List[ZhihuItem] = []
-        for z in data.get('zhihu', []):
-            subs = SubScores(**z.get('subs', {})) if z.get('subs') else SubScores()
-            zhihu_items.append(ZhihuItem(
-                id=z['id'],
-                title=z.get('title', ''),
-                excerpt=z.get('excerpt', ''),
-                url=z['url'],
-                author=z.get('author', ''),
-                date=z.get('date'),
-                date_confidence=z.get('date_confidence', 'high'),
-                content_type=z.get('content_type', ''),
-                engagement=_engagement_from_dict(z.get('engagement')),
-                relevance=z.get('relevance', 0.5),
-                why_relevant=z.get('why_relevant', ''),
-                subs=subs,
-                score=z.get('score', 0),
-                cross_refs=z.get('cross_refs', []),
-            ))
-
-        douyin_items: List[DouyinItem] = []
-        for d_item in data.get('douyin', []):
-            subs = SubScores(**d_item.get('subs', {})) if d_item.get('subs') else SubScores()
-            douyin_items.append(DouyinItem(
-                id=d_item['id'],
-                text=d_item.get('text', ''),
-                url=d_item['url'],
-                author_name=d_item.get('author_name', ''),
-                author_id=d_item.get('author_id'),
-                date=d_item.get('date'),
-                date_confidence=d_item.get('date_confidence', 'high'),
-                engagement=_engagement_from_dict(d_item.get('engagement')),
-                hashtags=d_item.get('hashtags', []),
-                duration=d_item.get('duration'),
-                relevance=d_item.get('relevance', 0.7),
-                why_relevant=d_item.get('why_relevant', ''),
-                subs=subs,
-                score=d_item.get('score', 0),
-                cross_refs=d_item.get('cross_refs', []),
-            ))
-
-        wechat_items: List[WechatItem] = []
-        for wc in data.get('wechat', []):
-            subs = SubScores(**wc.get('subs', {})) if wc.get('subs') else SubScores()
-            wechat_items.append(WechatItem(
-                id=wc['id'],
-                title=wc.get('title', ''),
-                snippet=wc.get('snippet', ''),
-                url=wc['url'],
-                source_name=wc.get('source_name', ''),
-                wechat_id=wc.get('wechat_id'),
-                date=wc.get('date'),
-                date_confidence=wc.get('date_confidence', 'low'),
-                relevance=wc.get('relevance', 0.5),
-                why_relevant=wc.get('why_relevant', ''),
-                subs=subs,
-                score=wc.get('score', 0),
-                cross_refs=wc.get('cross_refs', []),
-            ))
-
-        baidu_items: List[BaiduItem] = []
-        for bd in data.get('baidu', []):
-            subs = SubScores(**bd.get('subs', {})) if bd.get('subs') else SubScores()
-            baidu_items.append(BaiduItem(
-                id=bd['id'],
-                title=bd.get('title', ''),
-                snippet=bd.get('snippet', ''),
-                url=bd['url'],
-                source_domain=bd.get('source_domain', ''),
-                date=bd.get('date'),
-                date_confidence=bd.get('date_confidence', 'low'),
-                relevance=bd.get('relevance', 0.5),
-                why_relevant=bd.get('why_relevant', ''),
-                subs=subs,
-                score=bd.get('score', 0),
-                cross_refs=bd.get('cross_refs', []),
-            ))
-
-        toutiao_items: List[ToutiaoItem] = []
-        for t in data.get('toutiao', []):
-            subs = SubScores(**t.get('subs', {})) if t.get('subs') else SubScores()
-            toutiao_items.append(ToutiaoItem(
-                id=t['id'],
-                title=t.get('title', ''),
-                abstract=t.get('abstract', ''),
-                url=t['url'],
-                source_name=t.get('source_name', ''),
-                date=t.get('date'),
-                date_confidence=t.get('date_confidence', 'high'),
-                is_hot=t.get('is_hot', False),
-                hot_value=t.get('hot_value'),
-                engagement=_engagement_from_dict(t.get('engagement')),
-                relevance=t.get('relevance', 0.5),
-                why_relevant=t.get('why_relevant', ''),
-                subs=subs,
-                score=t.get('score', 0),
-                cross_refs=t.get('cross_refs', []),
-            ))
-
-        return cls(
-            topic=data['topic'],
-            range_from=range_from,
-            range_to=range_to,
-            generated_at=data['generated_at'],
-            mode=data['mode'],
-            weibo=weibo_items,
-            xiaohongshu=xhs_items,
-            bilibili=bilibili_items,
-            zhihu=zhihu_items,
-            douyin=douyin_items,
-            wechat=wechat_items,
-            baidu=baidu_items,
-            toutiao=toutiao_items,
+        range_data = data.get('range', {}) or {}
+        report = cls(
+            topic=data.get('topic', ''),
+            range_from=range_data.get('from', data.get('range_from', '')),
+            range_to=range_data.get('to', data.get('range_to', '')),
+            generated_at=data.get('generated_at', ''),
+            mode=data.get('mode', 'all'),
             best_practices=data.get('best_practices', []),
             prompt_pack=data.get('prompt_pack', []),
             context_snippet_md=data.get('context_snippet_md', ''),
-            weibo_error=data.get('weibo_error'),
-            xiaohongshu_error=data.get('xiaohongshu_error'),
-            bilibili_error=data.get('bilibili_error'),
-            zhihu_error=data.get('zhihu_error'),
-            douyin_error=data.get('douyin_error'),
-            wechat_error=data.get('wechat_error'),
-            baidu_error=data.get('baidu_error'),
-            toutiao_error=data.get('toutiao_error'),
             from_cache=data.get('from_cache', False),
             cache_age_hours=data.get('cache_age_hours'),
             clusters=data.get('clusters', []),
+            search_topic=data.get('search_topic', ''),
+            query_type=data.get('query_type', ''),
+            depth=data.get('depth', ''),
+            source_status=data.get('source_status', {}) or {},
         )
+        for key, item_cls in ITEM_CLASSES.items():
+            setattr(report, key, [item_from_dict(item_cls, raw) for raw in data.get(key, []) or [] if isinstance(raw, dict)])
+            setattr(report, f'{key}_error', data.get(f'{key}_error'))
+        return report
 
 
 def create_report(

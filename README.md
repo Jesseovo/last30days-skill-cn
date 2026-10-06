@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="last30days-cn — 中国平台深度研究引擎" width="900">
+  <img src="assets/banner.png" alt="last30days-cn — 中文互联网近 30 天研究引擎" width="900">
 </p>
 
 <p align="center">
@@ -7,467 +7,310 @@
   <a href="README.en.md">English</a>
 </p>
 
-# 📰 last30days-cn — 中国平台深度研究引擎
+# last30days-cn
 
-> 🚀 30 天的研究，30 秒的结果。8 大平台。零过时信息。
-
-**last30days-cn** 是一个 AI Agent 技能（Skill），能够自动搜索中国互联网 8 大主流平台最近 30 天的内容，综合分析后生成有据可查的研究报告。
-
-🔗 本项目基于 [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) 进行深度本土化改造，完全面向中国用户和中文互联网平台。
-
-🕷️ v2.0 集成 [MediaCrawler](https://github.com/NanmiCoder/MediaCrawler) 爬虫引擎思路，大幅减少 API Key 依赖。v2.1 修复百度/小红书反爬问题，XHR 拦截替代 DOM 解析，Bing 兜底搜索，已移除无效的 ScrapeCreators 小红书集成。
-
-当前版本：`v3.2.0`
-
-👤 **作者 / Author:** Jesse ([@Jesseovo](https://github.com/Jesseovo))
-
----
-
-## ✨ v3.2.0 优化内容
-
-- 修复小红书新版搜索页只触发 `search/recommend` 联想词的问题：不再把 `sug_items` 当成笔记，而是按响应中的笔记卡片识别结果，并在必要时主动提交搜索框。
-- Playwright 爬虫不再依赖固定的小红书 endpoint；平台改版时只要返回结构仍包含笔记卡片，仍可正常解析。
-- 增加旧电脑兼容模式：可通过 `LAST30DAYS_BROWSER_PATH` 使用本机仍受系统支持的 Chromium/Chrome，也可用 `LAST30DAYS_DISABLE_BROWSER=1` 完全关闭浏览器并使用公开 API/搜索兜底。
-- `--diagnose` 现在会显示浏览器模式、外部浏览器路径和路径是否存在，便于排查旧 macOS 的浏览器二进制兼容性。
-- 版本升级至 `v3.2.0`，根目录脚本与 Agent Skills 安装载荷继续由 payload 检查保持同步。
-
-## ✨ v3.1.0 优化内容
-
-- 修复中文平台日期统一按北京时间（CST）归档，避免非北京时间机器上的窗口边界偏移。
-- 新增 CJK bigram 回退分词，`jieba` 变为可选增强，skill 可零硬依赖运行。
-- 统一 HTTP 重试退避、Retry-After 解析和 debug URL 脱敏。
-- 新增 payload 生成/漂移检查、版本单源、缓存接线和 GitHub Actions CI。
-
-## ✨ v3.0.0 升级内容
-
-- 追平原版 v3 的 Agent Skills 包结构：`skills/last30days` 现在是可独立安装的运行载荷。
-- 中文 CLI 统一使用单入口 `last30days.py`，根目录和 Skill 载荷保持同名结构。
-- 新增 `--emit html` 和 `--emit html-path`，可生成离线可打开的 `report.html`。
-- HTML 报告融入 [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) 的 Swiss/IKB 视觉语言，适合浏览、归档、打印。
-- 小红书和知乎搜索增加空结果兜底说明，失败时会标注已尝试路径与可能原因。
-- 抖音、头条在原生接口被风控时新增公开搜索引擎兜底，不再静默返回 0 条（见 issue #8）。
-- 修复 macOS/Linux 下 `skills/last30days/SKILL.md` 损坏 symlink 导致的 `npx` 安装失败（见 issue #10）。
-- 对照上游 [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) 同步若干平台无关能力：`--as-of` 历史回溯、跨平台聚合热点、`LAST30DAYS_DEFAULT_SEARCH`/`EXCLUDE_SOURCES` 配置开关、诚实 `--diagnose`（实时探测）、HTML 报告 XSS 加固。
-- 根目录 `scripts/` 继续保留，方便本地开发和旧路径调用；Agent Skills 安装使用 `skills/last30days/scripts` 下的自包含载荷。
-
-### ✅ 发布验证
-
-本次发布前已完成以下质检：
-
-- 远端发布 tag 统一为 `v3.2.0`，没有额外 v3 派生 tag。
-- 根目录与 Skill 载荷均统一使用 `last30days.py` 单入口，没有额外入口文件。
-- 全量测试通过：`python -m pytest tests -q`，共 `214 passed`。
-- 根目录入口和 Skill 载荷入口均已验证：`py scripts/last30days.py --diagnose` 与 `py skills/last30days/scripts/last30days.py --diagnose` 均可正常输出平台可用性诊断。
-
----
-
-## ⚠️ 免责声明 / Disclaimer
-
-> **请务必仔细阅读以下内容。使用本项目即表示您同意以下所有条款。**
-
-### 法律合规声明
-
-1. **本项目仅供学习和研究目的**。所有爬虫功能仅用于技术学习与研究交流，**严禁用于商业用途**。
-2. 使用者必须严格遵守中华人民共和国相关法律法规，包括但不限于：
-   - 《中华人民共和国网络安全法》
-   - 《中华人民共和国数据安全法》
-   - 《中华人民共和国个人信息保护法》
-   - 《中华人民共和国反不正当竞争法》
-3. 使用者必须遵守各平台的**服务条款（ToS）**和 **robots.txt** 规定。
-4. **禁止**将本项目用于以下行为：
-   - 大规模、高频率地抓取平台数据
-   - 收集、存储或传播他人个人隐私信息
-   - 破坏或干扰平台正常运营
-   - 任何形式的非法数据倒卖或商业牟利
-   - 对外提供自动化数据采集服务
-5. 本项目开发者**不承担**因使用本项目而产生的任何法律责任。用户应**自行承担**使用本项目的全部法律风险。
-6. 如有侵权，请联系作者，将在第一时间处理。
-
-### 技术免责
-
-- 爬虫功能依赖 Playwright 浏览器自动化，模拟正常用户浏览行为，**不涉及**逆向加密算法或破解安全机制。
-- 各平台接口随时可能变更，本项目不保证所有功能始终可用。
-- 建议将请求频率控制在合理范围内（如每次搜索间隔 ≥ 5 秒），避免被平台封禁。
-
-> 💡 **爬虫违法违规的案例频发，请务必合法合规使用。**
-> 参考：[中国爬虫相关法律案例汇总](https://github.com/HiddenStrawberry/Crawler_Illegal_Cases_In_China)
-
----
-
-## ✨ v2.0 新特性
-
-### 🆕 v2.0 vs v1.0 对比
-
-| 特性 | v1.0 | v2.0 |
-|:---:|:---:|:---:|
-| 免费可用平台数 | 4 个 | **7 个**（安装 Playwright 后） |
-| 需要 API Key 的平台 | 微博、小红书、抖音、微信 | **仅微信**（其余可用爬虫替代） |
-| 数据获取方式 | 仅 API + 公开接口 | API + **爬虫引擎** + 公开接口 |
-| 安装难度 | 需配置多个 API Key | `pip install playwright` 即可 |
-| marketplace.json | 缺少 owner 字段（Bug） | ✅ 已修复 |
-
-### 核心升级
-
-1. **集成 MediaCrawler 爬虫引擎** — 基于 Playwright 浏览器自动化，无需逆向加密算法，大幅降低使用门槛
-2. **7/8 平台零配置可用** — 除微信外，所有平台均可无需 API Key 使用
-3. **智能降级策略** — API 优先 → 爬虫模式 → 公开接口，三级自动降级
-4. **修复 Issue #1** — 修复 marketplace.json 缺少 owner 字段导致 Claude Code 安装失败的 bug
-5. **登录态缓存** — 爬虫模式支持 Cookie 持久化，减少重复登录
-
----
-
-## 📋 平台支持
-
-| 平台 | 模块 | 数据获取方式 | 需要配置 |
-|:---:|:---:|:---:|:---:|
-| 🔴 微博 | `weibo.py` | API / 🕷️爬虫 / 公开接口 | ✅ 爬虫模式无需配置 |
-| 📕 小红书 | `xiaohongshu.py` | API / 🕷️爬虫 / 公开接口 / Bing 兜底 | ✅ 爬虫模式无需配置 |
-| 📺 B站 | `bilibili.py` | 公开 API / 🕷️爬虫备用 | ✅ 无需配置 |
-| 💬 知乎 | `zhihu.py` | 公开搜索 / 🕷️爬虫备用 | ✅ 无需配置 |
-| 🎵 抖音 | `douyin.py` | API / 🕷️爬虫 / 公开接口 / 搜索兜底 | ✅ 爬虫模式无需配置 |
-| 💚 微信 | `wechat.py` | API / 搜狗搜索 | `WECHAT_API_KEY`（可选） |
-| 🔵 百度 | `baidu.py` | 公开搜索 / API | ✅ 基础搜索无需配置 |
-| 📰 头条 | `toutiao.py` | 公开接口 / 搜索兜底 | ✅ 无需配置 |
-
-> 🕷️ = 可选的 Playwright 浏览器模式（`pip install playwright && playwright install chromium`）；旧系统可使用 `LAST30DAYS_BROWSER_PATH` 或直接走公开搜索兜底。
-
----
-
-## 🤖 Agent 平台安装
-
-### Agent Skills（推荐）
+**中文互联网近 30 天研究引擎。** 让 AI Agent 去微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条看看最近大家到底在说什么，按互动和时效排序、跨平台归并，写成每条结论都有出处的研究报告。也可以一条命令查看全网热榜。
 
 ```bash
 npx skills add Jesseovo/last30days-skill-cn -g
 ```
 
-### Cursor（推荐）
+装好后直接对你的 Agent 说：
 
-将项目克隆到 Cursor 技能目录：
+> 用 last30days 研究一下「新能源汽车价格战」最近 30 天的讨论
+>
+> 今天全网有什么热点？
+
+---
+
+## 它能做什么
+
+- **主题研究**：8 个平台并行检索，按相关性、时效、互动打分；同一事件在多个平台出现时归并为「跨平台热点」。输出有四种：给 Agent 的精简证据、完整 Markdown、JSON、可离线打开的 HTML 报告。
+- **全网热榜**：不需要主题，汇总微博、百度、抖音、头条、B站、知乎热榜并合并跨平台热点；可加入科技资讯 RSS 和 Hacker News，还能每天自动发布成热点网页。
+- **如实交代覆盖情况**：报告末尾逐平台列出拿到多少条、走了哪条数据路径；失败的平台写明原因和修复命令，不会把「没拿到数据」说成「没人讨论」。
+- **登录态复用**：需要登录的平台扫码一次即可长期使用；没有图形界面时可以导入 Cookie。
+- **海外视角（可选）**：Hacker News、GitHub、Reddit，以及通过上游 [last30days](https://github.com/mvanhorn/last30days-skill) 获取 X、YouTube、TikTok。
+- **轻量**：只依赖 Python 3.8+ 标准库，浏览器和分词都是可选增强，旧电脑也能用。
+
+---
+
+## 快速开始
+
+**作为 Agent 技能使用**（Claude Code、Codex、Cursor、Gemini CLI 等支持 Agent Skills 的工具）：
+
+```bash
+npx skills add Jesseovo/last30days-skill-cn -g
+```
+
+**直接在命令行使用：**
 
 ```bash
 git clone https://github.com/Jesseovo/last30days-skill-cn.git
+cd last30days-skill-cn
+python scripts/last30days.py "AI编程助手"      # 研究一个主题
+python scripts/last30days.py --hot              # 全网热榜
+python scripts/last30days.py --diagnose         # 查看各平台是否可用、怎么修
 ```
 
-然后在 Cursor 中将 `SKILL.md` 添加为项目技能。
-
-### Claude Code
+**可选增强：**
 
 ```bash
-# 方式一：通过 Agent Skills 安装（推荐）
-npx skills add Jesseovo/last30days-skill-cn -g
+python -m pip install jieba                                                  # 更准的中文分词
+python -m pip install playwright && python -m playwright install chromium    # 登录态平台需要
+```
 
-# 方式二：手动安装
+<details>
+<summary>其他安装方式</summary>
+
+```bash
+# Claude Code 手动安装
 git clone https://github.com/Jesseovo/last30days-skill-cn.git ~/.claude/skills/last30days-cn
-```
-
-### OpenClaw / ClawHub
-
-```bash
+# OpenClaw / ClawHub
 git clone https://github.com/Jesseovo/last30days-skill-cn.git ~/.agents/skills/last30days-cn
 ```
 
-### Gemini CLI
+- Cursor：克隆仓库后，把 `SKILL.md` 添加为项目技能。
+- Gemini CLI：克隆后作为扩展加载（见 `gemini-extension.json`）。
+- 其他 Agent：只要支持 Bash、Read、Write 就能用。
 
-```bash
-git clone https://github.com/Jesseovo/last30days-skill-cn.git
-# 在 Gemini CLI 中作为扩展加载
-```
-
-### 通用 Agent
-
-任何支持 **Bash / Read / Write** 工具的 AI Agent 都可以使用本技能。
+</details>
 
 ---
 
-## ⚙️ 配置指南
+## 使用
 
-### 📍 第一步：可选增强
-
-```bash
-python -m pip install jieba
-```
-
-> `jieba` 不是硬依赖；未安装时会自动使用 CJK bigram 回退分词，仍可运行。
-
-### 📍 第二步：安装爬虫引擎（可选，推荐，可获取 7/8 平台数据）
+### 研究一个主题
 
 ```bash
-python -m pip install playwright
-python -m playwright install chromium
+python scripts/last30days.py "AI编程助手"                       # 默认：8 个平台、最近 30 天
+python scripts/last30days.py "AI编程助手" --emit html-path      # 生成 HTML 报告并输出路径
+python scripts/last30days.py "AI编程助手" --deep                # 每个平台抓更多
+python scripts/last30days.py "AI编程助手" --quick               # 只跑和问题类型最相关的平台
+python scripts/last30days.py "AI编程助手" --search bili,zhihu,xhs
+python scripts/last30days.py "AI编程助手" --days 7
+python scripts/last30days.py "AI编程助手" --as-of 2026-05-01    # 回看某个历史时间窗
 ```
 
-> 安装 Playwright 后，微博、小红书、抖音、B站（备用）、知乎（备用）均可无需 API Key 使用。
+输出示例（格式示意）：
 
-### 旧 macOS / 旧电脑兼容模式
+```text
+🌐 last30days-cn v4.0.0-cn · 数据截至 2026-10-03
+## 研究结果: AI编程助手
 
-Playwright 管理的 Chromium 会随版本提高系统要求。macOS Catalina 等旧系统无法启动新版浏览器时，不需要放弃整个 skill：
+### 🔗 跨平台聚合热点
+- **某工具发布新版本** — 覆盖 B站、今日头条、微博（4 条）
 
-1. 继续使用公开 API 和 Bing 站内搜索兜底（不安装 Playwright），或安装一份仍支持当前系统的 Chromium/Chrome。
-2. 将 Playwright 指向本机浏览器可执行文件：
+### B站视频
+**BL1** (得分:95) 某UP主 (2026-09-28) [1,446播放, 140收藏, 116点赞]
+  2026 最新 Codex 完整教程
+  https://www.bilibili.com/video/BV...
+
+---
+**来源:**
+  ✅ B站: 18 条（路径: wbi-search×20）
+  ✅ 今日头条: 6 条（原始 15 条，按时间窗/相关性保留）（路径: so.toutiao×15）
+  ❌ 小红书: 小红书搜索需要登录态：运行 `python scripts/last30days.py login xiaohongshu` …
+```
+
+报告文件保存在 `~/.local/share/last30days/out/`：`report.md`、`report.json`、`report.html`、`last30days.context.md`。
+
+### 全网热榜
 
 ```bash
-export LAST30DAYS_BROWSER_PATH="/Applications/Chromium.app/Contents/MacOS/Chromium"
-python scripts/last30days.py --diagnose
+python scripts/last30days.py --hot                                   # 微博 / 百度 / 抖音 / 头条 / B站 / 知乎
+python scripts/last30days.py --hot AI                                # 只看和某个主题有关的热点
+python scripts/last30days.py --hot --hot-sources boards,news,global  # 加上科技资讯 RSS 与 Hacker News
+python scripts/last30days.py --hot --emit html-path                  # 生成热榜网页
 ```
 
-也可以使用已安装的 Chrome channel：
+- 同一件事在不同平台的叫法往往不同（「中国男足获亚运铜牌」/「拿下点球大战！U23国足获亚运铜牌」），热榜会按关键词把它们合并成一条「跨平台热点」，按登上的平台数排序。
+- 热榜网页带关键词筛选、深色模式和手机布局。
+- 自定义资讯源：设置 `LAST30DAYS_HOT_FEEDS="名称|RSS地址,名称|RSS地址"`，例如自建 [RSSHub](https://docs.rsshub.app/) 的 36 氪快讯或 X 列表。
+
+### 每日热点网站
+
+仓库自带 GitHub Actions 工作流 [`.github/workflows/daily-hot.yml`](.github/workflows/daily-hot.yml)，可以把热榜每天自动发布成一个网页。**默认不运行**，在你的仓库（或 fork）中启用：
+
+1. Settings → Pages → Source 选择 **GitHub Actions**
+2. Settings → Secrets and variables → Actions → Variables，新建 `HOT_PAGES`，值为 `true`
+3. （可选）设置变量 `HOT_SOURCES`（默认 `boards,news,global`）、`HOT_FEEDS`（自定义 RSS）、`HOT_TITLE`（页面标题）
+4. Actions → **Daily Hot Board** → Run workflow
+
+之后每天北京时间 08:00、12:00、20:00 自动更新，地址为 `https://<用户名>.github.io/<仓库名>/`。
+
+### 需要登录的平台
+
+小红书、微博、知乎、抖音的搜索基本都要求登录。扫码登录一次即可（需要 Playwright）：
 
 ```bash
-export LAST30DAYS_BROWSER_CHANNEL=chrome
+python scripts/last30days.py login xiaohongshu   # 也支持 weibo / zhihu / douyin / bilibili
 ```
 
-若希望强制跳过所有浏览器调用：
+- 登录态保存在 `~/.config/last30days-cn/browser_cookies/`（仅当前用户可读），之后的检索会自动复用；过期后会提示重新登录。
+- 服务器、SSH 等没有图形界面的环境，可以导入自己浏览器里复制的 Cookie：
+
+  ```bash
+  python scripts/last30days.py login zhihu --cookie "z_c0=...; _xsrf=..."
+  ```
+
+- 也可以在配置文件里填 `WEIBO_COOKIE`、`ZHIHU_COOKIE`、`BILIBILI_COOKIE`。
+- 不登录也能用：这些平台会改用热榜匹配和公开搜索兜底，报告里会注明「只有公开链接，缺少互动数据」。
+
+### 海外平台（可选）
 
 ```bash
-export LAST30DAYS_DISABLE_BROWSER=1
-python scripts/last30days.py "AI 工具" --search weibo,xiaohongshu,bilibili,zhihu,douyin,baidu,toutiao
+python scripts/last30days.py "Claude Code 评测" --global                                # 加上 Hacker News / GitHub / Reddit
+python scripts/last30days.py "AI编程助手" --global --global-query "AI coding assistant"  # 中文主题需提供英文关键词
+python scripts/last30days.py "Claude Code" --search x,youtube                            # 通过上游 last30days 获取
 ```
 
-`LAST30DAYS_BROWSER_PATH` 必须指向旧系统实际能够启动的浏览器；skill 不会下载或升级系统浏览器。浏览器爬虫仍受平台登录态、验证码和接口改版影响，小红书的 `search/recommend` 联想词不会被计入搜索结果。
+- Hacker News、GitHub、Reddit 不需要 Key。GitHub 可配置 `GITHUB_TOKEN` 提高额度；Reddit 会拒绝部分云服务器 IP，遇到时会明确提示。
+- X、YouTube、TikTok、Instagram 通过本机安装的上游 skill 获取（`npx skills add mvanhorn/last30days-skill -g`，需要 Python 3.12+）。
+- 默认关闭；想长期开启可以在配置里写 `INCLUDE_SOURCES=global`。
 
-### 📍 第三步：创建配置文件（可选）
+### 旧电脑与无浏览器模式
 
-如果您希望使用 API 模式获取更稳定的数据，或需要使用微信公众号搜索：
+- B站、头条、微信公众号、百度和全网热榜都不需要浏览器。
+- 浏览器启动失败时，本次运行会自动切换到无浏览器模式，并提示修复方法，不会让每个平台各卡一遍。
+- 新版 Chromium 在旧系统（如 macOS Catalina）上启动不了时，可以改用系统已经装好的浏览器：
 
-```bash
-mkdir -p ~/.config/last30days-cn
-touch ~/.config/last30days-cn/.env
-chmod 600 ~/.config/last30days-cn/.env
-```
+  ```bash
+  export LAST30DAYS_BROWSER_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  python scripts/last30days.py --diagnose --probe-browser    # 真实启动一次，确认可用
+  ```
 
-**Windows（PowerShell）等价：** 创建目录与空配置文件可用 `New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\last30days-cn"` 与 `New-Item -ItemType File -Path "$env:USERPROFILE\.config\last30days-cn\.env" -Force`。限制 `.env` 仅当前用户可读写可近似使用 `icacls "$env:USERPROFILE\.config\last30days-cn\.env" /inheritance:r /grant:r "$($env:USERNAME):(R,W)"`（与 Unix `chmod 600` 意图相近，权限模型不同）。
+- 完全不用浏览器：加 `--no-browser`，或在配置里写 `LAST30DAYS_DISABLE_BROWSER=1`。
+- 机器性能一般时，设置 `LAST30DAYS_BROWSER_CONCURRENCY=1` 让浏览器一个一个开。
+- 支持 Python 3.8（macOS Catalina 自带的 `python3`）。
 
-编辑 `~/.config/last30days-cn/.env`，按需填入 API Key：
+---
+
+## 平台与数据路径
+
+| 平台 | 数据路径（按顺序尝试） | 不登录 / 不配置时 | 可选配置 |
+|---|---|---|---|
+| 🔴 微博 | 开放平台 API → 登录 Cookie 搜索 → 登录态浏览器 | 热搜榜匹配 + 公开搜索 | `login weibo`、`WEIBO_COOKIE`、`WEIBO_ACCESS_TOKEN` |
+| 📕 小红书 | xiaohongshu-mcp → 登录态浏览器 | 公开搜索（仅笔记链接） | `login xiaohongshu`、`XIAOHONGSHU_API_BASE` |
+| 📺 B站 | WBI 签名搜索 → 备用接口 → 浏览器 | ✅ 完整可用 | `BILIBILI_COOKIE` |
+| 💬 知乎 | Cookie 搜索 → 登录态浏览器 | 热榜匹配 + 公开搜索 | `login zhihu`、`ZHIHU_COOKIE` |
+| 🎵 抖音 | TikHub API → 登录态浏览器 | 热榜匹配 + 公开搜索 | `login douyin`、`TIKHUB_API_KEY` |
+| 💚 微信公众号 | 极速数据 API → 搜狗微信 | ✅ 搜狗微信可用 | `WECHAT_API_KEY` |
+| 🔵 百度 | 千帆 AI 搜索 API → 网页搜索 | 网页搜索 + 公开搜索 | `BAIDU_API_KEY` |
+| 📰 今日头条 | 资讯搜索 + 热榜 | ✅ 完整可用 | — |
+| 🌏 海外（可选） | Hacker News / GitHub / Reddit；上游桥接 X / YouTube / TikTok | — | `--global`、`GITHUB_TOKEN` |
+
+「公开搜索」指通过搜索引擎查找该平台的公开页面，只能拿到链接和摘要，**没有可靠的互动数据和精确日期**。报告会把这类结果单独标出。
+
+---
+
+## 配置
+
+所有配置都是可选的。运行 `python scripts/last30days.py setup` 会生成带注释的配置模板 `~/.config/last30days-cn/.env`（项目级配置放在 `.claude/last30days-cn.env`）：
 
 ```ini
-# ============================================
-# last30days-cn v2.0 配置文件
-# ============================================
-# 📌 说明：所有 API Key 均为可选
-# 安装 Playwright 后，大部分平台已可通过爬虫模式使用
-# API Key 提供更稳定的数据获取方式
-# ============================================
-
-# 🔴 微博开放平台（可选，已有爬虫模式替代）
-# 获取方式: https://open.weibo.com → 创建应用 → 获取 Access Token
-WEIBO_ACCESS_TOKEN=
-
-# 📕 小红书（可选，已有爬虫模式替代）
-# 获取方式: https://scrapecreators.com → 注册 → 获取 API Key
-SCRAPECREATORS_API_KEY=
-
-# 💬 知乎 Cookie（可选，增强搜索质量）
-# 获取方式: 浏览器登录知乎 → F12 → Network → 复制 Cookie 值
+# 登录态（推荐用 login 命令扫码；没有图形界面时再手动填写）
+WEIBO_COOKIE=
 ZHIHU_COOKIE=
+BILIBILI_COOKIE=
 
-# 🎵 抖音（可选，已有爬虫模式替代）
-# 获取方式: https://tikhub.io → 注册 → 获取 API Key
-TIKHUB_API_KEY=
+# API Key
+TIKHUB_API_KEY=          # 抖音
+WECHAT_API_KEY=          # 微信公众号（极速数据）
+BAIDU_API_KEY=           # 百度千帆「AI 搜索」
+WEIBO_ACCESS_TOKEN=      # 微博开放平台
+XIAOHONGSHU_API_BASE=    # 自部署的 xiaohongshu-mcp，默认自动探测 127.0.0.1:18060
+GITHUB_TOKEN=            # 海外 GitHub 源
 
-# 💚 微信公众号搜索（目前无爬虫替代，需 API Key 才能使用）
-# 获取方式: 使用第三方微信搜索 API 服务商
-WECHAT_API_KEY=
-
-# 🔵 百度搜索 API（可选，公开搜索已可用）
-# 获取方式: https://cloud.baidu.com → 搜索服务 → 创建应用
-BAIDU_API_KEY=
-BAIDU_SECRET_KEY=
+# 运行开关
+LAST30DAYS_DISABLE_BROWSER=1     # 不使用浏览器
+LAST30DAYS_BROWSER_PATH=         # 指定本机浏览器
+INCLUDE_SOURCES=global           # 默认附带海外源
+EXCLUDE_SOURCES=douyin           # 默认排除某些平台
+LAST30DAYS_HOT_FEEDS=            # 热榜自定义 RSS
 ```
 
-### 📍 第四步：验证配置
-
-```bash
-python scripts/last30days.py --diagnose
-```
-
-将输出各平台的可用状态和爬虫引擎状态：
-
-```json
-{
-  "weibo": true,
-  "xiaohongshu": false,
-  "bilibili": true,
-  "zhihu": true,
-  "douyin": true,
-  "wechat": false,
-  "baidu_api": false,
-  "toutiao": true,
-  "crawler_engine": {
-    "playwright_available": true,
-    "cached_logins": [],
-    "note": "安装 Playwright 后，微博/小红书/抖音/B站/知乎可无需 API Key 使用爬虫模式"
-  },
-  "note_douyin_toutiao": "抖音/头条原生接口需签名参数，常被风控；接口失败时改用公开搜索引擎兜底，仅能拿到公开链接，无真实互动数据与精确日期。"
-}
-```
+优先级：命令行环境变量 > 项目级配置 > 全局配置。Windows（PowerShell）创建配置目录：`New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\last30days-cn"`。
 
 ---
 
-## 🚀 使用方式
+## 命令参考
 
-### 基本用法
-
-```bash
-python scripts/last30days.py "AI编程助手" --emit compact
-python scripts/last30days.py "AI编程助手" --emit html-path
-```
-
-### 命令行参数
-
-| 参数 | 说明 | 示例 |
-|:---:|:---:|:---:|
-| `--emit` | 输出模式 | `compact` / `json` / `md` / `context` / `path` / `html` / `html-path` |
-| `--quick` | 快速搜索 | 更少数据源，更快速度 |
-| `--deep` | 深度搜索 | 更多数据源，更全面 |
-| `--days N` | 回溯天数 | `--days 7`（最近一周） |
-| `--as-of` | 历史回溯终点日期 | `--as-of 2026-05-01`（以该日为终点回溯 N 天） |
-| `--search` | 指定搜索源 | `--search weibo,bilibili,zhihu` |
-| `--diagnose` | 诊断配置 | 显示各平台可用状态 |
-| `--timeout SECS` | 全局超时秒数 | 覆盖默认全局超时 |
-| `--save-dir DIR` | 自动保存原始输出目录 | 将原始输出写入指定目录 |
-| `--debug` | 调试模式 | 输出详细日志 |
-
-> 🔧 **环境变量**：未指定 `--search` 时，回退到 `LAST30DAYS_DEFAULT_SEARCH`（逗号分隔的默认源集）；`EXCLUDE_SOURCES` 可从启用集合中排除指定源。
-
-### 使用示例
-
-```bash
-# 🔍 搜索 AI 相关话题
-python scripts/last30days.py "最新AI工具" --emit compact
-
-# ⚡ 快速搜索，仅 B站和知乎
-python scripts/last30days.py "Python教程" --quick --search bilibili,zhihu
-
-# 📊 深度搜索并保存结果
-python scripts/last30days.py "新能源汽车" --deep --save-dir ~/Documents/research
-
-# 📋 输出 JSON 格式（适合程序处理）
-python scripts/last30days.py "ChatGPT替代品" --emit json
-
-# 🗓️ 仅搜索最近 7 天
-python scripts/last30days.py "热门话题" --days 7
-
-# 🧾 生成可离线打开的 HTML 报告
-python scripts/last30days.py "具身智能" --deep --emit html-path
-```
+| 参数 | 说明 |
+|---|---|
+| `--emit` | `compact`（默认，给 Agent 用）/ `md` / `json` / `html` / `html-path` / `context` / `path` |
+| `--quick` / `--deep` | 快速（只跑与问题类型最相关的平台）/ 深度（每个平台抓更多） |
+| `--days N` | 回溯天数，1–30，默认 30 |
+| `--as-of YYYY-MM-DD` | 以指定日期为终点回溯 |
+| `--search SOURCES` | 平台或分组：`weibo`、`xhs`、`bili`、`zhihu`、`douyin`、`wechat`、`baidu`、`toutiao`、`cn`、`global`、`all`、`hn`、`github`、`reddit`、`x`、`youtube` 等 |
+| `--global` / `--global-query Q` | 启用海外源 / 海外源使用的英文关键词 |
+| `--hot [关键词]` | 全网热榜；配合 `--hot-sources`、`--hot-limit`、`--hot-title` |
+| `login <平台> [--cookie "..."]` | 保存平台登录态 |
+| `--diagnose [--probe-browser]` | 诊断各平台；`--emit json` 输出机器可读结果 |
+| `setup` | 首次配置，生成配置模板 |
+| `--no-browser` | 本次运行不使用浏览器 |
+| `--refresh` / `--no-cache` / `--cache-ttl H` | 缓存控制（默认缓存 24 小时） |
+| `--save-dir DIR` / `--timeout SECS` / `--debug` | 另存输出 / 全局超时 / 调试日志 |
 
 ---
 
-## 🔧 数据获取策略（三级降级）
+## 工作原理
 
-v2.0 采用三级自动降级策略，确保最大可用性：
+1. **检索**：各平台并行运行，每个平台有自己的超时，一个平台卡住不影响其他平台。每个平台按「API → 登录态 → 公开接口 → 公开搜索」逐级尝试。
+2. **清洗**：统一字段 → 过滤研究时间窗外的内容 → 同平台去重 → 去掉与主题无关的结果 → 同一作者最多保留 3 条。
+3. **打分**：综合分（0–100）= 相关性 45% + 时效 25% + 互动 30%。网页类来源（百度、公众号）只看相关性和时效。
+4. **归并**：比较不同平台的内容时先去掉主题词本身，再判断是否在说同一件事，避免仅因提到同一主题就被误判为同一事件。
+5. **输出**：精简证据给 Agent 归纳，同时写出完整报告文件。
 
-```
-优先级 1: API 模式（如配置了 API Key）
-    ↓ 失败或未配置
-优先级 2: 爬虫模式（MediaCrawler，需要 Playwright）
-    ↓ 失败或未安装
-优先级 3: 公开接口（HTTP 直接请求，无需任何配置）
-    ↓ 仍无结果（抖音/头条/小红书/知乎）
-兜底: 公开搜索引擎（Bing site: 搜索，获取公开链接）
-```
-
-### 各平台数据获取方式对比
-
-| 平台 | API 模式 | 爬虫模式 | 公开接口 | 搜索兜底 |
-|:---:|:---:|:---:|:---:|:---:|
-| 微博 | `WEIBO_ACCESS_TOKEN` | ✅ Playwright | ✅ m.weibo.cn | - |
-| 小红书 | MCP HTTP API(可选) | ✅ Playwright (笔记 payload 识别) | ⚠️ 命中率低 | ✅ Bing |
-| B站 | - | ✅ Playwright(备用) | ✅ 公开 API | - |
-| 知乎 | `ZHIHU_COOKIE`(增强) | ✅ Playwright(备用) | ✅ 公开搜索 | ✅ Bing |
-| 抖音 | `TIKHUB_API_KEY` | ✅ Playwright | ⚠️ 需签名 | ✅ Bing |
-| 微信 | `WECHAT_API_KEY` | - | ✅ 搜狗搜索 | - |
-| 百度 | `BAIDU_API_KEY` | - | ⚠️ 公开搜索可能被拦截 | ✅ Bing |
-| 头条 | - | - | ⚠️ 需签名 | ✅ Bing |
-
-> ⚠️ 抖音/头条原生 web 接口现在强制要求签名参数（`a_bogus` / `_signature`），常被风控。接口失败时改用公开搜索引擎兜底，**只能拿到公开链接，无真实互动数据与精确日期**。
+各平台的互动指标：微博（转发 / 评论 / 点赞）、小红书（点赞 / 收藏 / 评论 / 分享）、B站（播放 / 弹幕 / 评论 / 点赞 / 收藏）、知乎（赞同 / 评论 / 收藏）、抖音（点赞 / 评论 / 分享 / 播放）、头条（阅读 / 评论 / 点赞）。
 
 ---
 
-## 🏗️ 项目架构
+## 项目结构
 
 ```
 last30days-skill-cn/
-├── 📄 SKILL.md              # Agent 技能定义文件
-├── 📄 README.md             # 项目说明（中文，本文件）
-├── 📄 README.en.md          # 项目说明（English）
-├── 📄 LICENSE               # MIT 许可证
-├── 📄 requirements.txt      # Python 依赖
-├── 📁 assets/               # README 配图
-├── 📁 scripts/
-│   ├── 🐍 last30days.py     # 中文主入口 CLI
-│   └── 📁 lib/
-│       ├── crawler_bridge.py  # 🆕 MediaCrawler 爬虫桥接模块
-│       ├── weibo.py          # 微博搜索模块
-│       ├── xiaohongshu.py    # 小红书搜索模块
-│       ├── bilibili.py       # B站搜索模块
-│       ├── zhihu.py          # 知乎搜索模块
-│       ├── douyin.py         # 抖音搜索模块
-│       ├── wechat.py         # 微信公众号模块
-│       ├── baidu.py          # 百度搜索模块
-│       ├── toutiao.py        # 今日头条模块
-│       ├── schema.py         # 数据结构定义
-│       ├── score.py          # 评分系统
-│       ├── normalize.py      # 数据标准化
-│       ├── dedupe.py         # 去重
-│       ├── render.py         # 输出渲染
-│       ├── relevance.py      # 相关性计算
-│       ├── query.py          # 查询预处理
-│       ├── query_type.py     # 查询类型检测
-│       ├── entity_extract.py # 实体抽取
-│       ├── env.py            # 环境配置管理
-│       ├── cache.py          # 缓存管理
-│       ├── dates.py          # 日期工具
-│       ├── http.py           # HTTP 客户端
-│       ├── ui.py             # 终端 UI
-│       └── setup_wizard.py   # 配置向导
-├── 📁 skills/
-│   └── 📁 last30days/        # Agent Skills 自包含运行载荷
-│       ├── 📄 SKILL.md       # 安装后供 Agent 读取的技能说明
-│       └── 📁 scripts/
-│           ├── 🐍 last30days.py
-│           └── 📁 lib/       # 与根目录脚本同步的运行依赖
-├── 📁 fixtures/              # 示例数据
-├── 📁 tests/                 # 测试用例
-└── 📁 hooks/                 # Agent 钩子
+├── SKILL.md                 # Agent 读取的技能说明
+├── scripts/
+│   ├── last30days.py        # 命令行入口
+│   └── lib/                 # 平台适配、检索流水线、热榜、渲染、诊断等
+├── skills/last30days/       # 自动生成的可安装技能包（勿手动修改）
+├── tests/                   # 回归测试（不联网）
+└── .github/workflows/       # CI 与每日热榜发布
 ```
 
----
-
-## 📊 评分系统
-
-每条搜索结果的综合评分（0-100）基于：
-
-| 维度 | 权重 | 说明 |
-|:---:|:---:|:---|
-| 🎯 相关性 | 45% | 与查询主题的文本匹配度 |
-| 🕐 时效性 | 25% | 内容发布时间的新鲜程度 |
-| 🔥 互动度 | 30% | 各平台互动指标（见下表） |
-
-### 各平台互动指标
-
-| 平台 | 互动指标 |
-|:---:|:---|
-| 微博 | 转发 + 评论 + 点赞 |
-| 小红书 | 点赞 + 收藏 + 评论 + 分享 |
-| B站 | 播放 + 弹幕 + 评论 + 投币 + 收藏 |
-| 知乎 | 赞同 + 评论 + 收藏 |
-| 抖音 | 点赞 + 评论 + 分享 + 播放 |
-| 头条 | 评论 + 阅读 + 点赞 |
+参与开发请先阅读 [AGENTS.md](AGENTS.md)，技术细节见 [SPEC.md](SPEC.md)，版本变化见 [release-notes.md](release-notes.md)。
 
 ---
 
-## 🙏 致谢
+## ⚠️ 免责声明
 
-- [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) — 原始英文版项目
-- [NanmiCoder/MediaCrawler](https://github.com/NanmiCoder/MediaCrawler) — 爬虫引擎技术灵感来源
+> **请务必仔细阅读以下内容。使用本项目即表示您同意以下所有条款。**
+
+1. **本项目仅供学习和研究目的**，严禁用于商业用途。
+2. 使用者必须遵守中华人民共和国相关法律法规，包括但不限于《网络安全法》《数据安全法》《个人信息保护法》《反不正当竞争法》。
+3. 使用者必须遵守各平台的**服务条款**和 **robots.txt** 规定。
+4. **禁止**将本项目用于以下行为：
+   - 大规模、高频率抓取平台数据
+   - 收集、存储或传播他人个人信息
+   - 破坏或干扰平台正常运营
+   - 数据倒卖或任何商业牟利
+   - 对外提供自动化数据采集服务
+5. 本项目开发者**不承担**因使用本项目而产生的任何法律责任，使用者**自行承担**全部法律风险。
+6. 如有侵权，请联系作者，将第一时间处理。
+
+浏览器模式驱动真实浏览器、复用**你本人**登录的会话，由页面自己发出请求，不涉及逆向加密算法或破解安全机制。各平台接口随时可能变更，本项目不保证所有功能始终可用。请控制请求频率（建议每次搜索间隔 ≥ 5 秒）。
+
+> 💡 爬虫违法违规的案例频发，请务必合法合规使用。参考：[中国爬虫相关法律案例汇总](https://github.com/HiddenStrawberry/Crawler_Illegal_Cases_In_China)
 
 ---
 
-## 📜 许可证
+## 致谢
 
-本项目基于 [MIT License](LICENSE) 发布。
+- [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill)：原版项目，也是海外平台桥接的对象
+- [NanmiCoder/MediaCrawler](https://github.com/NanmiCoder/MediaCrawler)：复用浏览器登录态的思路来源
+- [xpzouying/xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp)：可选的小红书数据服务
+- [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill)：HTML 报告的视觉风格来源
 
-- 🔗 原始项目: [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) by Matt Van Horn
-- 🇨🇳 中文本土化: Jesse ([@Jesseovo](https://github.com/Jesseovo))
+## 许可证
+
+[MIT License](LICENSE)。原始项目 [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill)（Matt Van Horn），中文本土化 Jesse（[@Jesseovo](https://github.com/Jesseovo)）。

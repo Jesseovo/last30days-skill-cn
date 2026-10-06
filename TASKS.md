@@ -1,73 +1,39 @@
-# last30days-cn 本地化任务清单
+# last30days-cn 任务清单
 
 > Author: Jesse
 
-以下为 **中国平台 fork** 相关任务，均已完成。
+## v4.0.0（已完成）
 
-## 产品与文档
+### Issue
 
-- [x] 编写中文 `README.md`（平台表、多 Agent 安装、配置、示例）
-- [x] 编写中文 `CLAUDE.md`（Agent 指引）
-- [x] 编写中文 `SPEC.md`（架构、模块、CLI、输出路径）
-- [x] 编写中文 `TASKS.md`（本清单）
-- [x] 更新 `SKILL.md` 与技能 frontmatter（若适用）
-- [x] 中文 `release-notes.md`（v1.0.0）
+- [x] #17 B站 WAF 对不完整 UA 回 412：统一完整浏览器 UA；B站 WBI 签名 + buvid3；412 时换会话回退旧接口
+- [x] #16 每日热点网站：`--hot` 全网热榜 + 跨平台热点合并 + GitHub Pages 每日发布工作流（默认关闭）
+- [x] #13 旧电脑：浏览器启动失败自动熔断、`--no-browser`、`--probe-browser`、Python 3.8 兼容与 CI
+- [x] #11 小红书 XHR 改版：XHR 卡片 / `__INITIAL_STATE__` / DOM 三重解析、登录入口、MCP 接口修正、`xsec_token`
+- [x] #10 npx 安装失败：确认无 symlink（v3.0 已修），新增 `.gitattributes`
+- [x] #9 海外平台：可选的 Hacker News / GitHub / Reddit，以及上游 last30days 桥接
+- [x] #8 小红书 Playwright 无数据：`login` 命令 + 诚实诊断；知乎/抖音/头条一并处理
 
-## 核心编排与 CLI
+### 平台
 
-- [x] `scripts/last30days.py` 改造为多源中文编排（并行、超时档位、`--search` / `--days` / `--emit` 等）
-- [x] 移除或替换英文源依赖，统一为 8 大中文平台流水线
-- [x] `setup` 主题入口与 `setup_wizard` 集成
-- [x] `--diagnose` 数据源可用性诊断
-- [x] `--save-dir` 额外落盘 Markdown
-- [x] Windows UTF-8 输出适配
+- [x] 头条：`so.toutiao.com` 服务端渲染结果卡片解析（替代失效接口）
+- [x] 微信：搜狗 `news-list` 解析（修复导航链接被当成文章的问题）
+- [x] 百度：千帆 AI 搜索 API；2025+ 新版页面解析（真实链接/站点/摘要/日期）
+- [x] 微博：识别登录墙；`WEIBO_COOKIE`；热搜榜匹配
+- [x] 知乎 / 抖音：浏览器模式改为拦截页面自身的搜索请求；热榜匹配
 
-## 平台适配层（8 个）
+### 引擎与质量
 
-- [x] `scripts/lib/weibo.py` — 微博
-- [x] `scripts/lib/xiaohongshu.py` — 小红书
-- [x] `scripts/lib/bilibili.py` — B 站
-- [x] `scripts/lib/zhihu.py` — 知乎
-- [x] `scripts/lib/douyin.py` — 抖音
-- [x] `scripts/lib/wechat.py` — 微信公众号
-- [x] `scripts/lib/baidu.py` — 百度搜索
-- [x] `scripts/lib/toutiao.py` — 今日头条
+- [x] 数据源注册表 + 流水线（守护线程、每个源独立截止时间、记录各源状态）
+- [x] 统一 HTTP 层 + 多引擎兜底（经过校验）
+- [x] 平台检索词保留原始写法；跨源聚类前去掉主题词
+- [x] 修复渲染标签错误；HTML 深色模式
+- [x] `--diagnose` 显示各平台实际路径；`.env` 中的运行开关生效
+- [x] 140 个新增测试（不访问网络）；修复 test_dates 的 UTC/北京时间不一致
 
-## 通用库模块
+## 后续可考虑
 
-- [x] `env.py` — `last30days-cn` 配置路径与密钥集合
-- [x] `dates.py` — 日期窗口
-- [x] `cache.py` — TTL 缓存
-- [x] `http.py` — HTTP 与重试
-- [x] `normalize.py` — 八平台归一化与日期过滤
-- [x] `score.py` — 打分与排序、`relevance_filter`
-- [x] `dedupe.py` — 去重与跨源关联
-- [x] `render.py` — 输出与写盘路径
-- [x] `schema.py` — 报告模型
-- [x] `query.py` — 查询处理（jieba）
-- [x] `relevance.py` — 相关性（jieba 中文分支）
-- [x] `entity_extract.py` — 实体相关逻辑
-- [x] `query_type.py` — 查询类型检测
-- [x] `ui.py` — 状态与展示辅助
-
-## 包规范
-
-- [x] `scripts/lib/__init__.py` 保持裸包标记（仅注释，无 eager import）
-
-## 依赖与中文 NLP
-
-- [x] `requirements.txt` 加入 `jieba` 等必要依赖
-
-## 测试与样例
-
-- [x] 针对中文流水线调整或新增测试与 fixtures（随仓库现状）
-- [x] 验证 `--emit=compact` / `--emit=context` 等主路径
-
-## 发布与同步
-
-- [x] `scripts/sync.sh` 或与 Claude Code / OpenClaw 目录的部署说明对齐（按需手动改目标目录名）
-
----
-
-*凡上列项均为回顾性勾选，表示本 fork 规划内工作已落实；若上游 last30days 继续演进，可另开 TASKS 跟踪合并。*
-
+- [ ] 抖音 / 小红书评论区观点抽取（需要登录态，注意频率与合规）
+- [ ] 热榜历史归档（按天存档到 gh-pages 分支，用来观察热点生命周期）
+- [ ] 每周汇总：把一周的热榜合并成趋势报告
+- [ ] 视实际需求评估 YouTube（yt-dlp）原生接入；目前通过上游桥接获取

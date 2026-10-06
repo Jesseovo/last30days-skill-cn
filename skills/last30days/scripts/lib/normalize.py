@@ -17,6 +17,7 @@ T = TypeVar(
     schema.WechatItem,
     schema.BaiduItem,
     schema.ToutiaoItem,
+    schema.GlobalItem,
 )
 
 
@@ -307,6 +308,51 @@ def normalize_toutiao_items(
                 date_confidence=date_confidence,
                 is_hot=bool(item.get("is_hot", False)),
                 hot_value=item.get("hot_value"),
+                engagement=engagement,
+                relevance=item.get("relevance", 0.5),
+                why_relevant=item.get("why_relevant", ""),
+                original_url=item.get("original_url", "") or "",
+            )
+        )
+    return normalized
+
+
+def normalize_global_items(
+    items: List[Dict[str, Any]],
+    from_date: str,
+    to_date: str,
+    platform: str = "",
+) -> List[schema.GlobalItem]:
+    """Normalize overseas items (Hacker News / GitHub / Reddit / upstream bridge)."""
+    normalized = []
+    for item in items:
+        engagement = None
+        eng_raw = item.get("engagement")
+        if isinstance(eng_raw, dict) and eng_raw:
+            engagement = schema.Engagement(
+                score=eng_raw.get("score"),
+                num_comments=eng_raw.get("comments"),
+                likes=eng_raw.get("likes"),
+                views=eng_raw.get("views"),
+                stars=eng_raw.get("stars"),
+                reposts=eng_raw.get("reposts"),
+            )
+            if engagement.is_empty():
+                engagement = None
+        date_str = item.get("date")
+        dc = item.get("date_confidence")
+        date_confidence = dc or dates.get_date_confidence(date_str, from_date, to_date)
+        normalized.append(
+            schema.GlobalItem(
+                id=item.get("id", ""),
+                platform=item.get("platform") or platform,
+                title=item.get("title", ""),
+                url=item.get("url", ""),
+                text=item.get("text", "") or "",
+                author=item.get("author", "") or "",
+                container=item.get("container", "") or "",
+                date=date_str,
+                date_confidence=date_confidence,
                 engagement=engagement,
                 relevance=item.get("relevance", 0.5),
                 why_relevant=item.get("why_relevant", ""),

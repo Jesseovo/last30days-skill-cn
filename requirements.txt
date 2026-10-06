@@ -1,9 +1,18 @@
-# last30days-cn has no hard Python runtime dependencies.
+# last30days-cn has no required runtime dependencies (Python 3.8+ standard library only).
 #
 # Optional enhancements:
+#
 #   python -m pip install jieba
 #     Better Chinese segmentation. Without it the skill falls back to CJK bigrams.
 #
 #   python -m pip install playwright
 #   python -m playwright install chromium
-#     Enables browser crawler mode for platforms that need logged-in or rendered pages.
+#     Browser mode for logged-in platforms (`last30days.py login <platform>`):
+#     Xiaohongshu, Weibo, Zhihu, Douyin. Old machines can point
+#     LAST30DAYS_BROWSER_PATH at an installed Chrome/Chromium, or disable the
+#     browser with LAST30DAYS_DISABLE_BROWSER=1 / --no-browser.
+#
+# Development:
+#
+#   python -m pip install pytest
+#   python -m pytest tests -q

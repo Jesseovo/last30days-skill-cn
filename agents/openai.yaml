@@ -1,8 +1,8 @@
 interface:
   display_name: "近30天研究"
-  short_description: "搜索微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条等8大中国平台最近30天的热门内容，生成综合研究报告。"
-  default_prompt: "研究这个话题在中国互联网平台上最近30天的讨论。综合各平台观点，分析趋势，找出核心发现。"
-  brand_color: "#E53935"
+  short_description: "搜索微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条近 30 天的真实讨论并生成有据可查的报告；也可一键查看全网热榜。"
+  default_prompt: "研究这个话题在中国互联网平台上最近30天的讨论。综合各平台观点，分析趋势，找出核心发现，并标注每个结论的来源。"
+  brand_color: "#002FA7"
 
 policy:
   allow_implicit_invocation: true

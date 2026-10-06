@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "last30days-skill-cn",
-  "description": "中国平台深度研究引擎 - 搜索微博、小红书、B站、知乎等8大平台最近30天的热门内容，生成有据可查的研究简报。",
+  "description": "中文互联网近 30 天研究引擎 - 微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条 8 大平台研究报告 + 全网热榜。",
   "owner": {
     "name": "Jesseovo",
     "url": "https://github.com/Jesseovo"
@@ -9,8 +9,8 @@
   "plugins": [
     {
       "name": "last30days-cn",
-      "description": "中国互联网平台深度研究技能，搜索微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条等平台近30天热门内容，生成有据可查的研究报告。",
-      "version": "3.2.0",
+      "description": "中文互联网研究技能：搜索微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条近 30 天的真实讨论，按互动与时效排序并跨平台聚类，生成有据可查的报告；--hot 一键查看全网热榜；可选 Hacker News / GitHub / Reddit 海外源。",
+      "version": "4.0.0",
       "author": {
         "name": "Jesse",
         "url": "https://github.com/Jesseovo"

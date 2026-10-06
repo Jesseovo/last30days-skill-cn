@@ -1,10 +1,14 @@
-"""Popularity-aware scoring for last30days skill (Chinese platforms).
+"""Popularity-aware scoring for last30days skill (Chinese platforms + overseas).
 
 Author: Jesse (https://github.com/Jesseovo)
+
+v4: the eight copy-pasted ``score_*_items`` bodies share one implementation
+(``score_engagement_items``); public function names are unchanged.
 """
 
 import math
-from typing import List, Optional, Union
+import sys
+from typing import Callable, List, Optional, Union
 
 from . import dates, schema
 from .query_type import QueryType, WEBSEARCH_PENALTY_BY_TYPE, TIEBREAKER_BY_TYPE
@@ -23,6 +27,9 @@ WEBSEARCH_NO_DATE_PENALTY = 20
 DEFAULT_ENGAGEMENT = 35
 UNKNOWN_ENGAGEMENT_PENALTY = 3
 
+# Below this, an item is noise even when the source returned nothing better.
+HARD_RELEVANCE_FLOOR = 0.1
+
 
 def log1p_safe(x: Optional[Union[int, float]]) -> float:
     """Safe log1p that handles None and negative values (int or float)."""
@@ -38,15 +45,7 @@ def log1p_safe(x: Optional[Union[int, float]]) -> float:
 
 
 def normalize_to_100(values: List[float], default: float = 50) -> List[float]:
-    """Normalize a list of values to 0-100 scale.
-
-    Args:
-        values: Raw values (None values are preserved)
-        default: Default value for None entries
-
-    Returns:
-        Normalized values
-    """
+    """Normalize a list of values to 0-100 scale (None entries preserved)."""
     valid = [v for v in values if v is not None]
     if not valid:
         return [default if v is None else 50 for v in values]
@@ -63,34 +62,28 @@ def normalize_to_100(values: List[float], default: float = 50) -> List[float]:
         if v is None:
             result.append(None)
         else:
-            normalized = ((v - min_val) / range_val) * 100
-            result.append(normalized)
-
+            result.append(((v - min_val) / range_val) * 100)
     return result
+
+
+def _all_none(engagement, names) -> bool:
+    return all(getattr(engagement, name, None) is None for name in names)
 
 
 def compute_weibo_engagement_raw(engagement: Optional[schema.Engagement]) -> Optional[float]:
     """0.40*log1p(reposts) + 0.35*log1p(comments) + 0.25*log1p(likes)."""
-    if engagement is None:
+    if engagement is None or _all_none(engagement, ("reposts", "num_comments", "likes")):
         return None
-    if engagement.reposts is None and engagement.num_comments is None and engagement.likes is None:
-        return None
-    r = log1p_safe(engagement.reposts)
-    c = log1p_safe(engagement.num_comments)
-    l = log1p_safe(engagement.likes)
-    return 0.40 * r + 0.35 * c + 0.25 * l
+    return (
+        0.40 * log1p_safe(engagement.reposts)
+        + 0.35 * log1p_safe(engagement.num_comments)
+        + 0.25 * log1p_safe(engagement.likes)
+    )
 
 
 def compute_xiaohongshu_engagement_raw(engagement: Optional[schema.Engagement]) -> Optional[float]:
     """0.35*log1p(likes) + 0.30*log1p(collects) + 0.25*log1p(comments) + 0.10*log1p(shares)."""
-    if engagement is None:
-        return None
-    if (
-        engagement.likes is None
-        and engagement.collects is None
-        and engagement.num_comments is None
-        and engagement.shares is None
-    ):
+    if engagement is None or _all_none(engagement, ("likes", "collects", "num_comments", "shares")):
         return None
     return (
         0.35 * log1p_safe(engagement.likes)
@@ -103,15 +96,7 @@ def compute_xiaohongshu_engagement_raw(engagement: Optional[schema.Engagement]) 
 def compute_bilibili_engagement_raw(engagement: Optional[schema.Engagement]) -> Optional[float]:
     """0.30*log1p(views) + 0.25*log1p(danmaku) + 0.20*log1p(comments)
     + 0.15*log1p(likes) + 0.10*log1p(favorites)."""
-    if engagement is None:
-        return None
-    if (
-        engagement.views is None
-        and engagement.danmaku is None
-        and engagement.num_comments is None
-        and engagement.likes is None
-        and engagement.favorites is None
-    ):
+    if engagement is None or _all_none(engagement, ("views", "danmaku", "num_comments", "likes", "favorites")):
         return None
     return (
         0.30 * log1p_safe(engagement.views)
@@ -124,9 +109,7 @@ def compute_bilibili_engagement_raw(engagement: Optional[schema.Engagement]) -> 
 
 def compute_zhihu_engagement_raw(engagement: Optional[schema.Engagement]) -> Optional[float]:
     """0.45*log1p(voteups) + 0.35*log1p(comments) + 0.20*log1p(collects)."""
-    if engagement is None:
-        return None
-    if engagement.voteups is None and engagement.num_comments is None and engagement.collects is None:
+    if engagement is None or _all_none(engagement, ("voteups", "num_comments", "collects")):
         return None
     return (
         0.45 * log1p_safe(engagement.voteups)
@@ -137,14 +120,7 @@ def compute_zhihu_engagement_raw(engagement: Optional[schema.Engagement]) -> Opt
 
 def compute_douyin_engagement_raw(engagement: Optional[schema.Engagement]) -> Optional[float]:
     """0.35*log1p(likes) + 0.30*log1p(comments) + 0.20*log1p(shares) + 0.15*log1p(views/1000)."""
-    if engagement is None:
-        return None
-    if (
-        engagement.likes is None
-        and engagement.num_comments is None
-        and engagement.shares is None
-        and engagement.views is None
-    ):
+    if engagement is None or _all_none(engagement, ("likes", "num_comments", "shares", "views")):
         return None
     views_k = (engagement.views or 0) / 1000.0
     return (
@@ -157,15 +133,28 @@ def compute_douyin_engagement_raw(engagement: Optional[schema.Engagement]) -> Op
 
 def compute_toutiao_engagement_raw(engagement: Optional[schema.Engagement]) -> Optional[float]:
     """0.40*log1p(comments) + 0.35*log1p(reads/1000) + 0.25*log1p(likes)."""
-    if engagement is None:
-        return None
-    if engagement.num_comments is None and engagement.reads is None and engagement.likes is None:
+    if engagement is None or _all_none(engagement, ("num_comments", "reads", "likes")):
         return None
     reads_k = (engagement.reads or 0) / 1000.0
     return (
         0.40 * log1p_safe(engagement.num_comments)
         + 0.35 * log1p_safe(reads_k)
         + 0.25 * log1p_safe(engagement.likes)
+    )
+
+
+def compute_global_engagement_raw(engagement: Optional[schema.Engagement]) -> Optional[float]:
+    """Points/upvotes/stars dominate; comments and views add depth."""
+    if engagement is None or _all_none(engagement, ("score", "likes", "stars", "num_comments", "views", "reposts")):
+        return None
+    primary = engagement.score if engagement.score is not None else (
+        engagement.stars if engagement.stars is not None else engagement.likes
+    )
+    return (
+        0.45 * log1p_safe(primary)
+        + 0.35 * log1p_safe(engagement.num_comments)
+        + 0.10 * log1p_safe(engagement.reposts)
+        + 0.10 * log1p_safe((engagement.views or 0) / 1000.0)
     )
 
 
@@ -177,18 +166,16 @@ def _apply_date_confidence_penalty(overall: float, item) -> float:
     return overall
 
 
-def score_weibo_items(items: List[schema.WeiboItem]) -> List[schema.WeiboItem]:
+def score_engagement_items(items: List, engagement_fn: Callable) -> List:
+    """Shared relevance + recency + engagement scoring."""
     if not items:
         return items
-    eng_raw = [compute_weibo_engagement_raw(item.engagement) for item in items]
+    eng_raw = [engagement_fn(getattr(item, "engagement", None)) for item in items]
     eng_normalized = normalize_to_100(eng_raw)
     for i, item in enumerate(items):
         rel_score = int(item.relevance * 100)
         rec_score = dates.recency_score(item.date)
-        if eng_normalized[i] is not None:
-            eng_score = int(eng_normalized[i])
-        else:
-            eng_score = DEFAULT_ENGAGEMENT
+        eng_score = int(eng_normalized[i]) if eng_normalized[i] is not None else DEFAULT_ENGAGEMENT
         item.subs = schema.SubScores(relevance=rel_score, recency=rec_score, engagement=eng_score)
         overall = (
             WEIGHT_RELEVANCE * rel_score
@@ -200,137 +187,37 @@ def score_weibo_items(items: List[schema.WeiboItem]) -> List[schema.WeiboItem]:
         overall = _apply_date_confidence_penalty(overall, item)
         item.score = max(0, min(100, int(overall)))
     return items
+
+
+def score_weibo_items(items: List[schema.WeiboItem]) -> List[schema.WeiboItem]:
+    return score_engagement_items(items, compute_weibo_engagement_raw)
 
 
 def score_xiaohongshu_items(items: List[schema.XiaohongshuItem]) -> List[schema.XiaohongshuItem]:
-    if not items:
-        return items
-    eng_raw = [compute_xiaohongshu_engagement_raw(item.engagement) for item in items]
-    eng_normalized = normalize_to_100(eng_raw)
-    for i, item in enumerate(items):
-        rel_score = int(item.relevance * 100)
-        rec_score = dates.recency_score(item.date)
-        if eng_normalized[i] is not None:
-            eng_score = int(eng_normalized[i])
-        else:
-            eng_score = DEFAULT_ENGAGEMENT
-        item.subs = schema.SubScores(relevance=rel_score, recency=rec_score, engagement=eng_score)
-        overall = (
-            WEIGHT_RELEVANCE * rel_score
-            + WEIGHT_RECENCY * rec_score
-            + WEIGHT_ENGAGEMENT * eng_score
-        )
-        if eng_raw[i] is None:
-            overall -= UNKNOWN_ENGAGEMENT_PENALTY
-        overall = _apply_date_confidence_penalty(overall, item)
-        item.score = max(0, min(100, int(overall)))
-    return items
+    return score_engagement_items(items, compute_xiaohongshu_engagement_raw)
 
 
 def score_bilibili_items(items: List[schema.BilibiliItem]) -> List[schema.BilibiliItem]:
-    if not items:
-        return items
-    eng_raw = [compute_bilibili_engagement_raw(item.engagement) for item in items]
-    eng_normalized = normalize_to_100(eng_raw)
-    for i, item in enumerate(items):
-        rel_score = int(item.relevance * 100)
-        rec_score = dates.recency_score(item.date)
-        if eng_normalized[i] is not None:
-            eng_score = int(eng_normalized[i])
-        else:
-            eng_score = DEFAULT_ENGAGEMENT
-        item.subs = schema.SubScores(relevance=rel_score, recency=rec_score, engagement=eng_score)
-        overall = (
-            WEIGHT_RELEVANCE * rel_score
-            + WEIGHT_RECENCY * rec_score
-            + WEIGHT_ENGAGEMENT * eng_score
-        )
-        if eng_raw[i] is None:
-            overall -= UNKNOWN_ENGAGEMENT_PENALTY
-        overall = _apply_date_confidence_penalty(overall, item)
-        item.score = max(0, min(100, int(overall)))
-    return items
+    return score_engagement_items(items, compute_bilibili_engagement_raw)
 
 
 def score_zhihu_items(items: List[schema.ZhihuItem]) -> List[schema.ZhihuItem]:
-    if not items:
-        return items
-    eng_raw = [compute_zhihu_engagement_raw(item.engagement) for item in items]
-    eng_normalized = normalize_to_100(eng_raw)
-    for i, item in enumerate(items):
-        rel_score = int(item.relevance * 100)
-        rec_score = dates.recency_score(item.date)
-        if eng_normalized[i] is not None:
-            eng_score = int(eng_normalized[i])
-        else:
-            eng_score = DEFAULT_ENGAGEMENT
-        item.subs = schema.SubScores(relevance=rel_score, recency=rec_score, engagement=eng_score)
-        overall = (
-            WEIGHT_RELEVANCE * rel_score
-            + WEIGHT_RECENCY * rec_score
-            + WEIGHT_ENGAGEMENT * eng_score
-        )
-        if eng_raw[i] is None:
-            overall -= UNKNOWN_ENGAGEMENT_PENALTY
-        overall = _apply_date_confidence_penalty(overall, item)
-        item.score = max(0, min(100, int(overall)))
-    return items
+    return score_engagement_items(items, compute_zhihu_engagement_raw)
 
 
 def score_douyin_items(items: List[schema.DouyinItem]) -> List[schema.DouyinItem]:
-    if not items:
-        return items
-    eng_raw = [compute_douyin_engagement_raw(item.engagement) for item in items]
-    eng_normalized = normalize_to_100(eng_raw)
-    for i, item in enumerate(items):
-        rel_score = int(item.relevance * 100)
-        rec_score = dates.recency_score(item.date)
-        if eng_normalized[i] is not None:
-            eng_score = int(eng_normalized[i])
-        else:
-            eng_score = DEFAULT_ENGAGEMENT
-        item.subs = schema.SubScores(relevance=rel_score, recency=rec_score, engagement=eng_score)
-        overall = (
-            WEIGHT_RELEVANCE * rel_score
-            + WEIGHT_RECENCY * rec_score
-            + WEIGHT_ENGAGEMENT * eng_score
-        )
-        if eng_raw[i] is None:
-            overall -= UNKNOWN_ENGAGEMENT_PENALTY
-        overall = _apply_date_confidence_penalty(overall, item)
-        item.score = max(0, min(100, int(overall)))
-    return items
+    return score_engagement_items(items, compute_douyin_engagement_raw)
 
 
 def score_toutiao_items(items: List[schema.ToutiaoItem]) -> List[schema.ToutiaoItem]:
-    if not items:
-        return items
-    eng_raw = [compute_toutiao_engagement_raw(item.engagement) for item in items]
-    eng_normalized = normalize_to_100(eng_raw)
-    for i, item in enumerate(items):
-        rel_score = int(item.relevance * 100)
-        rec_score = dates.recency_score(item.date)
-        if eng_normalized[i] is not None:
-            eng_score = int(eng_normalized[i])
-        else:
-            eng_score = DEFAULT_ENGAGEMENT
-        item.subs = schema.SubScores(relevance=rel_score, recency=rec_score, engagement=eng_score)
-        overall = (
-            WEIGHT_RELEVANCE * rel_score
-            + WEIGHT_RECENCY * rec_score
-            + WEIGHT_ENGAGEMENT * eng_score
-        )
-        if eng_raw[i] is None:
-            overall -= UNKNOWN_ENGAGEMENT_PENALTY
-        overall = _apply_date_confidence_penalty(overall, item)
-        item.score = max(0, min(100, int(overall)))
-    return items
+    return score_engagement_items(items, compute_toutiao_engagement_raw)
 
 
-def score_wechat_items(
-    items: List[schema.WechatItem],
-    query_type: QueryType = None,
-) -> List[schema.WechatItem]:
+def score_global_items(items: List[schema.GlobalItem]) -> List[schema.GlobalItem]:
+    return score_engagement_items(items, compute_global_engagement_raw)
+
+
+def _score_websearch_items(items: List, query_type: QueryType = None) -> List:
     """Relevance + recency only (WebSearch-style); no engagement data."""
     if not items:
         return items
@@ -353,30 +240,12 @@ def score_wechat_items(
     return items
 
 
-def score_baidu_items(
-    items: List[schema.BaiduItem],
-    query_type: QueryType = None,
-) -> List[schema.BaiduItem]:
-    """Relevance + recency only (WebSearch-style); no engagement data."""
-    if not items:
-        return items
-    for item in items:
-        rel_score = int(item.relevance * 100)
-        rec_score = dates.recency_score(item.date)
-        item.subs = schema.SubScores(relevance=rel_score, recency=rec_score, engagement=0)
-        overall = WEBSEARCH_WEIGHT_RELEVANCE * rel_score + WEBSEARCH_WEIGHT_RECENCY * rec_score
-        penalty = (
-            WEBSEARCH_PENALTY_BY_TYPE.get(query_type, WEBSEARCH_SOURCE_PENALTY)
-            if query_type
-            else WEBSEARCH_SOURCE_PENALTY
-        )
-        overall -= penalty
-        if item.date_confidence == "high":
-            overall += WEBSEARCH_VERIFIED_BONUS
-        elif item.date_confidence == "low":
-            overall -= WEBSEARCH_NO_DATE_PENALTY
-        item.score = max(0, min(100, int(overall)))
-    return items
+def score_wechat_items(items: List[schema.WechatItem], query_type: QueryType = None) -> List[schema.WechatItem]:
+    return _score_websearch_items(items, query_type)
+
+
+def score_baidu_items(items: List[schema.BaiduItem], query_type: QueryType = None) -> List[schema.BaiduItem]:
+    return _score_websearch_items(items, query_type)
 
 
 _ITEM_SOURCE_MAP = {
@@ -428,67 +297,47 @@ def apply_per_author_cap(items: List, max_per_author: int = 3) -> List:
     return kept
 
 
-def sort_items(
-    items: List[
-        Union[
-            schema.WeiboItem,
-            schema.XiaohongshuItem,
-            schema.BilibiliItem,
-            schema.ZhihuItem,
-            schema.DouyinItem,
-            schema.WechatItem,
-            schema.BaiduItem,
-            schema.ToutiaoItem,
-        ]
-    ],
-    query_type: QueryType = None,
-) -> List:
+def _item_text(item) -> str:
+    if isinstance(item, (schema.WeiboItem, schema.DouyinItem)):
+        return item.text
+    if isinstance(item, schema.XiaohongshuItem):
+        return f"{item.title} {item.desc}"
+    return getattr(item, "title", "") or ""
+
+
+def sort_items(items: List, query_type: QueryType = None) -> List:
     """Sort by score (desc), then date, then source tiebreaker."""
     tiebreaker = (
         TIEBREAKER_BY_TYPE.get(query_type, _DEFAULT_TIEBREAKER) if query_type else _DEFAULT_TIEBREAKER
     )
 
     def sort_key(item):
-        score = -item.score
         date = item.date or "0000-00-00"
-        date_key = -int(date.replace("-", ""))
-        source_name = _ITEM_SOURCE_MAP.get(type(item), "web")
-        source_priority = tiebreaker.get(source_name, 99)
-        if isinstance(item, schema.WeiboItem):
-            text = item.text
-        elif isinstance(item, schema.XiaohongshuItem):
-            text = f"{item.title} {item.desc}"
-        elif isinstance(item, schema.BilibiliItem):
-            text = item.title
-        elif isinstance(item, schema.ZhihuItem):
-            text = item.title
-        elif isinstance(item, schema.DouyinItem):
-            text = item.text
-        elif isinstance(item, schema.WechatItem):
-            text = item.title
-        elif isinstance(item, schema.BaiduItem):
-            text = item.title
-        elif isinstance(item, schema.ToutiaoItem):
-            text = item.title
-        else:
-            text = ""
-        return (score, date_key, source_priority, text)
+        try:
+            date_key = -int(date.replace("-", ""))
+        except ValueError:
+            date_key = 0
+        source_name = _ITEM_SOURCE_MAP.get(type(item), getattr(item, "platform", "web"))
+        return (-item.score, date_key, tiebreaker.get(source_name, 99), _item_text(item))
 
     return sorted(items, key=sort_key)
 
 
 def relevance_filter(items, source_name: str, threshold: float = 0.3):
-    """Filter items below relevance threshold with minimum-result guarantee."""
-    import sys
+    """Filter items below relevance threshold with a small minimum-result guarantee.
 
+    When nothing passes the threshold, keep up to 3 of the best items that are
+    still above ``HARD_RELEVANCE_FLOOR`` (pure noise is never kept).
+    """
     if len(items) <= 3:
         return items
     passed = [i for i in items if getattr(i, "relevance", 0.0) >= threshold]
     if not passed:
+        by_rel = sorted(items, key=lambda x: getattr(x, "relevance", 0.0), reverse=True)
+        kept = [i for i in by_rel[:3] if getattr(i, "relevance", 0.0) >= HARD_RELEVANCE_FLOOR]
         print(
-            f"[{source_name} 警告] 全部结果相关性低于 {threshold}，保留前 3 条",
+            f"[{source_name} 警告] 全部结果相关性低于 {threshold}，保留 {len(kept)} 条弱相关结果",
             file=sys.stderr,
         )
-        by_rel = sorted(items, key=lambda x: getattr(x, "relevance", 0.0), reverse=True)
-        return by_rel[:3]
+        return kept
     return passed
