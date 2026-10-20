@@ -84,6 +84,23 @@
 
 平台登录和接口可用性会影响覆盖范围。报告会区分登录态结果、热榜匹配与公开搜索；公开搜索缺少可靠的互动数据和精确日期，不能当作完整的平台样本。
 
+## 慢慢攒起的小星光
+
+每一颗 Star，都是一次好奇心的相遇。谢谢你愿意把这个小工具留在身边。
+
+<p align="center">
+  <a href="https://github.com/Jesseovo/last30days-skill-cn/stargazers"><img src="https://img.shields.io/github/stars/Jesseovo/last30days-skill-cn?style=flat&amp;label=Stars&amp;labelColor=eee8dc&amp;color=9a7651" alt="GitHub Stars" /></a>&ensp;<a href="https://github.com/Jesseovo/last30days-skill-cn/forks"><img src="https://img.shields.io/github/forks/Jesseovo/last30days-skill-cn?style=flat&amp;label=Forks&amp;labelColor=eee8dc&amp;color=9a7651" alt="GitHub Forks" /></a>
+</p>
+
+<p align="center">
+  <a href="https://star-history.com/#Jesseovo/last30days-skill-cn&amp;Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Jesseovo/last30days-skill-cn&amp;type=Date&amp;theme=dark" />
+      <img src="https://api.star-history.com/svg?repos=Jesseovo/last30days-skill-cn&amp;type=Date" width="680" alt="last30days-cn 的 GitHub Star 增长趋势，点击查看交互图表" />
+    </picture>
+  </a>
+</p>
+
 ## 再往里看看
 
 [使用手册](docs/usage.zh-CN.md) — 登录、可选依赖、平台数据路径、配置和完整命令。<br />
