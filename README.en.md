@@ -71,6 +71,23 @@ The hot board is a snapshot of current rankings. Topic research looks back over 
 
 Login requirements and upstream availability affect coverage. Reports distinguish logged-in results, hot-list matches and public-search fallbacks. Public-search results have no reliable engagement counts or exact dates and do not represent a complete platform sample.
 
+## Little stars, a growing story
+
+Every Star is a small meeting of curious minds. Thanks for keeping this little tool close.
+
+<p align="center">
+  <a href="https://github.com/Jesseovo/last30days-skill-cn/stargazers"><img src="https://img.shields.io/github/stars/Jesseovo/last30days-skill-cn?style=flat&amp;label=Stars&amp;labelColor=eee8dc&amp;color=9a7651" alt="GitHub Stars" /></a>&ensp;<a href="https://github.com/Jesseovo/last30days-skill-cn/forks"><img src="https://img.shields.io/github/forks/Jesseovo/last30days-skill-cn?style=flat&amp;label=Forks&amp;labelColor=eee8dc&amp;color=9a7651" alt="GitHub Forks" /></a>
+</p>
+
+<p align="center">
+  <a href="https://star-history.com/#Jesseovo/last30days-skill-cn&amp;Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Jesseovo/last30days-skill-cn&amp;type=Date&amp;theme=dark" />
+      <img src="https://api.star-history.com/svg?repos=Jesseovo/last30days-skill-cn&amp;type=Date" width="680" alt="GitHub Star history for last30days-cn. Click to explore the interactive chart." />
+    </picture>
+  </a>
+</p>
+
 ## Keep exploring
 
 [Usage guide](docs/usage.en.md) — Logins, optional dependencies, data paths, configuration and CLI reference.<br />
