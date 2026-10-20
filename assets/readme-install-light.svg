@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="208" height="56" viewBox="0 0 208 56" role="img" aria-labelledby="title"><title id="title">交给 Agent</title>
+<rect x=".5" y=".5" width="207" height="55" rx="10" fill="#faf6ee" stroke="#e8ded0"/>
+<g transform="translate(13 13)" shape-rendering="crispEdges"><path d="M3 4h23v19H3z" fill="#887357"/><path d="M5 7h19v13H5z" fill="#faf6ee"/><path d="m8 10 4 3-4 3M15 16h5" fill="none" stroke="#887357" stroke-width="2"/></g>
+<text x="54" y="25" fill="#4c4439" font-family="-apple-system,'Segoe UI','Microsoft YaHei',sans-serif" font-size="12" font-weight="500">交给 Agent</text>
+<text x="54" y="41" fill="#9b8b76" font-family="Consolas,monospace" font-size="7.4" letter-spacing=".35">COPY. PASTE. EXPLORE.</text>
+<path d="M188 17h6v6m0-6-6 6" fill="none" stroke="#9b8b76" stroke-width="1.2"/>
+</svg>

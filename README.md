@@ -1,316 +1,104 @@
 <p align="center">
-  <img src="assets/banner.png" alt="last30days-cn — 中文互联网近 30 天研究引擎" width="900">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme-cover-dark.svg" />
+    <img src="assets/readme-cover-light.svg" width="880" alt="last30days-cn · A little curiosity, backed by sources. 米白像素书桌与好奇的小猫。" />
+  </picture>
 </p>
 
 <p align="center">
-  <b>简体中文</b> ·
-  <a href="README.en.md">English</a>
+  <strong>看看最近 30 天，中文互联网在聊什么。</strong><br />
+  <sub>给 AI Agent 的研究技能，也是你每天打开的一小份热榜。</sub>
 </p>
 
-# last30days-cn
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme-typing-dark.svg" />
+    <img src="assets/readme-typing-light.svg" width="560" height="32" alt="Stay curious. Follow the clues. · Less noise. More little discoveries. · Made for your agent, and your curiosity." />
+  </picture>
+</p>
 
-**中文互联网近 30 天研究引擎。** 让 AI Agent 去微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条看看最近大家到底在说什么，按互动和时效排序、跨平台归并，写成每条结论都有出处的研究报告。也可以一条命令查看全网热榜。
+<p align="center">
+  <a href="https://jesseovo.github.io/last30days-skill-cn/"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme-board-dark.svg" />
+    <img src="assets/readme-board-light.svg" width="208" height="56" alt="打开全网热榜 · 无需安装，直接浏览" />
+  </picture></a>&ensp;<a href="#start"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme-install-dark.svg" />
+    <img src="assets/readme-install-light.svg" width="208" height="56" alt="交给 Agent · 复制一句话，安装并运行" />
+  </picture></a>
+</p>
 
-```bash
-npx skills add Jesseovo/last30days-skill-cn -g
-```
-
-装好后直接对你的 Agent 说：
-
-> 用 last30days 研究一下「新能源汽车价格战」最近 30 天的讨论
->
-> 今天全网有什么热点？
-
----
-
-## 它能做什么
-
-- **主题研究**：8 个平台并行检索，按相关性、时效、互动打分；同一事件在多个平台出现时归并为「跨平台热点」。输出有四种：给 Agent 的精简证据、完整 Markdown、JSON、可离线打开的 HTML 报告。
-- **全网热榜**：不需要主题，汇总微博、百度、抖音、头条、B站、知乎热榜并合并跨平台热点；可加入科技资讯 RSS 和 Hacker News，还能每天自动发布成热点网页。
-- **如实交代覆盖情况**：报告末尾逐平台列出拿到多少条、走了哪条数据路径；失败的平台写明原因和修复命令，不会把「没拿到数据」说成「没人讨论」。
-- **登录态复用**：需要登录的平台扫码一次即可长期使用；没有图形界面时可以导入 Cookie。
-- **海外视角（可选）**：Hacker News、GitHub、Reddit，以及通过上游 [last30days](https://github.com/mvanhorn/last30days-skill) 获取 X、YouTube、TikTok。
-- **轻量**：只依赖 Python 3.8+ 标准库，浏览器和分词都是可选增强，旧电脑也能用。
+<p align="center">
+  <b>简体中文</b> · <a href="README.en.md">English</a> · <a href="docs/usage.zh-CN.md">使用手册</a> · <a href="release-notes.md">更新记录</a>
+</p>
 
 ---
 
-## 快速开始
+<a id="start"></a>
 
-**作为 Agent 技能使用**（Claude Code、Codex、Cursor、Gemini CLI 等支持 Agent Skills 的工具）：
+## 把好奇心交给 Agent
 
-```bash
-npx skills add Jesseovo/last30days-skill-cn -g
-```
-
-**直接在命令行使用：**
-
-```bash
-git clone https://github.com/Jesseovo/last30days-skill-cn.git
-cd last30days-skill-cn
-python scripts/last30days.py "AI编程助手"      # 研究一个主题
-python scripts/last30days.py --hot              # 全网热榜
-python scripts/last30days.py --diagnose         # 查看各平台是否可用、怎么修
-```
-
-**可选增强：**
-
-```bash
-python -m pip install jieba                                                  # 更准的中文分词
-python -m pip install playwright && python -m playwright install chromium    # 登录态平台需要
-```
-
-<details>
-<summary>其他安装方式</summary>
-
-```bash
-# Claude Code 手动安装
-git clone https://github.com/Jesseovo/last30days-skill-cn.git ~/.claude/skills/last30days-cn
-# OpenClaw / ClawHub
-git clone https://github.com/Jesseovo/last30days-skill-cn.git ~/.agents/skills/last30days-cn
-```
-
-- Cursor：克隆仓库后，把 `SKILL.md` 添加为项目技能。
-- Gemini CLI：克隆后作为扩展加载（见 `gemini-extension.json`）。
-- 其他 Agent：只要支持 Bash、Read、Write 就能用。
-
-</details>
-
----
-
-## 使用
-
-### 研究一个主题
-
-```bash
-python scripts/last30days.py "AI编程助手"                       # 默认：8 个平台、最近 30 天
-python scripts/last30days.py "AI编程助手" --emit html-path      # 生成 HTML 报告并输出路径
-python scripts/last30days.py "AI编程助手" --deep                # 每个平台抓更多
-python scripts/last30days.py "AI编程助手" --quick               # 只跑和问题类型最相关的平台
-python scripts/last30days.py "AI编程助手" --search bili,zhihu,xhs
-python scripts/last30days.py "AI编程助手" --days 7
-python scripts/last30days.py "AI编程助手" --as-of 2026-05-01    # 回看某个历史时间窗
-```
-
-输出示例（格式示意）：
+复制这句话，发给你正在使用的 AI Agent：
 
 ```text
-🌐 last30days-cn v4.0.0-cn · 数据截至 2026-10-03
-## 研究结果: AI编程助手
-
-### 🔗 跨平台聚合热点
-- **某工具发布新版本** — 覆盖 B站、今日头条、微博（4 条）
-
-### B站视频
-**BL1** (得分:95) 某UP主 (2026-09-28) [1,446播放, 140收藏, 116点赞]
-  2026 最新 Codex 完整教程
-  https://www.bilibili.com/video/BV...
-
----
-**来源:**
-  ✅ B站: 18 条（路径: wbi-search×20）
-  ✅ 今日头条: 6 条（原始 15 条，按时间窗/相关性保留）（路径: so.toutiao×15）
-  ❌ 小红书: 小红书搜索需要登录态：运行 `python scripts/last30days.py login xiaohongshu` …
+帮我安装并配置 last30days-cn（https://github.com/Jesseovo/last30days-skill-cn），检查可用数据源，然后查看今天的全网热榜。
 ```
 
-报告文件保存在 `~/.local/share/last30days/out/`：`report.md`、`report.json`、`report.html`、`last30days.context.md`。
+支持 Claude Code、Codex、Cursor、Gemini CLI 等具备命令行执行能力的 Agent。安装、环境检查和运行都交给它；需要你登录的平台，它会提示你完成。
 
-### 全网热榜
+## 带着问题来，带着线索走
 
-```bash
-python scripts/last30days.py --hot                                   # 微博 / 百度 / 抖音 / 头条 / B站 / 知乎
-python scripts/last30days.py --hot AI                                # 只看和某个主题有关的热点
-python scripts/last30days.py --hot --hot-sources boards,news,global  # 加上科技资讯 RSS 与 Hacker News
-python scripts/last30days.py --hot --emit html-path                  # 生成热榜网页
-```
+想知道大家如何评价一个产品、一个话题最近发生了什么，或者今天有什么值得一看？last30days-cn 会检索近期讨论，按相关性、时效和互动排序，把同一件事在不同平台的声音放在一起，并保留原始链接。
 
-- 同一件事在不同平台的叫法往往不同（「中国男足获亚运铜牌」/「拿下点球大战！U23国足获亚运铜牌」），热榜会按关键词把它们合并成一条「跨平台热点」，按登上的平台数排序。
-- 热榜网页带关键词筛选、深色模式和手机布局。
-- 自定义资讯源：设置 `LAST30DAYS_HOT_FEEDS="名称|RSS地址,名称|RSS地址"`，例如自建 [RSSHub](https://docs.rsshub.app/) 的 36 氪快讯或 X 列表。
+**一个话题，一份研究。** 微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条，默认覆盖 8 个中文平台。可按需加入 Hacker News、GitHub 和 Reddit，或通过上游 skill 扩展更多海外来源。
 
-### 每日热点网站
+**一次打开，看见今天。** [全网热榜](https://jesseovo.github.io/last30days-skill-cn/)聚合国内热搜、科技资讯和 Hacker News。搜索感兴趣的词，发现跨平台的「同频热点」，或者慢慢读完一个平台。
 
-仓库自带 GitHub Actions 工作流 [`.github/workflows/daily-hot.yml`](.github/workflows/daily-hot.yml)，可以把热榜每天自动发布成一个网页。**默认不运行**，在你的仓库（或 fork）中启用：
+**每条结论，都能回到出处。** 输出精简证据、Markdown、JSON 和可离线打开的 HTML。拿到了多少、来自哪里、哪些平台暂时不可用，报告都会写清楚。
 
-1. Settings → Pages → Source 选择 **GitHub Actions**
-2. Settings → Secrets and variables → Actions → Variables，新建 `HOT_PAGES`，值为 `true`
-3. （可选）设置变量 `HOT_SOURCES`（默认 `boards,news,global`）、`HOT_FEEDS`（自定义 RSS）、`HOT_TITLE`（页面标题）
-4. Actions → **Daily Hot Board** → Run workflow
+## 今天的世界，小小一页
 
-之后每天北京时间 08:00、12:00、20:00 自动更新，地址为 `https://<用户名>.github.io/<仓库名>/`。
+[**打开全网热榜 ↗**](https://jesseovo.github.io/last30days-skill-cn/) · 每天北京时间 **08:00 / 12:00 / 20:00** 自动采集更新。
 
-### 需要登录的平台
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme-discovery-dark.svg" />
+    <img src="assets/readme-discovery-light.svg" width="720" alt="像素小猫的好奇心采样站：从散落的讨论里，找到值得追下去的线索。" />
+  </picture>
+</p>
 
-小红书、微博、知乎、抖音的搜索基本都要求登录。扫码登录一次即可（需要 Playwright）：
+微博、百度、抖音、头条、B站、知乎，是今天的热闹；IT之家、虎嗅、少数派、爱范儿、Solidot 和 Hacker News，是另一扇窗。也可以添上自己的 RSS，慢慢把它变成你喜欢的样子。
 
-```bash
-python scripts/last30days.py login xiaohongshu   # 也支持 weibo / zhihu / douyin / bilibili
-```
+在电脑上扫一眼前几条，感兴趣再展开；在手机上选一个平台慢慢读。搜索、深色模式、跨平台「同频热点」，都放在顺手的地方。
 
-- 登录态保存在 `~/.config/last30days-cn/browser_cookies/`（仅当前用户可读），之后的检索会自动复用；过期后会提示重新登录。
-- 服务器、SSH 等没有图形界面的环境，可以导入自己浏览器里复制的 Cookie：
+想搭一份自己的热榜？让 Agent 参考[部署说明](docs/usage.zh-CN.md#每日热点网站)，在你的仓库启用定时发布。
 
-  ```bash
-  python scripts/last30days.py login zhihu --cookie "z_c0=...; _xsrf=..."
-  ```
+## 顺着线索，再走一会儿
 
-- 也可以在配置文件里填 `WEIBO_COOKIE`、`ZHIHU_COOKIE`、`BILIBILI_COOKIE`。
-- 不登录也能用：这些平台会改用热榜匹配和公开搜索兜底，报告里会注明「只有公开链接，缺少互动数据」。
+热榜是当下的采集快照；主题研究会回看指定时间窗，两种模式可以接着用。
 
-### 海外平台（可选）
+> 今天 AI 圈有什么热点？帮我挑 3 条值得关注的。
+>
+> 研究「AI 编程助手」最近 7 天的讨论，对比不同平台的评价，附上来源。
+>
+> 再补充 Hacker News、GitHub 和 Reddit 上的声音，生成可离线阅读的报告。
 
-```bash
-python scripts/last30days.py "Claude Code 评测" --global                                # 加上 Hacker News / GitHub / Reddit
-python scripts/last30days.py "AI编程助手" --global --global-query "AI coding assistant"  # 中文主题需提供英文关键词
-python scripts/last30days.py "Claude Code" --search x,youtube                            # 通过上游 last30days 获取
-```
+平台登录和接口可用性会影响覆盖范围。报告会区分登录态结果、热榜匹配与公开搜索；公开搜索缺少可靠的互动数据和精确日期，不能当作完整的平台样本。
 
-- Hacker News、GitHub、Reddit 不需要 Key。GitHub 可配置 `GITHUB_TOKEN` 提高额度；Reddit 会拒绝部分云服务器 IP，遇到时会明确提示。
-- X、YouTube、TikTok、Instagram 通过本机安装的上游 skill 获取（`npx skills add mvanhorn/last30days-skill -g`，需要 Python 3.12+）。
-- 默认关闭；想长期开启可以在配置里写 `INCLUDE_SOURCES=global`。
+## 再往里看看
 
-### 旧电脑与无浏览器模式
+[使用手册](docs/usage.zh-CN.md) — 登录、可选依赖、平台数据路径、配置和完整命令。<br />
+[技术说明](SPEC.md) — 检索、清洗、评分、跨平台归并与输出契约。<br />
+[参与开发](AGENTS.md) · [安全反馈](SECURITY.md) · [更新记录](release-notes.md)
 
-- B站、头条、微信公众号、百度和全网热榜都不需要浏览器。
-- 浏览器启动失败时，本次运行会自动切换到无浏览器模式，并提示修复方法，不会让每个平台各卡一遍。
-- 新版 Chromium 在旧系统（如 macOS Catalina）上启动不了时，可以改用系统已经装好的浏览器：
+## 致谢与许可
 
-  ```bash
-  export LAST30DAYS_BROWSER_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-  python scripts/last30days.py --diagnose --probe-browser    # 真实启动一次，确认可用
-  ```
+基于 Matt Van Horn 的 [last30days-skill](https://github.com/mvanhorn/last30days-skill)，由 [Jesse](https://github.com/Jesseovo) 做中文本土化。感谢 [MediaCrawler](https://github.com/NanmiCoder/MediaCrawler) 的登录态思路、[xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp) 的可选服务，以及 [guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) 对研究报告视觉的启发。
 
-- 完全不用浏览器：加 `--no-browser`，或在配置里写 `LAST30DAYS_DISABLE_BROWSER=1`。
-- 机器性能一般时，设置 `LAST30DAYS_BROWSER_CONCURRENCY=1` 让浏览器一个一个开。
-- 支持 Python 3.8（macOS Catalina 自带的 `python3`）。
+[MIT License](LICENSE) · [使用约定](docs/usage.zh-CN.md#usage-terms)
 
 ---
 
-## 平台与数据路径
-
-| 平台 | 数据路径（按顺序尝试） | 不登录 / 不配置时 | 可选配置 |
-|---|---|---|---|
-| 🔴 微博 | 开放平台 API → 登录 Cookie 搜索 → 登录态浏览器 | 热搜榜匹配 + 公开搜索 | `login weibo`、`WEIBO_COOKIE`、`WEIBO_ACCESS_TOKEN` |
-| 📕 小红书 | xiaohongshu-mcp → 登录态浏览器 | 公开搜索（仅笔记链接） | `login xiaohongshu`、`XIAOHONGSHU_API_BASE` |
-| 📺 B站 | WBI 签名搜索 → 备用接口 → 浏览器 | ✅ 完整可用 | `BILIBILI_COOKIE` |
-| 💬 知乎 | Cookie 搜索 → 登录态浏览器 | 热榜匹配 + 公开搜索 | `login zhihu`、`ZHIHU_COOKIE` |
-| 🎵 抖音 | TikHub API → 登录态浏览器 | 热榜匹配 + 公开搜索 | `login douyin`、`TIKHUB_API_KEY` |
-| 💚 微信公众号 | 极速数据 API → 搜狗微信 | ✅ 搜狗微信可用 | `WECHAT_API_KEY` |
-| 🔵 百度 | 千帆 AI 搜索 API → 网页搜索 | 网页搜索 + 公开搜索 | `BAIDU_API_KEY` |
-| 📰 今日头条 | 资讯搜索 + 热榜 | ✅ 完整可用 | — |
-| 🌏 海外（可选） | Hacker News / GitHub / Reddit；上游桥接 X / YouTube / TikTok | — | `--global`、`GITHUB_TOKEN` |
-
-「公开搜索」指通过搜索引擎查找该平台的公开页面，只能拿到链接和摘要，**没有可靠的互动数据和精确日期**。报告会把这类结果单独标出。
-
----
-
-## 配置
-
-所有配置都是可选的。运行 `python scripts/last30days.py setup` 会生成带注释的配置模板 `~/.config/last30days-cn/.env`（项目级配置放在 `.claude/last30days-cn.env`）：
-
-```ini
-# 登录态（推荐用 login 命令扫码；没有图形界面时再手动填写）
-WEIBO_COOKIE=
-ZHIHU_COOKIE=
-BILIBILI_COOKIE=
-
-# API Key
-TIKHUB_API_KEY=          # 抖音
-WECHAT_API_KEY=          # 微信公众号（极速数据）
-BAIDU_API_KEY=           # 百度千帆「AI 搜索」
-WEIBO_ACCESS_TOKEN=      # 微博开放平台
-XIAOHONGSHU_API_BASE=    # 自部署的 xiaohongshu-mcp，默认自动探测 127.0.0.1:18060
-GITHUB_TOKEN=            # 海外 GitHub 源
-
-# 运行开关
-LAST30DAYS_DISABLE_BROWSER=1     # 不使用浏览器
-LAST30DAYS_BROWSER_PATH=         # 指定本机浏览器
-INCLUDE_SOURCES=global           # 默认附带海外源
-EXCLUDE_SOURCES=douyin           # 默认排除某些平台
-LAST30DAYS_HOT_FEEDS=            # 热榜自定义 RSS
-```
-
-优先级：命令行环境变量 > 项目级配置 > 全局配置。Windows（PowerShell）创建配置目录：`New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\last30days-cn"`。
-
----
-
-## 命令参考
-
-| 参数 | 说明 |
-|---|---|
-| `--emit` | `compact`（默认，给 Agent 用）/ `md` / `json` / `html` / `html-path` / `context` / `path` |
-| `--quick` / `--deep` | 快速（只跑与问题类型最相关的平台）/ 深度（每个平台抓更多） |
-| `--days N` | 回溯天数，1–30，默认 30 |
-| `--as-of YYYY-MM-DD` | 以指定日期为终点回溯 |
-| `--search SOURCES` | 平台或分组：`weibo`、`xhs`、`bili`、`zhihu`、`douyin`、`wechat`、`baidu`、`toutiao`、`cn`、`global`、`all`、`hn`、`github`、`reddit`、`x`、`youtube` 等 |
-| `--global` / `--global-query Q` | 启用海外源 / 海外源使用的英文关键词 |
-| `--hot [关键词]` | 全网热榜；配合 `--hot-sources`、`--hot-limit`、`--hot-title` |
-| `login <平台> [--cookie "..."]` | 保存平台登录态 |
-| `--diagnose [--probe-browser]` | 诊断各平台；`--emit json` 输出机器可读结果 |
-| `setup` | 首次配置，生成配置模板 |
-| `--no-browser` | 本次运行不使用浏览器 |
-| `--refresh` / `--no-cache` / `--cache-ttl H` | 缓存控制（默认缓存 24 小时） |
-| `--save-dir DIR` / `--timeout SECS` / `--debug` | 另存输出 / 全局超时 / 调试日志 |
-
----
-
-## 工作原理
-
-1. **检索**：各平台并行运行，每个平台有自己的超时，一个平台卡住不影响其他平台。每个平台按「API → 登录态 → 公开接口 → 公开搜索」逐级尝试。
-2. **清洗**：统一字段 → 过滤研究时间窗外的内容 → 同平台去重 → 去掉与主题无关的结果 → 同一作者最多保留 3 条。
-3. **打分**：综合分（0–100）= 相关性 45% + 时效 25% + 互动 30%。网页类来源（百度、公众号）只看相关性和时效。
-4. **归并**：比较不同平台的内容时先去掉主题词本身，再判断是否在说同一件事，避免仅因提到同一主题就被误判为同一事件。
-5. **输出**：精简证据给 Agent 归纳，同时写出完整报告文件。
-
-各平台的互动指标：微博（转发 / 评论 / 点赞）、小红书（点赞 / 收藏 / 评论 / 分享）、B站（播放 / 弹幕 / 评论 / 点赞 / 收藏）、知乎（赞同 / 评论 / 收藏）、抖音（点赞 / 评论 / 分享 / 播放）、头条（阅读 / 评论 / 点赞）。
-
----
-
-## 项目结构
-
-```
-last30days-skill-cn/
-├── SKILL.md                 # Agent 读取的技能说明
-├── scripts/
-│   ├── last30days.py        # 命令行入口
-│   └── lib/                 # 平台适配、检索流水线、热榜、渲染、诊断等
-├── skills/last30days/       # 自动生成的可安装技能包（勿手动修改）
-├── tests/                   # 回归测试（不联网）
-└── .github/workflows/       # CI 与每日热榜发布
-```
-
-参与开发请先阅读 [AGENTS.md](AGENTS.md)，技术细节见 [SPEC.md](SPEC.md)，版本变化见 [release-notes.md](release-notes.md)。
-
----
-
-## ⚠️ 免责声明
-
-> **请务必仔细阅读以下内容。使用本项目即表示您同意以下所有条款。**
-
-1. **本项目仅供学习和研究目的**，严禁用于商业用途。
-2. 使用者必须遵守中华人民共和国相关法律法规，包括但不限于《网络安全法》《数据安全法》《个人信息保护法》《反不正当竞争法》。
-3. 使用者必须遵守各平台的**服务条款**和 **robots.txt** 规定。
-4. **禁止**将本项目用于以下行为：
-   - 大规模、高频率抓取平台数据
-   - 收集、存储或传播他人个人信息
-   - 破坏或干扰平台正常运营
-   - 数据倒卖或任何商业牟利
-   - 对外提供自动化数据采集服务
-5. 本项目开发者**不承担**因使用本项目而产生的任何法律责任，使用者**自行承担**全部法律风险。
-6. 如有侵权，请联系作者，将第一时间处理。
-
-浏览器模式驱动真实浏览器、复用**你本人**登录的会话，由页面自己发出请求，不涉及逆向加密算法或破解安全机制。各平台接口随时可能变更，本项目不保证所有功能始终可用。请控制请求频率（建议每次搜索间隔 ≥ 5 秒）。
-
-> 💡 爬虫违法违规的案例频发，请务必合法合规使用。参考：[中国爬虫相关法律案例汇总](https://github.com/HiddenStrawberry/Crawler_Illegal_Cases_In_China)
-
----
-
-## 致谢
-
-- [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill)：原版项目，也是海外平台桥接的对象
-- [NanmiCoder/MediaCrawler](https://github.com/NanmiCoder/MediaCrawler)：复用浏览器登录态的思路来源
-- [xpzouying/xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp)：可选的小红书数据服务
-- [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill)：HTML 报告的视觉风格来源
-
-## 许可证
-
-[MIT License](LICENSE)。原始项目 [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill)（Matt Van Horn），中文本土化 Jesse（[@Jesseovo](https://github.com/Jesseovo)）。
+<p align="center">
+  <sub>Made with curiosity, by <a href="https://github.com/Jesseovo">Jesse</a>.</sub><br />
+  <sub>如果它帮你发现了些新东西，欢迎点一颗 Star。</sub>
+</p>

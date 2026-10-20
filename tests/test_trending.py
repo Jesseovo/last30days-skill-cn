@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from collections import OrderedDict
+from html.parser import HTMLParser
 from unittest.mock import patch
 
 import pytest
@@ -156,3 +157,58 @@ def test_write_outputs(tmp_path):
     assert json.loads((tmp_path / "hot.json").read_text(encoding="utf-8"))["topics"]
     assert "<h1>今日热点</h1>" in (tmp_path / "hot.html").read_text(encoding="utf-8")
     assert paths["md"].endswith("hot.md")
+
+
+class _HtmlNodes(HTMLParser):
+    def __init__(self, text):
+        super().__init__()
+        self.nodes = []
+        self.feed(text)
+
+    def handle_starttag(self, tag, attrs):
+        self.nodes.append((tag, dict(attrs)))
+
+
+def test_html_source_groups_limits_and_no_script_readability():
+    boards = OrderedDict([
+        ("weibo", _board("微博", ["事件{}".format(i) for i in range(12)])),
+        ("feed1", _board("自定义资讯", ["文章"], kind="feed")),
+        ("hackernews", _board("Hacker News", ["Discussion"])),
+        ("unavailable", {"label": "来源状态", "items": [], "error": "upstream timeout"}),
+    ])
+    topics = [{"title": "跨平台{}".format(i), "url": "https://x.test/topic", "platform_count": 2,
+               "mentions": [{"platform": "weibo", "label": "微博", "rank": 2, "url": "https://x.test/2"}]}
+              for i in range(2)]
+    data = {"generated_at": "2026-10-20 12:00", "boards": boards, "topics": topics}
+    html = trending.render_html(data, per_board=10, max_topics=1)
+    nodes = _HtmlNodes(html).nodes
+    cards = [a for tag, a in nodes if a.get("class") == "board"]
+    assert [a["data-group"] for a in cards] == ["cn", "news", "global", "cn"]
+    assert len([1 for tag, a in nodes if a.get("class") == "topic"]) == 1
+    assert "事件9" in html and "事件10" not in html
+    assert "upstream timeout" in html
+    # Folding is progressive: every rendered row remains readable without JS.
+    rows = [a for tag, a in nodes if tag == "li"]
+    assert len(rows) == 12 and all("hidden" not in a for a in rows)
+    # The exported HTML includes its artwork, styles and script, with no CDN.
+    assert "data:image/png;base64," in html
+    assert not any(a.get("src", "").startswith(("http:", "https:")) for _, a in nodes)
+    assert not any(tag == "link" and a.get("rel") == "stylesheet" for tag, a in nodes)
+
+
+def test_html_escapes_topic_metadata_and_source_errors():
+    attack = '</script><img src=x onerror="alert(1)">'
+    boards = OrderedDict([
+        ("feed1", {"label": attack, "kind": "feed", "items": [], "error": attack}),
+        ("weibo", _board(attack, [attack])),
+    ])
+    boards["weibo"]["items"][0].update(url="javascript:alert(1)", label=attack)
+    data = {"generated_at": attack, "topic_filter": attack, "boards": boards,
+            "topics": [{"title": attack, "url": "data:text/html,unsafe", "platform_count": 2,
+                        "mentions": [{"platform": "weibo", "label": attack, "rank": attack,
+                                      "url": 'javascript:alert(1)'}]}]}
+    html = trending.render_html(data, site_title=attack)
+    nodes = _HtmlNodes(html).nodes
+    assert not any(tag == "img" or any(k.startswith("on") for k in attrs) for tag, attrs in nodes)
+    assert all(a.get("href", "").startswith(("https://", "http://", "#")) for tag, a in nodes if tag == "a")
+    assert "&lt;/script&gt;&lt;img" in html

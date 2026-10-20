@@ -22,7 +22,6 @@ import xml.etree.ElementTree as ET
 from collections import OrderedDict
 from datetime import datetime
 from email.utils import parsedate_to_datetime
-from html import escape
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from . import baidu, bilibili, dates, douyin, hackernews, http, relevance, toutiao, weibo, zhihu
@@ -481,134 +480,15 @@ def render_markdown(data: Dict[str, Any], per_board: int = 15, max_topics: int =
     return "\n".join(lines)
 
 
-_HOT_STYLE = """
-:root { --paper:#fafaf8; --ink:#0a0a0a; --muted:#6a6a66; --line:#dcdcd6; --card:#fff; --accent:#002FA7; --hot:#d93025;
-  --sans: Inter,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif; --mono:"JetBrains Mono","SF Mono",Consolas,monospace; }
-@media (prefers-color-scheme: dark) { :root { --paper:#0f1115; --ink:#f1f1ed; --muted:#9b9b96; --line:#2a2d33; --card:#16191f; --accent:#8aa4ff; --hot:#ff6b5e; } }
-* { box-sizing:border-box; } body { margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); }
-header { padding:40px clamp(16px,5vw,64px) 28px; display:flex; flex-wrap:wrap; justify-content:space-between; gap:24px; align-items:end; border-bottom:1px solid var(--line); }
-.kicker,.meta,.code,.rank,.stamp { font-family:var(--mono); letter-spacing:.12em; text-transform:uppercase; }
-.kicker { color:var(--accent); font-weight:700; font-size:13px; }
-h1 { font-size:clamp(40px,8vw,104px); font-weight:200; letter-spacing:-.03em; margin:10px 0 0; line-height:.95; }
-.stamp { color:var(--muted); font-size:12px; margin-top:12px; }
-.metrics { display:flex; gap:28px; } .metrics div { border-top:2px solid var(--ink); padding-top:10px; min-width:96px; }
-.metrics strong { display:block; font-size:44px; line-height:1; } .metrics span { color:var(--muted); font-size:13px; }
-.search { padding:16px clamp(16px,5vw,64px); border-bottom:1px solid var(--line); }
-.search input { width:100%; max-width:520px; padding:10px 14px; font-size:16px; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:6px; }
-section { padding:32px clamp(16px,5vw,64px); }
-h2 { font-size:clamp(24px,3.6vw,44px); font-weight:300; letter-spacing:-.02em; margin:0 0 18px; }
-h2 .meta { display:inline-block; font-size:13px; letter-spacing:.08em; color:var(--muted); font-weight:400; }
-.topics { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; }
-.topic { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--hot); padding:14px 16px; }
-.topic a.t { color:var(--ink); font-size:18px; text-decoration:none; font-weight:600; line-height:1.35; }
-.chips { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
-.chip { font-family:var(--mono); font-size:11px; padding:2px 7px; border:1px solid var(--line); border-radius:999px; color:var(--muted); text-decoration:none; }
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
-.board { background:var(--card); border:1px solid var(--line); padding:16px 18px; min-width:0; }
-.board h3 { margin:0 0 10px; font-size:20px; display:flex; justify-content:space-between; align-items:baseline; }
-.code { color:var(--accent); font-size:11px; }
-ol { list-style:none; margin:0; padding:0; } li { display:grid; grid-template-columns:30px minmax(0,1fr) auto; gap:8px; padding:7px 0; border-top:1px solid var(--line); align-items:baseline; }
-.rank { color:var(--muted); font-size:12px; } li:nth-child(-n+3) .rank { color:var(--hot); font-weight:700; }
-li a { color:var(--ink); text-decoration:none; overflow-wrap:anywhere; } li a:hover { color:var(--accent); }
-.heat { color:var(--muted); font-size:12px; white-space:nowrap; } .tag { color:var(--hot); font-size:11px; margin-left:6px; }
-.err { color:var(--muted); font-size:13px; }
-footer { padding:28px clamp(16px,5vw,64px); color:var(--muted); font-size:12px; border-top:1px solid var(--line); line-height:1.6; }
-footer a { color:var(--accent); }
-.hidden { display:none !important; }
-"""
-
-_HOT_SCRIPT = """
-(function(){var q=document.getElementById('q');if(!q)return;q.addEventListener('input',function(){
-var v=q.value.trim().toLowerCase();document.querySelectorAll('[data-k]').forEach(function(n){
-n.classList.toggle('hidden',v!==''&&n.getAttribute('data-k').toLowerCase().indexOf(v)<0);});});})();
-"""
-
-
 def _href(url: str) -> str:
     cleaned = (url or "").strip()
     return cleaned if cleaned.lower().startswith(("http://", "https://")) else "#"
 
 
 def render_html(data: Dict[str, Any], per_board: int = 20, max_topics: int = 24, site_title: str = "全网热榜") -> str:
-    boards = data["boards"]
-    total = sum(len(b.get("items") or []) for b in boards.values())
-    live = sum(1 for b in boards.values() if b.get("items"))
-    topics = data.get("topics") or []
+    from .hot_board import render_page
 
-    topic_cards = []
-    for topic in topics[:max_topics]:
-        chips = "".join(
-            f'<a class="chip" href="{escape(_href(m["url"]), quote=True)}" target="_blank" rel="noopener noreferrer">'
-            f'{escape(m["label"])} #{escape(str(m["rank"]))}</a>'
-            for m in topic["mentions"]
-        )
-        topic_cards.append(
-            f'<div class="topic" data-k="{escape(topic["title"], quote=True)}">'
-            f'<a class="t" href="{escape(_href(topic["url"]), quote=True)}" target="_blank" rel="noopener noreferrer">{escape(topic["title"])}</a>'
-            f'<div class="chips">{chips}</div></div>'
-        )
-
-    board_cards = []
-    for sid, board in boards.items():
-        items = board.get("items") or []
-        if items:
-            rows = []
-            for item in items[:per_board]:
-                tag = f'<span class="tag">{escape(item["label"])}</span>' if item.get("label") and board.get("kind") == "board" else ""
-                heat = _fmt_hot(item.get("hot_value")) if board.get("kind") == "board" else (item.get("label") or "")
-                rows.append(
-                    f'<li data-k="{escape(item["title"], quote=True)}"><span class="rank">{escape(str(item.get("rank", "")))}</span>'
-                    f'<span><a href="{escape(_href(item.get("url", "")), quote=True)}" target="_blank" rel="noopener noreferrer">{escape(item["title"])}</a>{tag}</span>'
-                    f'<span class="heat">{escape(heat)}</span></li>'
-                )
-            body = f"<ol>{''.join(rows)}</ol>"
-        else:
-            body = f'<div class="err">暂不可用：{escape(str(board.get("error") or "无数据"))[:160]}</div>'
-        board_cards.append(
-            f'<div class="board"><h3>{escape(board.get("label", sid))}<span class="code">{escape(board.get("code", ""))}</span></h3>{body}</div>'
-        )
-
-    topic_section = ""
-    if topic_cards:
-        topic_section = (
-            f'<section><h2>跨平台热点 <span class="meta">· {len(topics)} 个事件同时登上多个平台</span></h2>'
-            f'<div class="topics">{"".join(topic_cards)}</div></section>'
-        )
-    filter_note = f' · 关键词「{escape(data["topic_filter"])}」' if data.get("topic_filter") else ""
-    return f"""<!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<meta name="description" content="由 last30days-cn 自动生成的全网热榜：微博、百度、抖音、头条、B站、知乎热搜与跨平台热点。">
-<title>{escape(site_title)} · {escape(data['generated_at'])}</title>
-<style>{_HOT_STYLE}</style>
-</head>
-<body>
-<header>
-  <div>
-    <div class="kicker">LAST30DAYS-CN / DAILY HOT BOARD</div>
-    <h1>{escape(site_title)}</h1>
-    <div class="stamp">更新于 {escape(data['generated_at'])}（北京时间）{filter_note}</div>
-  </div>
-  <div class="metrics">
-    <div><strong>{live}</strong><span>在线榜单</span></div>
-    <div><strong>{total}</strong><span>热点条目</span></div>
-    <div><strong>{len(topics)}</strong><span>跨平台热点</span></div>
-  </div>
-</header>
-<div class="search"><input id="q" type="search" placeholder="筛选关键词，例如：AI、国足、新能源" aria-label="筛选热点"></div>
-{topic_section}
-<section><h2>各平台热榜</h2><div class="grid">{''.join(board_cards)}</div></section>
-<footer>
-  由 <a href="https://github.com/Jesseovo/last30days-skill-cn" target="_blank" rel="noopener noreferrer">last30days-cn</a> v{escape(DISPLAY_VERSION)} 生成 ·
-  数据来自各平台公开热榜，排名与热度以平台原页面为准 · 仅供学习研究，请遵守各平台服务条款。<br>
-  深入研究任一热点：<code>python scripts/last30days.py "话题" --emit html-path</code>
-</footer>
-<script>{_HOT_SCRIPT}</script>
-</body>
-</html>"""
+    return render_page(data, per_board, max_topics, site_title, _fmt_hot, _href)
 
 
 def write_outputs(data: Dict[str, Any], output_dir, title: str = "全网热榜") -> Dict[str, str]:
