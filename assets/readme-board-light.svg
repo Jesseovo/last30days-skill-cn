@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="208" height="56" viewBox="0 0 208 56" role="img" aria-labelledby="title"><title id="title">打开全网热榜</title>
+<rect x=".5" y=".5" width="207" height="55" rx="10" fill="#faf6ee" stroke="#e8ded0"/>
+<g transform="translate(13 13)" shape-rendering="crispEdges"><path d="M4 4h20v3h3v18H1V7h3zM5 1h3v7H5zm12 0h3v7h-3zM4 10h20v2H4zM7 15h4v4H7zm10 0h4v4h-4z" fill="#887357"/><path d="M4 10h20v2H4zM7 15h4v4H7zm10 0h4v4h-4z" fill="#faf6ee"/></g>
+<text x="54" y="25" fill="#4c4439" font-family="-apple-system,'Segoe UI','Microsoft YaHei',sans-serif" font-size="12" font-weight="500">打开全网热榜</text>
+<text x="54" y="41" fill="#9b8b76" font-family="Consolas,monospace" font-size="7.4" letter-spacing=".35">A LITTLE CURIOSITY, DAILY</text>
+<path d="M188 17h6v6m0-6-6 6" fill="none" stroke="#9b8b76" stroke-width="1.2"/>
+</svg>

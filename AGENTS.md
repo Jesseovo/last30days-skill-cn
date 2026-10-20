@@ -21,8 +21,9 @@ It also provides:
   - `lib/websearch.py`: multi-engine public web-search fallback with URL-pattern and relevance validation.
   - `lib/crawler_bridge.py`: Playwright: login flow, cookie import, circuit breaker, concurrency limit, per-platform browser crawlers.
   - Platform adapters: `weibo.py`, `xiaohongshu.py`, `bilibili.py`, `zhihu.py`, `douyin.py`, `wechat.py`, `baidu.py`, `toutiao.py`. Overseas: `hackernews.py`, `github.py`, `reddit.py`, `upstream_bridge.py`.
-  - `lib/trending.py`: `--hot`. `lib/render.py`: output. `lib/doctor.py`: `--diagnose`. `lib/env.py`: configuration.
+  - `lib/trending.py`: `--hot`. `lib/hot_board.py`, `hot_board.css`, `hot_board.js`, `hot_board_cat.png`: the self-contained hot-board page and its embedded assets. `lib/render.py`: output. `lib/doctor.py`: `--diagnose`. `lib/env.py`: configuration.
 - `skills/last30days/`: the generated, installable payload. **Never edit by hand.**
+- `README.md` / `README.en.md`: compact project landing pages, with a copyable agent setup prompt and the live board link. Detailed commands, configuration and usage terms live in `docs/usage.zh-CN.md` / `docs/usage.en.md`.
 - `tests/`: regression tests (no network access).
 - `.github/workflows/`: `ci.yml` (Linux/Windows/macOS, Python 3.8–3.12) and `daily-hot.yml` (opt-in GitHub Pages hot board, enabled by the repository variable `HOT_PAGES=true`).
 
