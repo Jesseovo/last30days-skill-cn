@@ -1,0 +1,54 @@
+{
+  "name": "last30days-skill-cn",
+  "version": "4.0.0",
+  "description": "给 AI Agent 的中文互联网研究能力：检索微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条近 30 天的讨论，按互动与时效排序并跨平台聚类，生成附原始来源的报告；内置全网热榜（--hot）与可选海外源。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "skills/last30days/**",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "engines": {
+      "dsh": ">=0.2.1-rc.3"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "agent-skill",
+    "research",
+    "trending",
+    "weibo",
+    "xiaohongshu",
+    "bilibili",
+    "zhihu",
+    "douyin",
+    "chinese-platforms"
+  ],
+  "author": "Jesse (https://github.com/Jesseovo)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jesseovo/last30days-skill-cn.git"
+  },
+  "homepage": "https://github.com/Jesseovo/last30days-skill-cn#readme",
+  "bugs": {
+    "url": "https://github.com/Jesseovo/last30days-skill-cn/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
