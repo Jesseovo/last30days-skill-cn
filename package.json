@@ -11,7 +11,12 @@
   "files": [
     "index.js",
     "cordis.patch.yml",
-    "skills/last30days/**",
+    "skills/last30days/SKILL.md",
+    "skills/last30days/scripts/**/*.py",
+    "skills/last30days/scripts/**/*.sh",
+    "skills/last30days/scripts/**/*.css",
+    "skills/last30days/scripts/**/*.js",
+    "skills/last30days/scripts/**/*.png",
     "README.md",
     "README.en.md",
     "LICENSE"
@@ -50,5 +55,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/dsh-selftest.mjs"
   }
 }

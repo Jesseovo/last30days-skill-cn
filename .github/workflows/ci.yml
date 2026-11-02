@@ -49,6 +49,9 @@ jobs:
       - name: Run tests
         run: python -m pytest tests -q
 
+      - name: DSH plugin offline regressions
+        run: node --test tests/dsh-selftest.mjs
+
       - name: Check payload drift
         run: python scripts/build_payload.py --check
 

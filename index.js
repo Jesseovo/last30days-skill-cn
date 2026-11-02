@@ -6,13 +6,16 @@
  *   - last30days_hot           全网热榜（微博/百度/抖音/头条/B站/知乎，可选科技与 HN）
  *   - last30days_install_skill 把随包的技能写入 ~/.dsh/skills，供技能目录扫描
  *
- * 依赖：Python 3（脚本不带第三方依赖也能跑；jieba / playwright 为可选增强）。
+ * 依赖：Python 3.8+（脚本不带第三方依赖也能跑；jieba / playwright 为可选增强）。
  */
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
+
+const execFileAsync = promisify(execFile)
 
 const PACKAGE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const SKILL_DIR = path.join(PACKAGE_DIR, 'skills', 'last30days')
@@ -25,7 +28,7 @@ const DEFAULT_TIMEOUT = 300000
 let pythonCache = null
 
 /** 依次尝试 python3 / python / py -3，返回可用的解释器与前置参数。 */
-function resolvePython() {
+async function resolvePython(signal) {
   if (pythonCache) return pythonCache
   const forced = process.env.LAST30DAYS_PYTHON || process.env.PYTHON
   const candidates = forced
@@ -37,15 +40,16 @@ function resolvePython() {
       ]
   for (const [bin, prefix] of candidates) {
     try {
-      execFileSync(bin, [...prefix, '--version'], { stdio: 'pipe', timeout: 20000 })
+      await execFileAsync(bin, [...prefix, '-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)'], { timeout: 20000, signal })
       pythonCache = { bin, prefix }
       return pythonCache
     } catch {
+      signal?.throwIfAborted()
       /* 试下一个 */
     }
   }
   throw new Error(
-    '找不到 Python 3。请安装 Python 3 并确保 python / python3 在 PATH 中，或用 LAST30DAYS_PYTHON 指定解释器路径。',
+    '找不到 Python 3.8+。请安装 Python 3.8+ 并确保 python / python3 在 PATH 中，或用 LAST30DAYS_PYTHON 指定解释器路径。',
   )
 }
 
@@ -71,26 +75,27 @@ function clip(value, limit = 24000) {
   return text.length <= limit ? text : `${text.slice(0, limit)}\n…（输出已截断，共 ${text.length} 字符）`
 }
 
-function runCli(args, timeoutMs) {
-  const { bin, prefix } = resolvePython()
-  if (!fs.existsSync(SCRIPT)) {
-    throw new Error(`技能脚本缺失：${SCRIPT}。请确认包完整（skills/last30days/scripts）。`)
-  }
-  const env = {
-    ...process.env,
-    PYTHONIOENCODING: 'utf-8',
-    PYTHONUTF8: '1',
-  }
+async function runCli(args, timeoutMs, signal) {
   try {
-    const stdout = execFileSync(bin, [...prefix, SCRIPT, ...args], {
+    const { bin, prefix } = await resolvePython(signal)
+    if (!fs.existsSync(SCRIPT)) {
+      throw new Error(`技能脚本缺失：${SCRIPT}。请确认包完整（skills/last30days/scripts）。`)
+    }
+    const env = {
+      ...process.env,
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONUTF8: '1',
+    }
+    const { stdout, stderr } = await execFileAsync(bin, [...prefix, SCRIPT, ...args], {
       cwd: SKILL_DIR,
       encoding: 'utf8',
       timeout: timeoutMs,
+      signal,
       maxBuffer: 64 * 1024 * 1024,
       env,
       windowsHide: true,
     })
-    return { ok: true, stdout, stderr: '' }
+    return { ok: true, stdout, stderr }
   } catch (error) {
     return {
       ok: false,
@@ -100,12 +105,26 @@ function runCli(args, timeoutMs) {
   }
 }
 
+function validateArgs(args) {
+  for (const [key, max] of [['days', 30], ['limit', 1000], ['timeoutMs', 2147483647]]) {
+    if (args[key] !== undefined && (!Number.isSafeInteger(args[key]) || args[key] < 1 || args[key] > max)) {
+      return `${key} 必须是 1 到 ${max} 的整数`
+    }
+  }
+  for (const key of ['topic', 'keyword', 'sources']) {
+    if (args[key] !== undefined && (typeof args[key] !== 'string' || args[key].includes('\0'))) return `${key} 必须是有效字符串`
+  }
+  if (args.emit !== undefined && !['json', 'compact', 'md', 'html-path'].includes(args.emit)) return '无效的 emit'
+  if (args.mode !== undefined && !['default', 'quick', 'deep'].includes(args.mode)) return '无效的 mode'
+  return null
+}
+
 const outputSpec = {
   schema: {
     type: 'object',
     additionalProperties: true,
   },
-  render: (_args, value) => clip(value),
+  render: (_args, value) => [{ type: 'text', text: clip(value) }],
 }
 
 function registerTools(ctx) {
@@ -123,7 +142,7 @@ function registerTools(ctx) {
         type: 'object',
         properties: {
           topic: { type: 'string', description: '要研究的主题，中文自然语言即可，例如「AI 编程助手」。' },
-          days: { type: 'number', description: '回溯天数，默认 30。' },
+          days: { type: 'integer', description: '回溯天数，1–30，默认 30。' },
           mode: {
             type: 'string',
             enum: ['default', 'quick', 'deep'],
@@ -145,21 +164,24 @@ function registerTools(ctx) {
         additionalProperties: false,
       },
       output: outputSpec,
-      async execute(args = {}) {
+      async execute(args = {}, exec = {}) {
         const topic = String(args.topic || '').trim()
         if (!topic) return { ok: false, error: 'topic 不能为空' }
-        const emit = String(args.emit || 'json')
-        const argv = [topic, '--emit', emit]
-        if (args.days) argv.push('--days', String(Math.round(Number(args.days))))
+        const error = validateArgs(args)
+        if (error) return { ok: false, error }
+        const emit = args.emit || 'json'
+        const argv = ['--literal-topic', '--emit', emit]
+        if (args.days !== undefined) argv.push('--days', String(args.days))
         if (args.mode === 'quick') argv.push('--quick')
         if (args.mode === 'deep') argv.push('--deep')
         if (args.sources) argv.push('--search', String(args.sources))
         if (args.global) argv.push('--global')
+        argv.push('--', topic)
 
-        const res = runCli(argv, Number(args.timeoutMs) || DEFAULT_TIMEOUT)
+        const res = await runCli(argv, args.timeoutMs ?? DEFAULT_TIMEOUT, exec.signal)
         if (emit === 'json') {
           const data = extractJson(res.stdout)
-          if (data) return { ok: res.ok, ...data }
+          if (data) return { ...data, ok: res.ok, ...(res.ok ? {} : { stderr: tail(res.stderr) }) }
           return {
             ok: false,
             error: res.ok ? '未能解析 JSON 输出' : '研究命令执行失败',
@@ -172,7 +194,7 @@ function registerTools(ctx) {
           topic,
           emit,
           text: clip(res.stdout),
-          stderr: res.ok ? undefined : tail(res.stderr),
+          stderr: res.ok ? '' : tail(res.stderr),
         }
       },
     }),
@@ -187,7 +209,7 @@ function registerTools(ctx) {
         type: 'object',
         properties: {
           keyword: { type: 'string', description: '只看与这个词相关的热榜条目，留空表示全部。' },
-          limit: { type: 'number', description: '每个榜单取前 N 条，默认由脚本决定。' },
+          limit: { type: 'integer', description: '每个榜单取前 N 条，1–1000，默认由脚本决定。' },
           sources: {
             type: 'string',
             description: '逗号分隔的榜单分组，例如 "boards,news,global"。',
@@ -202,18 +224,20 @@ function registerTools(ctx) {
         additionalProperties: false,
       },
       output: outputSpec,
-      async execute(args = {}) {
-        const emit = String(args.emit || 'json')
-        const argv = ['--hot']
-        if (args.keyword) argv.push(String(args.keyword))
-        if (args.limit) argv.push('--hot-limit', String(Math.round(Number(args.limit))))
+      async execute(args = {}, exec = {}) {
+        const error = validateArgs(args)
+        if (error) return { ok: false, error }
+        const emit = args.emit || 'json'
+        const argv = ['--hot', '--literal-topic']
+        if (args.limit !== undefined) argv.push('--hot-limit', String(args.limit))
         if (args.sources) argv.push('--hot-sources', String(args.sources))
         argv.push('--emit', emit)
+        if (args.keyword) argv.push('--', args.keyword)
 
-        const res = runCli(argv, Number(args.timeoutMs) || 120000)
+        const res = await runCli(argv, args.timeoutMs ?? 120000, exec.signal)
         if (emit === 'json') {
           const data = extractJson(res.stdout)
-          if (data) return { ok: res.ok, ...data }
+          if (data) return { ...data, ok: res.ok, ...(res.ok ? {} : { stderr: tail(res.stderr) }) }
           return {
             ok: false,
             error: res.ok ? '未能解析 JSON 输出' : '热榜命令执行失败',
@@ -225,7 +249,7 @@ function registerTools(ctx) {
           ok: res.ok,
           emit,
           text: clip(res.stdout),
-          stderr: res.ok ? undefined : tail(res.stderr),
+          stderr: res.ok ? '' : tail(res.stderr),
         }
       },
     }),
@@ -245,18 +269,47 @@ function registerTools(ctx) {
       },
       output: outputSpec,
       async execute(args = {}) {
-        const base = process.env.DSH_SKILLS_DIR || path.join(os.homedir(), '.dsh', 'skills')
+        const base = path.resolve(process.env.DSH_SKILLS_DIR || path.join(os.homedir(), '.dsh', 'skills'))
         const dest = path.join(base, SKILL_NAME)
-        if (!fs.existsSync(SKILL_DIR)) {
-          return { ok: false, error: `随包技能目录缺失：${SKILL_DIR}` }
+        let staging
+        let backup
+        try {
+          if (args.force !== undefined && typeof args.force !== 'boolean') throw new Error('force 必须是布尔值')
+          if (!fs.existsSync(path.join(SKILL_DIR, 'SKILL.md'))) throw new Error(`随包技能目录缺失：${SKILL_DIR}`)
+          const existing = fs.lstatSync(dest, { throwIfNoEntry: false })
+          if (existing && (!existing.isDirectory() || existing.isSymbolicLink())) throw new Error('安装目标必须是普通目录，不能是文件或符号链接')
+          if (existing && !args.force) {
+            return { ok: true, installed: false, path: dest, note: '已安装；需要覆盖请传 force=true' }
+          }
+          fs.mkdirSync(base, { recursive: true })
+          staging = fs.mkdtempSync(path.join(base, '.last30days-stage-'))
+          const payload = path.join(staging, 'payload')
+          fs.cpSync(SKILL_DIR, payload, { recursive: true })
+          // Stage the complete payload before moving an existing installation.
+          if (existing) {
+            const previous = path.join(staging, 'previous')
+            fs.renameSync(dest, previous)
+            backup = previous
+          }
+          try {
+            fs.renameSync(payload, dest)
+          } catch (error) {
+            if (backup) {
+              fs.renameSync(backup, dest)
+              backup = undefined
+            }
+            throw error
+          }
+          backup = undefined
+          return { ok: true, installed: true, path: dest, note: '重启 DSH 或重新加载技能后可见' }
+        } catch (error) {
+          return { ok: false, error: error.message, ...(backup ? { backup } : {}) }
+        } finally {
+          // Keep the backup for recovery if rollback itself failed.
+          if (staging && !backup) {
+            try { fs.rmSync(staging, { recursive: true, force: true }) } catch { /* best-effort cleanup */ }
+          }
         }
-        if (fs.existsSync(dest) && !args.force) {
-          return { ok: true, installed: false, path: dest, note: '已安装；需要覆盖请传 force=true' }
-        }
-        fs.mkdirSync(path.dirname(dest), { recursive: true })
-        fs.rmSync(dest, { recursive: true, force: true })
-        fs.cpSync(SKILL_DIR, dest, { recursive: true })
-        return { ok: true, installed: true, path: dest, note: '重启 DSH 或重新加载技能后可见' }
       },
     }),
   )
