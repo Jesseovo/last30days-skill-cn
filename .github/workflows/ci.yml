@@ -9,8 +9,8 @@ permissions:
 
 jobs:
   test:
-    name: ${{ matrix.os }} / py${{ matrix.python-version }} / ${{ matrix.extras }}
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.runner || matrix.os }} / py${{ matrix.python-version }} / ${{ matrix.extras }}
+    runs-on: ${{ matrix.runner || matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -19,6 +19,10 @@ jobs:
         python-version: ["3.9", "3.12"]
         extras: [none, jieba]
         include:
+          # Python 3.9 has no build for ubuntu-latest (26.04).
+          - os: ubuntu-latest
+            python-version: "3.9"
+            runner: ubuntu-22.04
           # Old macOS (Catalina) ships Python 3.8 as /usr/bin/python3 (issue #13).
           - os: ubuntu-22.04
             python-version: "3.8"
