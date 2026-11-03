@@ -1,0 +1,12 @@
+# last30days-cn — DeepSeek Harness bundle patch
+#
+# 安装（任选其一）：
+#   dsh plugin --profile <name> add last30days-skill-cn
+#   pnpm add https://github.com/Jesseovo/last30days-skill-cn
+#
+# 本 patch 只把插件行插入 profile；技能本体随包分发在 skills/last30days/，
+# 由 index.js 的 last30days_install_skill 工具写入 ~/.dsh/skills 供技能目录扫描。
+- insert:
+    - id: last30days-cn
+      name: 'last30days-skill-cn'
+      config: {}

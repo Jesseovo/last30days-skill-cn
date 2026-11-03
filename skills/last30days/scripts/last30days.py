@@ -284,6 +284,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="研究过去 N 天内中国平台（及可选海外平台）上的真实讨论；--hot 查看全网热榜",
     )
+    parser.add_argument("--literal-topic", action="store_true", help="将主题视为普通文本，不识别 login/setup/hot 子命令")
     parser.add_argument("topic", nargs="*", help="研究主题；或 hot / login <平台> / setup")
     parser.add_argument("--emit", choices=["compact", "json", "md", "html", "context", "path", "html-path"], default="compact", help="输出模式")
     parser.add_argument("--quick", action="store_true", help="快速搜索（按查询类型选择平台）")
@@ -328,7 +329,7 @@ def main():
     timeouts = TIMEOUT_PROFILES[depth]
 
     # --- login ---------------------------------------------------------------
-    if words and words[0].lower() in LOGIN_WORDS:
+    if not args.literal_topic and words and words[0].lower() in LOGIN_WORDS:
         sys.exit(_run_login(words[1].lower() if len(words) > 1 else "", args.cookie, args.login_timeout))
 
     # --- diagnose --------------------------------------------------------------
@@ -341,15 +342,15 @@ def main():
         sys.exit(0)
 
     # --- setup -----------------------------------------------------------------
-    if args.topic and args.topic.strip().lower() == "setup":
+    if not args.literal_topic and args.topic and args.topic.strip().lower() == "setup":
         results = setup_wizard.run_auto_setup(config)
         results["env_written"] = setup_wizard.write_setup_config(env.CONFIG_FILE) if env.CONFIG_FILE else False
         print(setup_wizard.get_setup_status_text(results))
         sys.exit(0)
 
     # --- hot board -------------------------------------------------------------
-    if args.hot or (words and words[0].lower() in HOT_WORDS):
-        filter_topic = " ".join(words[1:] if (words and words[0].lower() in HOT_WORDS) else words)
+    if args.hot or (not args.literal_topic and words and words[0].lower() in HOT_WORDS):
+        filter_topic = " ".join(words[1:] if (not args.literal_topic and words and words[0].lower() in HOT_WORDS) else words)
         _install_global_timeout(args.timeout or 90)
         sys.exit(_run_hot(args, filter_topic))
 
