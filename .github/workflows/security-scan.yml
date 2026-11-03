@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
 
       - name: Scan plugin security and publishing requirements
-        uses: hashgraph-online/ai-plugin-scanner-action@59f2f1867207d2751c373fafbd1a9b7a4a23377f # v1.2.804
+        uses: hashgraph-online/ai-plugin-scanner-action@8c2dd4f9cc381ad56496ca44aab10ce19f6bdd0f # v1.2.813
         with:
           plugin_dir: .
           min_score: 80
