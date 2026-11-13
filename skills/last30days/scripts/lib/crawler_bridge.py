@@ -759,8 +759,14 @@ def _xhs_dom_items(page, limit: int) -> List[Dict[str, Any]]:
         return items
     for elem in note_elements[:limit]:
         try:
-            link_el = elem.query_selector("a[href*='/search_result/'], a[href*='/explore/']")
-            link = link_el.get_attribute("href") if link_el else ""
+            link = ""
+            link_elements = elem.query_selector_all("a[href*='/search_result/'], a[href*='/explore/']")
+            for link_el in link_elements:
+                candidate = link_el.get_attribute("href") or ""
+                if not link or "xsec_token" in candidate:
+                    link = candidate
+                if "xsec_token" in candidate:
+                    break
             if link and not link.startswith("http"):
                 link = f"https://www.xiaohongshu.com{link}"
             match = re.search(r"/(?:explore|search_result)/([0-9a-f]{24})", link or "")
