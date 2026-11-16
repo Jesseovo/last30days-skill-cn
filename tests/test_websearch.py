@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
-from lib import websearch  # noqa: E402
+from lib import http, websearch  # noqa: E402
 from lib.websearch import SearchResult  # noqa: E402
 
 
@@ -18,6 +18,7 @@ def _reset(monkeypatch):
     websearch.reset_state()
     monkeypatch.setattr(websearch, "MIN_INTERVAL_SECONDS", 0)
     monkeypatch.delenv("LAST30DAYS_WEBSEARCH_ENGINES", raising=False)
+    monkeypatch.delenv("SPECSTREAM_API_KEY", raising=False)
     yield
     websearch.reset_state()
 
@@ -143,3 +144,110 @@ def test_engine_order_can_be_configured(monkeypatch):
 def test_bing_homepage_redirect_is_detected():
     assert websearch._is_bing_homepage("https://www.bing.com/?q=x", "<div class=\"hp_body\"></div>")
     assert not websearch._is_bing_homepage("https://www.bing.com/search?q=x", '<li class="b_algo">')
+
+
+def test_parse_specstream_json_extracts_results_and_dates():
+    payload = {
+        "data": {
+            "sources": [
+                {
+                    "url": "https://www.zhihu.com/question/456",
+                    "title": "<b>AI</b> 编程助手对比",
+                    "snippet": "实测 Claude Code 与 Codex",
+                    "published": "2026-10-12",
+                },
+                {
+                    "url": "https://example.com/2",
+                    "title": "补充说明",
+                    "snippet": "2026-10-08 补充评测",
+                    "published": None,
+                },
+                {"url": "ftp://invalid.test/x", "title": "Skip"},
+                "malformed",
+            ]
+        }
+    }
+    results = websearch.parse_specstream_json(payload)
+    assert len(results) == 2
+    assert results[0] == SearchResult(
+        title="AI 编程助手对比",
+        url="https://www.zhihu.com/question/456",
+        snippet="实测 Claude Code 与 Codex",
+        engine="specstream",
+        date="2026-10-12",
+    )
+    assert results[1].date == "2026-10-08"
+
+
+def test_specstream_engine_requires_key_and_remains_opt_in(monkeypatch):
+    assert websearch.configured_engines() == ["bing_cn", "ddg", "bing"]
+
+    monkeypatch.setenv("LAST30DAYS_WEBSEARCH_ENGINES", "specstream,ddg")
+    assert websearch.configured_engines() == ["ddg"]
+
+    monkeypatch.setenv("LAST30DAYS_WEBSEARCH_ENGINES", "specstream")
+    assert websearch.configured_engines() == ["bing_cn", "ddg", "bing"]
+
+    monkeypatch.delenv("LAST30DAYS_WEBSEARCH_ENGINES", raising=False)
+    websearch.configure({"SPECSTREAM_API_KEY": "ss_test_key"})
+    assert websearch.configured_engines() == ["specstream", "bing_cn", "ddg", "bing"]
+
+    monkeypatch.setenv("LAST30DAYS_WEBSEARCH_ENGINES", "ddg,specstream")
+    assert websearch.configured_engines() == ["ddg", "specstream"]
+
+
+def test_search_specstream_sends_fast_bearer_request(monkeypatch):
+    captured = {}
+
+    def fake_get(url, headers=None, timeout=10, retries=1):
+        captured["url"] = url
+        captured["headers"] = headers
+        captured["timeout"] = timeout
+        captured["retries"] = retries
+        return {
+            "data": {
+                "sources": [
+                    {
+                        "url": "https://www.zhihu.com/question/999",
+                        "title": "AI 编程助手推荐",
+                        "snippet": "2026-10-15 实测结果",
+                        "published": "2026-10-15",
+                    }
+                ]
+            }
+        }
+
+    monkeypatch.setenv("SPECSTREAM_API_KEY", "ss_secret_token")
+    monkeypatch.setattr(websearch.http, "get", fake_get)
+    results = websearch.search(
+        "site:zhihu.com AI 编程助手",
+        topic="AI 编程助手",
+        url_pattern=r"zhihu\.com/question/\d+",
+        engines=["specstream"],
+        timeout=7,
+    )
+    assert len(results) == 1
+    assert results[0].engine == "specstream"
+    assert results[0].url == "https://www.zhihu.com/question/999"
+    assert captured["url"].startswith("https://api.specstream.ai/v1/web-search?")
+    assert "speed=fast" in captured["url"]
+    assert "num=10" in captured["url"]
+    assert captured["headers"]["Authorization"] == "Bearer ss_secret_token"
+    assert captured["timeout"] == 7
+    assert captured["retries"] == 1
+
+
+def test_search_specstream_blocks_on_auth_or_balance_errors(monkeypatch):
+    def unauthorized(url, headers=None, timeout=10, retries=1):
+        raise http.HTTPError("HTTP 401: Unauthorized", 401)
+
+    monkeypatch.setenv("SPECSTREAM_API_KEY", "ss_bad")
+    monkeypatch.setattr(websearch.http, "get", unauthorized)
+
+    fallback = [SearchResult("AI 编程助手", "https://x.test/1", "", "ddg")]
+    with patch.dict(websearch._ENGINE_FUNCS, {"ddg": lambda q, t: fallback}):
+        results = websearch.search("AI 编程助手", topic="AI 编程助手")
+
+    assert results == fallback
+    assert "specstream" in websearch.blocked_engines()
+    assert "SpecStream" in websearch.describe_failure("知乎")

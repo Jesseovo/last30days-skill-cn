@@ -174,7 +174,7 @@ def build_report(config: Dict[str, Any], probe_browser: bool = False) -> Dict[st
         "logins": {p: crawler_bridge.login_status(p) for p in crawler_bridge.LOGIN_SPECS},
         "xiaohongshu_api_base": env.discover_xiaohongshu_mcp(config),
         "websearch": {
-            "engines": websearch.configured_engines(),
+            "engines": websearch.configured_engines(config),
             "blocked_this_run": websearch.blocked_engines(),
         },
         "overseas": {

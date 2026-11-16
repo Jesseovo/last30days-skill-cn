@@ -14,7 +14,8 @@ Why this module exists (v4):
   topic relevance before accepting it.
 
 Engine order can be overridden with ``LAST30DAYS_WEBSEARCH_ENGINES``
-(comma-separated: ``bing_cn,ddg,bing``).
+(comma-separated: ``bing_cn,ddg,bing``, plus ``specstream`` when
+``SPECSTREAM_API_KEY`` is configured).
 """
 
 import base64
@@ -26,12 +27,14 @@ import threading
 import time
 import urllib.parse
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Pattern, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Pattern, Sequence, Union
 
 from . import http, relevance
 
 DEFAULT_ENGINES = ("bing_cn", "ddg", "bing")
 ENGINES_ENV = "LAST30DAYS_WEBSEARCH_ENGINES"
+SPECSTREAM_API_KEY_ENV = "SPECSTREAM_API_KEY"
+SPECSTREAM_SEARCH_URL = "https://api.specstream.ai/v1/web-search"
 MIN_INTERVAL_SECONDS = 2.5
 DEFAULT_MIN_RELEVANCE = 0.2
 
@@ -39,6 +42,7 @@ _lock = threading.Lock()
 _engine_locks: Dict[str, threading.Lock] = {}
 _last_request_at: Dict[str, float] = {}
 _blocked: Dict[str, str] = {}
+_configured_api_key: Optional[str] = None
 
 
 @dataclass
@@ -56,9 +60,31 @@ class EngineBlocked(Exception):
 
 def reset_state() -> None:
     """Forget throttling/blocked state (tests and long-lived processes)."""
+    global _configured_api_key
     with _lock:
         _blocked.clear()
         _last_request_at.clear()
+        _configured_api_key = None
+
+
+def configure(config: Optional[Dict[str, Any]] = None) -> None:
+    """Bind optional ``.env`` config (such as ``SPECSTREAM_API_KEY``) without exporting secrets."""
+    global _configured_api_key
+    key = ((config or {}).get(SPECSTREAM_API_KEY_ENV) or "").strip()
+    with _lock:
+        _configured_api_key = key or None
+
+
+def _specstream_api_key(config: Optional[Dict[str, Any]] = None) -> str:
+    env_key = os.environ.get(SPECSTREAM_API_KEY_ENV, "").strip()
+    if env_key:
+        return env_key
+    if config is not None:
+        cfg_key = (config.get(SPECSTREAM_API_KEY_ENV) or "").strip()
+        if cfg_key:
+            return cfg_key
+    with _lock:
+        return _configured_api_key or ""
 
 
 def blocked_engines() -> Dict[str, str]:
@@ -66,12 +92,18 @@ def blocked_engines() -> Dict[str, str]:
         return dict(_blocked)
 
 
-def configured_engines() -> List[str]:
+def configured_engines(config: Optional[Dict[str, Any]] = None) -> List[str]:
+    has_specstream = bool(_specstream_api_key(config))
+    default = ("specstream",) + DEFAULT_ENGINES if has_specstream else DEFAULT_ENGINES
     raw = os.environ.get(ENGINES_ENV, "").strip()
     if not raw:
-        return list(DEFAULT_ENGINES)
+        return list(default)
     names = [part.strip().lower() for part in raw.split(",") if part.strip()]
-    return [name for name in names if name in _ENGINE_FUNCS] or list(DEFAULT_ENGINES)
+    usable = [
+        name for name in names
+        if name in _ENGINE_FUNCS and (name != "specstream" or has_specstream)
+    ]
+    return usable or list(default)
 
 
 def _engine_lock(engine: str) -> threading.Lock:
@@ -204,6 +236,26 @@ def _search_bing(query: str, *, cn: bool, timeout: int) -> List[SearchResult]:
     return parse_bing_html(body, engine="bing_cn" if cn else "bing")
 
 
+def parse_specstream_json(payload: Any) -> List[SearchResult]:
+    """Parse ``GET /v1/web-search`` JSON responses from SpecStream."""
+    results: List[SearchResult] = []
+    data = payload.get("data") if isinstance(payload, dict) else None
+    sources = data.get("sources") if isinstance(data, dict) else None
+    if not isinstance(sources, list):
+        return results
+    for item in sources:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url") or "").strip()
+        title = clean_text(str(item.get("title") or ""))
+        snippet = clean_text(str(item.get("snippet") or item.get("excerpt") or ""))
+        published = str(item.get("published") or item.get("modified") or "").strip()
+        date = extract_date(published) or extract_date(snippet)
+        if url.startswith("http") and title:
+            results.append(SearchResult(title=title, url=url, snippet=snippet, engine="specstream", date=date))
+    return results
+
+
 def _search_ddg(query: str, *, timeout: int) -> List[SearchResult]:
     url = f"https://html.duckduckgo.com/html/?{urllib.parse.urlencode({'q': query, 'kl': 'cn-zh'})}"
     headers = http.browser_headers(referer="https://html.duckduckgo.com/")
@@ -213,10 +265,34 @@ def _search_ddg(query: str, *, timeout: int) -> List[SearchResult]:
     return parse_ddg_html(body)
 
 
+def _search_specstream(query: str, *, timeout: int) -> List[SearchResult]:
+    api_key = _specstream_api_key()
+    if not api_key:
+        return []
+    params = urllib.parse.urlencode({
+        "q": (query or "").strip()[:2000],
+        "speed": "fast",
+        "num": 10,
+    })
+    url = f"{SPECSTREAM_SEARCH_URL}?{params}"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Accept": "application/json",
+    }
+    try:
+        payload = http.get(url, headers=headers, timeout=timeout, retries=1)
+    except http.HTTPError as exc:
+        if exc.status_code in (401, 402, 403):
+            raise EngineBlocked(f"HTTP {exc.status_code}（请检查 SPECSTREAM_API_KEY 或余额）")
+        raise
+    return parse_specstream_json(payload)
+
+
 _ENGINE_FUNCS: Dict[str, Callable[..., List[SearchResult]]] = {
     "bing_cn": lambda q, timeout: _search_bing(q, cn=True, timeout=timeout),
     "bing": lambda q, timeout: _search_bing(q, cn=False, timeout=timeout),
     "ddg": lambda q, timeout: _search_ddg(q, timeout=timeout),
+    "specstream": lambda q, timeout: _search_specstream(q, timeout=timeout),
 }
 
 
@@ -312,7 +388,12 @@ def site_search(
     )
 
 
-_ENGINE_NAMES = {"bing_cn": "cn.bing.com", "bing": "www.bing.com", "ddg": "DuckDuckGo"}
+_ENGINE_NAMES = {
+    "bing_cn": "cn.bing.com",
+    "bing": "www.bing.com",
+    "ddg": "DuckDuckGo",
+    "specstream": "SpecStream",
+}
 
 
 def describe_failure(label: str) -> str:

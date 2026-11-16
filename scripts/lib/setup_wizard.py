@@ -31,6 +31,7 @@ ENV_TEMPLATE = """# ============================================
 # WEIBO_ACCESS_TOKEN=      # 微博开放平台
 # XIAOHONGSHU_API_BASE=    # 自部署 xiaohongshu-mcp，例如 http://127.0.0.1:18060
 # GITHUB_TOKEN=            # 海外源 GitHub 提高限额
+# SPECSTREAM_API_KEY=      # SpecStream 公开搜索兜底（可选，https://specstream.ai）
 
 # --- 运行开关 ---
 # LAST30DAYS_DISABLE_BROWSER=1          # 旧电脑：完全不用浏览器

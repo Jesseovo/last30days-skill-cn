@@ -49,6 +49,7 @@ from lib import (  # noqa: E402
     setup_wizard,
     sources,
     trending,
+    websearch,
 )
 from lib import query_type as qt  # noqa: E402
 from lib.version import DISPLAY_VERSION  # noqa: E402
@@ -319,6 +320,7 @@ def main():
         os.environ["LAST30DAYS_DEBUG"] = "1"
 
     config = env.get_config()  # also exports runtime switches from .env files
+    websearch.configure(config)
     if args.no_browser:
         os.environ["LAST30DAYS_DISABLE_BROWSER"] = "1"
 

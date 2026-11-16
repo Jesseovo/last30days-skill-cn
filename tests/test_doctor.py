@@ -88,3 +88,10 @@ def test_doctor_render_text_mentions_login_and_overseas_sections():
     assert "登录态" in text
     assert "海外源" in text
     assert "公开搜索兜底引擎" in text
+
+
+def test_doctor_includes_specstream_engine_only_when_key_configured(monkeypatch):
+    monkeypatch.delenv("SPECSTREAM_API_KEY", raising=False)
+    monkeypatch.delenv("LAST30DAYS_WEBSEARCH_ENGINES", raising=False)
+    assert "specstream" not in _build({})["websearch"]["engines"]
+    assert _build({"SPECSTREAM_API_KEY": "ss_test"})["websearch"]["engines"][0] == "specstream"
