@@ -36,6 +36,7 @@ def readonly_home(tmp_path, monkeypatch):
 def block_home_writes(monkeypatch, home, error, existing):
     mkdir = Path.mkdir
     open_file = os.open
+    access = os.access
 
     def denied_mkdir(path, *args, **kwargs):
         if path == home or home in path.parents:
@@ -48,8 +49,15 @@ def block_home_writes(monkeypatch, home, error, existing):
             raise OSError(error, os.strerror(error), str(path))
         return open_file(path, flags, *args, **kwargs)
 
+    def denied_access(path, mode, *args, **kwargs):
+        # Windows tempfile retries EACCES when access() still reports writable.
+        if (Path(path) == home or home in Path(path).parents) and mode & os.W_OK:
+            return False
+        return access(path, mode, *args, **kwargs)
+
     monkeypatch.setattr(Path, "mkdir", denied_mkdir)
     monkeypatch.setattr(os, "open", denied_open)
+    monkeypatch.setattr(os, "access", denied_access)
 
 
 @pytest.mark.parametrize("error", [errno.EROFS, errno.EACCES, errno.EPERM])
