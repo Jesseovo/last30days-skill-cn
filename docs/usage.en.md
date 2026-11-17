@@ -67,6 +67,16 @@ python scripts/last30days.py login xiaohongshu   # also: weibo / zhihu / douyin 
 - You can also set `WEIBO_COOKIE`, `ZHIHU_COOKIE` or `BILIBILI_COOKIE` in the config file.
 - Without a login these platforms still return hot-list matches and public web-search results, labelled as "links only, no reliable engagement data".
 
+If HOME is read-only or not writable, reports, caches, and browser sessions fall back to the system temporary directory. Sessions use a private directory for the current user and can be reused by later commands; import them again if the system removes temporary files. For persistent storage in containers or on servers, set writable paths:
+
+```bash
+export LAST30DAYS_OUTPUT_DIR=/path/to/writable/out
+export LAST30DAYS_CACHE_DIR=/path/to/writable/cache
+export LAST30DAYS_CN_CONFIG_DIR=/path/to/writable/config
+```
+
+Cookies are stored under `browser_cookies/` in the config directory. If neither the config directory nor the system temporary directory is writable, `login --cookie` returns an actionable error.
+
 ### Overseas sources (optional)
 
 ```bash

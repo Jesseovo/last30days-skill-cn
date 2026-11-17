@@ -95,6 +95,16 @@ python scripts/last30days.py login xiaohongshu   # 也支持 weibo / zhihu / dou
 - 也可以在配置文件里填 `WEIBO_COOKIE`、`ZHIHU_COOKIE`、`BILIBILI_COOKIE`。
 - 不登录也能用：这些平台会改用热榜匹配和公开搜索兜底，报告里会注明「只有公开链接，缺少互动数据」。
 
+HOME 只读或没有写权限时，报告、缓存和浏览器登录态会回退到系统临时目录。登录态使用当前用户的私有目录，后续命令可以复用；系统清理临时文件后需要重新导入。容器或服务器上需要持久保存时，请指定可写目录：
+
+```bash
+export LAST30DAYS_OUTPUT_DIR=/path/to/writable/out
+export LAST30DAYS_CACHE_DIR=/path/to/writable/cache
+export LAST30DAYS_CN_CONFIG_DIR=/path/to/writable/config
+```
+
+Cookie 保存在配置目录的 `browser_cookies/` 下。如果配置目录和系统临时目录都不可写，`login --cookie` 会返回明确的错误提示。
+
 ### 海外平台（可选）
 
 ```bash

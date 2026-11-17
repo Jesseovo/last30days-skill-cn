@@ -23,6 +23,7 @@ v4 改动：
 Author: Jesse (https://github.com/Jesseovo)
 """
 
+import hashlib
 import json
 import os
 import platform as platform_mod
@@ -38,6 +39,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from . import dates
+from .storage import check_private_directory, ensure_writable_directory
 
 
 def _config_dir() -> Path:
@@ -227,18 +229,46 @@ def _ua_for_browser(version: str, mobile: bool) -> str:
 # Cookie / login-state persistence
 # ---------------------------------------------------------------------------
 
-def _ensure_cookie_dir():
-    COOKIE_DIR.mkdir(parents=True, exist_ok=True)
+def _cookie_fallback_dir() -> Path:
+    # Stable across commands, isolated by user and configured storage location.
+    uid = str(os.getuid()) if hasattr(os, "getuid") else ""
+    identity = f"{uid}:{_config_dir().absolute()}"
+    key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
+    return Path(tempfile.gettempdir()) / f"last30days-cn-cookies-{key}"
+
+
+def _cookie_read_dir(platform: str = "") -> Path:
+    """Find an earlier import without creating directories during login checks."""
+    try:
+        fallback = _cookie_fallback_dir()
+        check_private_directory(fallback)
+        if platform and not (fallback / f"{platform}_cookies.json").is_file():
+            return COOKIE_DIR
+    except OSError:
+        return COOKIE_DIR
+    try:
+        ensure_writable_directory(COOKIE_DIR, create=False)
+    except OSError:
+        return fallback
+    return COOKIE_DIR
+
+
+def _ensure_cookie_dir() -> Path:
+    try:
+        ensure_writable_directory(COOKIE_DIR)
+        return COOKIE_DIR
+    except OSError:
+        fallback = _cookie_fallback_dir()
+        ensure_writable_directory(fallback, private=True)
+        return fallback
 
 
 def _get_cookie_path(platform: str) -> Path:
-    _ensure_cookie_dir()
-    return COOKIE_DIR / f"{platform}_cookies.json"
+    return _ensure_cookie_dir() / f"{platform}_cookies.json"
 
 
 def _marker_path(platform: str) -> Path:
-    _ensure_cookie_dir()
-    return COOKIE_DIR / f"{platform}_login.json"
+    return _ensure_cookie_dir() / f"{platform}_login.json"
 
 
 def _write_private(path: Path, text: str) -> None:
@@ -268,7 +298,7 @@ def save_cookies(platform: str, cookies: list):
 
 
 def load_cookies(platform: str) -> Optional[list]:
-    path = COOKIE_DIR / f"{platform}_cookies.json"
+    path = _cookie_read_dir(platform) / f"{platform}_cookies.json"
     if path.exists():
         try:
             return json.loads(path.read_text(encoding="utf-8"))
@@ -297,7 +327,7 @@ def has_login(platform: str) -> bool:
     if not any(name in names for name in spec["cookies"]):
         return False
     if spec.get("anonymous_cookie_ambiguous"):
-        return (COOKIE_DIR / f"{platform}_login.json").exists()
+        return (_cookie_read_dir(platform) / f"{platform}_login.json").exists()
     return True
 
 
@@ -305,7 +335,7 @@ def login_status(platform: str) -> Dict[str, Any]:
     spec = LOGIN_SPECS.get(platform, {})
     cookies = load_cookies(platform) or []
     marker = {}
-    path = COOKIE_DIR / f"{platform}_login.json"
+    path = _cookie_read_dir(platform) / f"{platform}_login.json"
     if path.exists():
         try:
             marker = json.loads(path.read_text(encoding="utf-8"))
@@ -325,6 +355,7 @@ def login_status(platform: str) -> Dict[str, Any]:
         "cookie_count": len(cookies),
         "login_saved_at": marker.get("saved_at"),
         "login_method": marker.get("method"),
+        "cookie_dir": str(_cookie_read_dir(platform)),
         "expires": expires_at,
     }
 
@@ -336,7 +367,7 @@ def _write_marker(platform: str, method: str) -> None:
 
 def mark_logged_out(platform: str) -> None:
     """Forget a login marker after the platform showed a login wall again."""
-    path = COOKIE_DIR / f"{platform}_login.json"
+    path = _cookie_read_dir(platform) / f"{platform}_login.json"
     try:
         if path.exists():
             path.unlink()
@@ -561,7 +592,7 @@ def interactive_login(platform: str, timeout_seconds: int = 240) -> Tuple[bool, 
                     page.wait_for_timeout(1500)
                     save_cookies(platform, context.cookies())
                     _write_marker(platform, "browser")
-                    return True, f"{label}登录成功，登录态已保存到 {COOKIE_DIR}"
+                    return True, f"{label}登录成功，登录态已保存到 {_cookie_read_dir(platform)}"
                 try:
                     page.wait_for_timeout(2000)
                 except Exception:
@@ -1200,25 +1231,26 @@ def _parse_relative_date(date_str: str) -> Optional[str]:
 def get_crawler_status() -> Dict[str, Any]:
     """获取爬虫引擎的状态信息。"""
     pw_available = is_playwright_available()
-    cached_platforms = []
+    cached_platforms = set()
     logins: Dict[str, Any] = {}
 
-    if COOKIE_DIR.exists():
-        for f in COOKIE_DIR.glob("*_cookies.json"):
-            platform = f.stem.replace("_cookies", "")
-            cached_platforms.append(platform)
-        for platform in LOGIN_SPECS:
-            if (COOKIE_DIR / f"{platform}_cookies.json").exists():
-                try:
-                    logins[platform] = login_status(platform)
-                except Exception:
-                    pass
+    active_dir = _cookie_read_dir()
+    for directory in {COOKIE_DIR, active_dir}:
+        if directory.exists():
+            for f in directory.glob("*_cookies.json"):
+                cached_platforms.add(f.stem.replace("_cookies", ""))
+    for platform in LOGIN_SPECS:
+        if platform in cached_platforms:
+            try:
+                logins[platform] = login_status(platform)
+            except Exception:
+                pass
 
     return {
         "playwright_available": pw_available,
         "cached_logins": sorted(cached_platforms),
         "logins": logins,
-        "cookie_dir": str(COOKIE_DIR),
+        "cookie_dir": str(active_dir),
         "browser": _browser_status(),
     }
 

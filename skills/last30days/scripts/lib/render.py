@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import schema, sources
+from .storage import ensure_writable_directory
 from .version import DISPLAY_VERSION
 
 OUTPUT_DIR = Path.home() / ".local" / "share" / "last30days" / "out"
@@ -92,10 +93,10 @@ def ensure_output_dir():
         OUTPUT_DIR = Path(env_dir)
 
     try:
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    except PermissionError:
+        ensure_writable_directory(OUTPUT_DIR)
+    except OSError:
         OUTPUT_DIR = Path(tempfile.gettempdir()) / "last30days" / "out"
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        ensure_writable_directory(OUTPUT_DIR)
 
 
 def _list_recent_count(items, range_from: str) -> int:
