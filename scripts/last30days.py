@@ -269,7 +269,21 @@ def _run_login(platform: str, cookie: str, timeout: int) -> int:
         except ValueError as exc:
             print(f"导入失败: {exc}", file=sys.stderr)
             return 1
-        print(f"已导入 {crawler_bridge.LOGIN_SPECS[platform]['label']} Cookie（{count} 个字段），保存在 {crawler_bridge.COOKIE_DIR}")
+        except OSError as exc:
+            print(
+                f"导入失败: 无法保存登录态（{exc}）。"
+                "请将 LAST30DAYS_CN_CONFIG_DIR 设置为可写目录后重试。",
+                file=sys.stderr,
+            )
+            return 1
+        saved_dir = crawler_bridge.login_status(platform)["cookie_dir"]
+        print(f"已导入 {crawler_bridge.LOGIN_SPECS[platform]['label']} Cookie（{count} 个字段），保存在 {saved_dir}")
+        if Path(saved_dir) != crawler_bridge.COOKIE_DIR:
+            print(
+                "配置目录不可写，登录态已存入临时目录，可能被系统清理。"
+                "可用 LAST30DAYS_CN_CONFIG_DIR 指定持久可写目录。",
+                file=sys.stderr,
+            )
         return 0
     ok, message = crawler_bridge.interactive_login(platform, timeout_seconds=timeout)
     print(message, file=sys.stdout if ok else sys.stderr)

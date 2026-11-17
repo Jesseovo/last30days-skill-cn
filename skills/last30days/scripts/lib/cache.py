@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from .storage import ensure_writable_directory
+
 CACHE_DIR = Path.home() / ".cache" / "last30days-cn"
 DEFAULT_TTL_HOURS = 24
 MODEL_CACHE_TTL_DAYS = 7
@@ -26,11 +28,11 @@ def ensure_cache_dir():
         MODEL_CACHE_FILE = CACHE_DIR / "model_selection.json"
 
     try:
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    except PermissionError:
+        ensure_writable_directory(CACHE_DIR)
+    except OSError:
         CACHE_DIR = Path(tempfile.gettempdir()) / "last30days-cn" / "cache"
         MODEL_CACHE_FILE = CACHE_DIR / "model_selection.json"
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        ensure_writable_directory(CACHE_DIR)
 
 
 def get_cache_key(topic: str, from_date: str, to_date: str, sources: str) -> str:
