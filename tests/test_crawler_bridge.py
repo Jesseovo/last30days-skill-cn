@@ -145,6 +145,46 @@ class TestXiaohongshuPayload(unittest.TestCase):
         self.assertEqual(parsed["engagement"]["likes"], 12000)
         self.assertTrue(parsed["url"].endswith("/abc123"))
 
+    def test_dom_fallback_prefers_signed_note_link(self):
+        note_id = "65a1b2c3d4e5f60718293a4b"
+        signed_path = f"/search_result/{note_id}?xsec_token=token%3D&xsec_source=pc_search"
+
+        class Node:
+            def __init__(self, href="", text=""):
+                self.href = href
+                self.text = text
+
+            def get_attribute(self, name):
+                return self.href if name == "href" else None
+
+            def inner_text(self):
+                return self.text
+
+        class Card:
+            links = [Node(f"/explore/{note_id}"), Node(signed_path)]
+
+            def query_selector(self, selector):
+                if selector.startswith("a[href"):
+                    return self.links[0]
+                if selector.startswith("a.title"):
+                    return Node(text="测试笔记")
+                if selector.startswith("span.name"):
+                    return Node(text="测试作者")
+                if selector.startswith("span.count"):
+                    return Node(text="12")
+                return None
+
+            def query_selector_all(self, selector):
+                return self.links if selector.startswith("a[href") else []
+
+        class Page:
+            def query_selector_all(self, selector):
+                return [Card()] if selector == "section.note-item" else []
+
+        items = crawler_bridge._xhs_dom_items(Page(), 1)
+
+        self.assertEqual(items[0]["url"], f"https://www.xiaohongshu.com{signed_path}")
+
     def test_external_browser_path_is_used(self):
         with patch.dict(
             "os.environ",
