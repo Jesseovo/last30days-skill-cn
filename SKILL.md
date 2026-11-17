@@ -21,6 +21,7 @@ metadata:
         - WEIBO_ACCESS_TOKEN
         - XIAOHONGSHU_API_BASE
         - GITHUB_TOKEN
+        - SPECSTREAM_API_KEY
       bins:
         - python3
     files:
@@ -162,6 +163,7 @@ WECHAT_API_KEY=        # WeChat public accounts (jisuapi)
 BAIDU_API_KEY=         # Baidu Qianfan AI Search (Bearer key)
 XIAOHONGSHU_API_BASE=  # self-hosted xiaohongshu-mcp, auto-detected on 127.0.0.1:18060
 GITHUB_TOKEN=          # higher GitHub search limits
+SPECSTREAM_API_KEY=    # optional SpecStream engine for web-search fallback
 LAST30DAYS_DISABLE_BROWSER=1
 ```
 

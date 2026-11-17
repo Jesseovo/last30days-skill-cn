@@ -169,6 +169,7 @@ BAIDU_API_KEY=           # 百度千帆「AI 搜索」
 WEIBO_ACCESS_TOKEN=      # 微博开放平台
 XIAOHONGSHU_API_BASE=    # 自部署的 xiaohongshu-mcp，默认自动探测 127.0.0.1:18060
 GITHUB_TOKEN=            # 海外 GitHub 源
+SPECSTREAM_API_KEY=      # 可选：SpecStream 公开搜索兜底引擎
 
 # 运行开关
 LAST30DAYS_DISABLE_BROWSER=1     # 不使用浏览器

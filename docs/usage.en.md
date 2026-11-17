@@ -137,6 +137,7 @@ BAIDU_API_KEY=             # Baidu Qianfan AI Search
 WEIBO_ACCESS_TOKEN=
 XIAOHONGSHU_API_BASE=      # self-hosted xiaohongshu-mcp, auto-detected on 127.0.0.1:18060
 GITHUB_TOKEN=
+SPECSTREAM_API_KEY=        # optional SpecStream engine for web-search fallback
 LAST30DAYS_DISABLE_BROWSER=1
 INCLUDE_SOURCES=global
 EXCLUDE_SOURCES=douyin

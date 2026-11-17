@@ -31,6 +31,7 @@ from . import (
     sources,
     toutiao,
     upstream_bridge,
+    websearch,
     wechat,
     weibo,
     xiaohongshu,
@@ -239,6 +240,7 @@ def run_sources(
     log: bool = True,
 ) -> Dict[str, Dict[str, Any]]:
     """Run the selected sources in parallel with per-source deadlines."""
+    websearch.configure(ctx.config)
     timeouts = timeouts or TIMEOUT_PROFILES.get(ctx.depth, TIMEOUT_PROFILES["default"])
     boxes: Dict[str, Dict[str, Any]] = {}
     threads: Dict[str, threading.Thread] = {}

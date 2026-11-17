@@ -71,7 +71,7 @@
 | 模块 | 职责 |
 |---|---|
 | `http.py` | 完整浏览器 UA / client hints（`browser_headers`）、gzip/deflate + 字符集解码、`Session`（Cookie）、`fetch()`（返回最终 URL）、重试与 Retry-After、412 快速失败、调试日志脱敏 |
-| `websearch.py` | 多引擎公开搜索（cn.bing / DuckDuckGo / www.bing）、跳转链接解析、节流、引擎拦截记忆、URL 规则 + 相关性校验 |
+| `websearch.py` | 多引擎公开搜索（cn.bing / DuckDuckGo / www.bing，可选 SpecStream）、跳转链接解析、节流、引擎拦截记忆、URL 规则 + 相关性校验 |
 | `crawler_bridge.py` | Playwright 启动（外部浏览器路径/channel、并发信号量、熔断）、登录（`interactive_login`、`import_cookie_header`、`has_login`、`login_status`）、各平台浏览器爬取 |
 | `pipeline.py` | `RunContext`、`select_sources`、`run_sources`（守护线程 + 截止时间）、`process_results`、`build_report` |
 | `trending.py` | 热榜抓取、RSS/Atom 解析、IDF 显著词跨平台合并、Markdown/JSON/HTML 渲染 |
@@ -117,7 +117,7 @@ python3 scripts/last30days.py --version
 ## 配置（摘要）
 
 - 全局 `~/.config/last30days-cn/.env`，项目级 `.claude/last30days-cn.env`，目录可用 `LAST30DAYS_CN_CONFIG_DIR` 覆盖。
-- 密钥类：`WEIBO_COOKIE`、`ZHIHU_COOKIE`、`BILIBILI_COOKIE`、`TIKHUB_API_KEY`/`DOUYIN_API_KEY`、`WECHAT_API_KEY`、`BAIDU_API_KEY`、`WEIBO_ACCESS_TOKEN`、`XIAOHONGSHU_API_BASE`、`GITHUB_TOKEN`（只读入配置，不写入进程环境）。
+- 密钥类：`WEIBO_COOKIE`、`ZHIHU_COOKIE`、`BILIBILI_COOKIE`、`TIKHUB_API_KEY`/`DOUYIN_API_KEY`、`WECHAT_API_KEY`、`BAIDU_API_KEY`、`WEIBO_ACCESS_TOKEN`、`XIAOHONGSHU_API_BASE`、`GITHUB_TOKEN`、`SPECSTREAM_API_KEY`（只读入配置，不写入进程环境）。
 - 运行开关（写在 .env 中也会生效）：`LAST30DAYS_DEFAULT_SEARCH`、`INCLUDE_SOURCES`、`EXCLUDE_SOURCES`、`LAST30DAYS_DISABLE_BROWSER`、`LAST30DAYS_BROWSER_PATH`、`LAST30DAYS_BROWSER_CHANNEL`、`LAST30DAYS_BROWSER_CONCURRENCY`、`LAST30DAYS_WEBSEARCH_ENGINES`、`LAST30DAYS_USER_AGENT`、`LAST30DAYS_OUTPUT_DIR`、`LAST30DAYS_CACHE_DIR`、`LAST30DAYS_UPSTREAM`、`LAST30DAYS_UPSTREAM_PYTHON`、`LAST30DAYS_UPSTREAM_SEARCH`、`LAST30DAYS_HOT_SOURCES`、`LAST30DAYS_HOT_FEEDS`。
 - 浏览器登录态保存在 `~/.config/last30days-cn/browser_cookies/`（`<平台>_cookies.json` 与 `<平台>_login.json`，权限 0600）。
 

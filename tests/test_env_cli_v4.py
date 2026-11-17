@@ -47,12 +47,16 @@ def test_process_environment_wins_over_env_file(tmp_path, monkeypatch):
 
 def test_secrets_are_not_exported_to_the_environment(tmp_path, monkeypatch):
     env_file = tmp_path / ".env"
-    env_file.write_text("ZHIHU_COOKIE=z_c0=secret\n", encoding="utf-8")
+    env_file.write_text("ZHIHU_COOKIE=z_c0=secret\nSPECSTREAM_API_KEY=ss_secret\n", encoding="utf-8")
     monkeypatch.setattr(env, "CONFIG_FILE", env_file)
     monkeypatch.setattr(env, "_find_project_env", lambda: None)
     monkeypatch.delenv("ZHIHU_COOKIE", raising=False)
-    assert env.get_config()["ZHIHU_COOKIE"] == "z_c0=secret"
+    monkeypatch.delenv("SPECSTREAM_API_KEY", raising=False)
+    config = env.get_config()
+    assert config["ZHIHU_COOKIE"] == "z_c0=secret"
+    assert config["SPECSTREAM_API_KEY"] == "ss_secret"
     assert "ZHIHU_COOKIE" not in os.environ
+    assert "SPECSTREAM_API_KEY" not in os.environ
 
 
 def test_xhs_mcp_base_only_when_configured_or_reachable(monkeypatch):
