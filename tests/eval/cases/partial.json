@@ -1,0 +1,37 @@
+{
+  "topic": "银杉字幕编辑器",
+  "as_of": "2026-11-01",
+  "days": 30,
+  "items": {
+    "bilibili": [
+      {
+        "id": "BL1",
+        "title": "银杉字幕编辑器时间轴校准教程",
+        "url": "https://example.invalid/bilibili/BL1",
+        "date": "2026-10-25",
+        "relevance": 0.87
+      }
+    ],
+    "zhihu": [],
+    "xiaohongshu": []
+  },
+  "timeouts": [
+    "xiaohongshu"
+  ],
+  "expected": {
+    "states": {
+      "bilibili": "ok",
+      "zhihu": "empty",
+      "xiaohongshu": "timeout"
+    },
+    "keep": [
+      "BL1"
+    ],
+    "exclude": [],
+    "relevant": [
+      "BL1"
+    ],
+    "clusters": [],
+    "separate": []
+  }
+}

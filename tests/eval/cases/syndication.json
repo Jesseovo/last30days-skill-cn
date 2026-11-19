@@ -1,0 +1,58 @@
+{
+  "topic": "石榴港轮渡",
+  "as_of": "2026-11-01",
+  "days": 30,
+  "items": {
+    "wechat": [
+      {
+        "id": "WX1",
+        "title": "石榴港轮渡调整早班时刻，首班提前到六点",
+        "url": "https://example.invalid/wechat/WX1",
+        "date": "2026-10-25",
+        "relevance": 0.97
+      }
+    ],
+    "toutiao": [
+      {
+        "id": "TT1",
+        "title": "石榴港轮渡调整早班时刻，首班提前到六点（转载）",
+        "url": "https://example.invalid/toutiao/TT1",
+        "date": "2026-10-25",
+        "relevance": 0.92
+      },
+      {
+        "id": "TT2",
+        "title": "石榴港轮渡调整早班时刻，首班提前到六点（转载）",
+        "url": "https://example.invalid/toutiao/TT2",
+        "date": "2026-10-25",
+        "relevance": 0.78
+      }
+    ]
+  },
+  "timeouts": [],
+  "expected": {
+    "states": {
+      "wechat": "ok",
+      "toutiao": "ok"
+    },
+    "keep": [
+      "WX1",
+      "TT1"
+    ],
+    "exclude": [
+      "TT2"
+    ],
+    "relevant": [
+      "WX1",
+      "TT1",
+      "TT2"
+    ],
+    "clusters": [
+      [
+        "WX1",
+        "TT1"
+      ]
+    ],
+    "separate": []
+  }
+}

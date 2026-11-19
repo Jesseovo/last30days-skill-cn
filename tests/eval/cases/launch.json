@@ -1,0 +1,57 @@
+{
+  "topic": "雾灯输入法",
+  "as_of": "2026-11-01",
+  "days": 30,
+  "items": {
+    "weibo": [
+      {
+        "id": "WB1",
+        "text": "雾灯输入法推出离线语音包，支持粤语听写",
+        "url": "https://example.invalid/weibo/WB1",
+        "date": "2026-10-25",
+        "relevance": 0.94
+      },
+      {
+        "id": "WB2",
+        "text": "深夜食堂公布冬季甜品菜单",
+        "url": "https://example.invalid/weibo/WB2",
+        "date": "2026-10-25",
+        "relevance": 0.02
+      }
+    ],
+    "bilibili": [
+      {
+        "id": "BL1",
+        "title": "雾灯输入法推出离线语音包，支持粤语听写：实机演示",
+        "url": "https://example.invalid/bilibili/BL1",
+        "date": "2026-10-25",
+        "relevance": 0.88
+      }
+    ]
+  },
+  "timeouts": [],
+  "expected": {
+    "states": {
+      "weibo": "ok",
+      "bilibili": "ok"
+    },
+    "keep": [
+      "WB1",
+      "BL1"
+    ],
+    "exclude": [
+      "WB2"
+    ],
+    "relevant": [
+      "WB1",
+      "BL1"
+    ],
+    "clusters": [
+      [
+        "WB1",
+        "BL1"
+      ]
+    ],
+    "separate": []
+  }
+}
