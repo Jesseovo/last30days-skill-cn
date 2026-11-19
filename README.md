@@ -104,6 +104,7 @@
 ## 再往里看看
 
 [使用手册](docs/usage.zh-CN.md) — 登录、可选依赖、平台数据路径、配置和完整命令。<br />
+[研究质量评测](docs/research-quality.zh-CN.md) — 离线复跑中文样本，查看逐平台命中数与修复前后对照。<br />
 [技术说明](SPEC.md) — 检索、清洗、评分、跨平台归并与输出契约。<br />
 [参与开发](AGENTS.md) · [安全反馈](SECURITY.md) · [更新记录](release-notes.md)
 

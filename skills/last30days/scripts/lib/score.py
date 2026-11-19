@@ -330,7 +330,7 @@ def relevance_filter(items, source_name: str, threshold: float = 0.3):
     still above ``HARD_RELEVANCE_FLOOR`` (pure noise is never kept).
     """
     if len(items) <= 3:
-        return items
+        return [i for i in items if getattr(i, "relevance", 0.0) >= HARD_RELEVANCE_FLOOR]
     passed = [i for i in items if getattr(i, "relevance", 0.0) >= threshold]
     if not passed:
         by_rel = sorted(items, key=lambda x: getattr(x, "relevance", 0.0), reverse=True)

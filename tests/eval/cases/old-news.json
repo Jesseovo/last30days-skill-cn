@@ -1,0 +1,69 @@
+{
+  "topic": "溪岸观测站",
+  "as_of": "2026-11-01",
+  "days": 30,
+  "items": {
+    "baidu": [
+      {
+        "id": "BD1",
+        "title": "溪岸观测站公布十月首期水位数据",
+        "url": "https://example.invalid/baidu/BD1",
+        "date": "2026-10-02",
+        "relevance": 0.9
+      },
+      {
+        "id": "BD2",
+        "title": "溪岸观测站采样流程说明",
+        "url": "https://example.invalid/baidu/BD2",
+        "date": null,
+        "relevance": 0.75
+      }
+    ],
+    "weibo": [
+      {
+        "id": "WB1",
+        "text": "溪岸观测站发布本月监测简报",
+        "url": "https://example.invalid/weibo/WB1",
+        "date": "2026-11-01",
+        "relevance": 0.91
+      },
+      {
+        "id": "WB2",
+        "text": "旧闻：溪岸观测站首次开放预约",
+        "url": "https://example.invalid/weibo/WB2",
+        "date": "2026-10-01",
+        "relevance": 0.99
+      },
+      {
+        "id": "WB3",
+        "text": "溪岸观测站下月检修实录",
+        "url": "https://example.invalid/weibo/WB3",
+        "date": "2026-11-02",
+        "relevance": 0.92
+      }
+    ]
+  },
+  "timeouts": [],
+  "expected": {
+    "states": {
+      "baidu": "ok",
+      "weibo": "ok"
+    },
+    "keep": [
+      "BD1",
+      "WB1",
+      "BD2"
+    ],
+    "exclude": [
+      "WB2",
+      "WB3"
+    ],
+    "relevant": [
+      "BD1",
+      "WB1",
+      "BD2"
+    ],
+    "clusters": [],
+    "separate": []
+  }
+}

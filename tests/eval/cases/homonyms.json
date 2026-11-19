@@ -1,0 +1,48 @@
+{
+  "topic": "星桥",
+  "as_of": "2026-11-01",
+  "days": 30,
+  "items": {
+    "douyin": [
+      {
+        "id": "DY1",
+        "text": "星桥剧团在码头首演皮影戏",
+        "url": "https://example.invalid/douyin/DY1",
+        "date": "2026-10-25",
+        "relevance": 0.9
+      }
+    ],
+    "baidu": [
+      {
+        "id": "BD1",
+        "title": "星桥卫星公布遥感图像和轨道参数",
+        "url": "https://example.invalid/baidu/BD1",
+        "date": "2026-10-25",
+        "relevance": 0.91
+      }
+    ]
+  },
+  "timeouts": [],
+  "expected": {
+    "states": {
+      "douyin": "ok",
+      "baidu": "ok"
+    },
+    "keep": [
+      "DY1",
+      "BD1"
+    ],
+    "exclude": [],
+    "relevant": [
+      "DY1",
+      "BD1"
+    ],
+    "clusters": [],
+    "separate": [
+      [
+        "DY1",
+        "BD1"
+      ]
+    ]
+  }
+}

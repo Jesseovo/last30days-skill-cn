@@ -1,0 +1,21 @@
+{
+  "topic": "未命中样例",
+  "as_of": "2026-11-01",
+  "days": 30,
+  "items": {
+    "baidu": [],
+    "weibo": []
+  },
+  "timeouts": [],
+  "expected": {
+    "states": {
+      "baidu": "empty",
+      "weibo": "empty"
+    },
+    "keep": [],
+    "exclude": [],
+    "relevant": [],
+    "clusters": [],
+    "separate": []
+  }
+}

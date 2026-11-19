@@ -101,8 +101,10 @@ class TestRelevanceFilter(unittest.TestCase):
             schema.ZhihuItem(id="Z1", title="好", excerpt="", url="", author="", relevance=0.8, score=70),
             schema.ZhihuItem(id="Z2", title="差", excerpt="", url="", author="", relevance=0.05, score=10),
         ]
+        items.append(schema.ZhihuItem(id="Z3", title="弱相关", excerpt="", url="", author="",
+                                      relevance=score.HARD_RELEVANCE_FLOOR))
         result = score.relevance_filter(items, "ZHIHU")
-        self.assertGreaterEqual(len(result), 1)
+        self.assertEqual([item.id for item in result], ["Z1", "Z3"])
 
     def test_empty_list(self):
         result = score.relevance_filter([], "WEIBO")

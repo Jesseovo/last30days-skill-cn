@@ -1,0 +1,86 @@
+{
+  "topic": "桥墨和山雀哪个适合整理访谈",
+  "as_of": "2026-11-01",
+  "days": 30,
+  "items": {
+    "zhihu": [
+      {
+        "id": "ZH6",
+        "title": "今年迁徙的山雀为什么变少了",
+        "url": "https://example.invalid/zhihu/ZH6",
+        "date": "2026-10-25",
+        "relevance": 0.38
+      },
+      {
+        "id": "ZH4",
+        "title": "山雀共享笔记与桥墨团队订阅的价格",
+        "url": "https://example.invalid/zhihu/ZH4",
+        "date": "2026-10-25",
+        "relevance": 0.85
+      },
+      {
+        "id": "ZH2",
+        "title": "十场访谈盲测：两款工具的说话人分离",
+        "url": "https://example.invalid/zhihu/ZH2",
+        "date": "2026-10-25",
+        "relevance": 0.94
+      },
+      {
+        "id": "ZH1",
+        "title": "桥墨与山雀的方言转录错字统计",
+        "url": "https://example.invalid/zhihu/ZH1",
+        "date": "2026-10-25",
+        "relevance": 0.98
+      },
+      {
+        "id": "ZH5",
+        "title": "两款录音助手标记长停顿的差异",
+        "url": "https://example.invalid/zhihu/ZH5",
+        "date": "2026-10-25",
+        "relevance": 0.8
+      },
+      {
+        "id": "ZH3",
+        "title": "桥墨离线导出和山雀云端导出的耗时",
+        "url": "https://example.invalid/zhihu/ZH3",
+        "date": "2026-10-25",
+        "relevance": 0.89
+      }
+    ],
+    "xiaohongshu": [
+      {
+        "id": "XHS1",
+        "title": "记者试用：访谈录音导入后怎样校对人名",
+        "url": "https://example.invalid/xiaohongshu/XHS1?xsec_token=fixture-only",
+        "date": "2026-10-25",
+        "relevance": 0.91
+      }
+    ]
+  },
+  "timeouts": [],
+  "expected": {
+    "states": {
+      "zhihu": "ok",
+      "xiaohongshu": "ok"
+    },
+    "keep": [
+      "ZH1",
+      "ZH2",
+      "ZH3",
+      "ZH4",
+      "ZH5",
+      "XHS1"
+    ],
+    "exclude": [],
+    "relevant": [
+      "ZH1",
+      "ZH2",
+      "ZH3",
+      "ZH4",
+      "ZH5",
+      "XHS1"
+    ],
+    "clusters": [],
+    "separate": []
+  }
+}

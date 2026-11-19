@@ -1,0 +1,59 @@
+{
+  "comparison": {
+    "zhihu": [
+      "ZH1",
+      "ZH2",
+      "ZH3",
+      "ZH4",
+      "ZH5"
+    ],
+    "xiaohongshu": [
+      "XHS1"
+    ]
+  },
+  "empty": {
+    "baidu": [],
+    "weibo": []
+  },
+  "homonyms": {
+    "douyin": [
+      "DY1"
+    ],
+    "baidu": [
+      "BD1"
+    ]
+  },
+  "launch": {
+    "weibo": [
+      "WB1",
+      "WB2"
+    ],
+    "bilibili": [
+      "BL1"
+    ]
+  },
+  "old-news": {
+    "baidu": [
+      "BD1",
+      "BD2"
+    ],
+    "weibo": [
+      "WB1"
+    ]
+  },
+  "partial": {
+    "bilibili": [
+      "BL1"
+    ],
+    "zhihu": [],
+    "xiaohongshu": []
+  },
+  "syndication": {
+    "wechat": [
+      "WX1"
+    ],
+    "toutiao": [
+      "TT1"
+    ]
+  }
+}

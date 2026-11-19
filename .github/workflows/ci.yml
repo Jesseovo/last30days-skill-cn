@@ -51,7 +51,10 @@ jobs:
         run: python -m compileall -q scripts skills/last30days/scripts
 
       - name: Run tests
-        run: python -m pytest tests -q
+        run: python -m pytest tests -q --ignore=tests/eval
+
+      - name: Replay offline Chinese research quality cases
+        run: python -m pytest tests/eval -q -s
 
       - name: DSH plugin offline regressions
         run: node --test tests/dsh-selftest.mjs
