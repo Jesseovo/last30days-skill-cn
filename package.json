@@ -1,6 +1,6 @@
 {
   "name": "last30days-skill-cn",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "给 AI Agent 的中文互联网研究能力：检索微博、小红书、B站、知乎、抖音、微信公众号、百度、今日头条近 30 天的讨论，按互动与时效排序并跨平台聚类，生成附原始来源的报告；内置全网热榜（--hot）与可选海外源。",
   "type": "module",
   "main": "index.js",
