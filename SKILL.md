@@ -1,6 +1,6 @@
 ---
 name: last30days-cn
-version: "4.0.0-cn"
+version: "4.0.1-cn"
 description: "Research what Chinese internet users actually said in the last 30 days across Weibo, Xiaohongshu (RED), Bilibili, Zhihu, Douyin, WeChat public accounts, Baidu and Toutiao: engagement-weighted ranking, cross-platform clustering, cited Markdown/JSON/HTML reports. Also shows today's cross-platform hot-search board (全网热榜, --hot) and can add Hacker News / GitHub / Reddit or an installed upstream last30days for X/YouTube/TikTok."
 argument-hint: 'last30 AI 编程助手 | last30 今天全网热点 | last30 具身智能 --deep | last30 Claude Code 评测 --global'
 allowed-tools: Bash, Read, Write, WebSearch
@@ -113,7 +113,7 @@ python {{SKILL_DIR}}/scripts/last30days.py "{{USER_TOPIC}}" --search x,youtube -
 
 ## 5. 输出契约 (output contract)
 
-- Keep the first engine badge line exactly as printed, e.g. `🌐 last30days-cn v4.0.0-cn · 数据截至 …`. If it ends with `· 缓存`, say the evidence came from cache.
+- Keep the first engine badge line exactly as printed, e.g. `🌐 last30days-cn v4.0.1-cn · 数据截至 …`. If it ends with `· 缓存`, say the evidence came from cache.
 - Don't add a title before the badge and don't add a trailing `Sources:` block. Cite inline: platform name plus the URL from the evidence.
 - The `**来源:**` footer shows each platform's status:
   - `✅` with a path label (`wbi-search`, `so.toutiao`, `site-search:ddg`, …) means results came from that path.

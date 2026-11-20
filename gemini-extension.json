@@ -1,6 +1,6 @@
 {
   "name": "last30days-cn",
-  "version": "4.0.0-cn",
+  "version": "4.0.1-cn",
   "description": "Last-30-days research across Chinese platforms (Weibo, Xiaohongshu, Bilibili, Zhihu, Douyin, WeChat, Baidu, Toutiao) with engagement-weighted ranking, cross-platform clustering and Swiss/IKB HTML reports; a cross-platform hot-search board (--hot); optional Hacker News / GitHub / Reddit and an upstream last30days bridge.",
   "settings": [
     {
